@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sotay-v1.20';
+const CACHE_NAME = 'sotay-v1.21';
 const urlsToCache = [
   'index.html',
   'manifest.json',
