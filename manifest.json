@@ -1,0 +1,21 @@
+{
+  "name": "Sổ Tay Công Việc",
+  "short_name": "Sổ Tay",
+  "description": "Hệ thống quản lý nội bộ vận hành tổ đường dây",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0068ff",
+  "theme_color": "#0068ff",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1162/1162280.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1162/1162280.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
