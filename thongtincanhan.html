@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông tin cá nhân - v1.48</title>
+    <title>Thông tin cá nhân - Fix lỗi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -24,7 +23,6 @@
     </div>
 
     <div class="max-w-md mx-auto px-6 -mt-8 space-y-6">
-        
         <div class="bg-white p-6 rounded-[30px] shadow-xl border border-slate-50 flex flex-col items-center relative">
             <div class="w-24 h-24 bg-blue-50 rounded-full p-1 mb-3 relative">
                 <img id="profile-img" src="https://img.icons8.com/fluency/96/user-male-circle.png" class="w-full h-full rounded-full object-cover shadow-sm">
@@ -92,10 +90,10 @@
         </section>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý nhân sự - Version 1.48</p></div>
+    <div class="footer-evn"><p>Hệ thống quản lý nhân sự - Fix Loading</p></div>
 
     <script>
-        // --- 1. CONFIG CHUẨN (User Provided) ---
+        // CẤU HÌNH FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
             authDomain: "baocaongay-e73a2.firebaseapp.com",
@@ -111,74 +109,86 @@
         const auth = firebase.auth();
         let currentUser = null;
 
-        // --- 2. TẢI SIDEBAR ---
+        // TẢI SIDEBAR
         fetch('sidebar.html').then(r=>r.text()).then(d=>{
             document.getElementById('sidebar-container').innerHTML=d;
             if(currentUser) updateSidebarInfo(currentUser);
             highlightActiveMenu();
         });
 
-        // --- 3. AUTHENTICATION & DATA LOADING ---
+        // AUTH & LOAD DATA
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
-                
-                // Hiển thị sơ bộ từ Auth (tránh trắng trang)
+                // Điền thông tin cơ bản ngay lập tức
                 document.getElementById('display-email').innerText = user.email;
                 if(user.photoURL) document.getElementById('profile-img').src = user.photoURL;
                 
-                // Cập nhật Sidebar
                 updateSidebarInfo(user);
                 checkManagerRoleForSidebar(user.email);
                 
-                // Tải dữ liệu chi tiết từ Firestore
+                // Bắt đầu tải dữ liệu chi tiết
                 loadUserProfile(user);
             } else {
                 window.location.href = "index.html";
             }
         });
 
-        // --- 4. HÀM TẢI PROFILE (QUAN TRỌNG) ---
+        // HÀM TẢI DỮ LIỆU - CÓ XỬ LÝ LỖI TREO
         async function loadUserProfile(user) {
             try {
-                // Đọc document theo Email
+                // Thử đọc từ Database
                 const doc = await db.collection("users").doc(user.email).get();
                 
                 if (doc.exists) {
+                    // TRƯỜNG HỢP 1: ĐÃ CÓ DỮ LIỆU
                     const data = doc.data();
-                    // Có dữ liệu -> Điền vào Form
-                    document.getElementById('display-name').innerText = data.name || user.displayName;
-                    document.getElementById('inp-name').value = data.name || user.displayName;
-                    document.getElementById('inp-phone').value = data.phone || "";
-                    
-                    // Điền Chức vụ/Đơn vị (Nếu thiếu trường nào thì về mặc định)
-                    const role = data.position || "Công nhân";
-                    const unit = data.unit || "Nhóm 1";
-
-                    document.getElementById('inp-position').value = role;
-                    document.getElementById('inp-unit').value = unit;
-                    
-                    document.getElementById('role-badge').innerText = role;
-                    document.getElementById('unit-badge').innerText = unit;
+                    fillFormData(data.name || user.displayName, data.phone, data.position, data.unit);
                 } else {
-                    // Chưa có dữ liệu -> Dùng mặc định
-                    document.getElementById('display-name').innerText = user.displayName;
-                    document.getElementById('inp-name').value = user.displayName;
+                    // TRƯỜNG HỢP 2: CHƯA CÓ DỮ LIỆU (USER MỚI)
+                    // -> Tự động tạo dữ liệu mặc định để lần sau không bị lỗi
+                    console.log("User mới, đang khởi tạo hồ sơ mặc định...");
+                    const defaultData = {
+                        name: user.displayName,
+                        phone: "",
+                        position: "Công nhân",
+                        unit: "Nhóm 1",
+                        email: user.email,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
                     
-                    // Mặc định là Công nhân - Nhóm 1
-                    document.getElementById('role-badge').innerText = "Công nhân";
-                    document.getElementById('unit-badge').innerText = "Nhóm 1";
+                    // Ghi vào DB
+                    await db.collection("users").doc(user.email).set(defaultData);
+                    
+                    // Hiển thị lên màn hình
+                    fillFormData(user.displayName, "", "Công nhân", "Nhóm 1");
                 }
             } catch (e) {
-                console.error("Lỗi tải profile:", e);
-                // Nếu bị chặn quyền
+                console.error("Lỗi:", e);
+                // Nếu lỗi mạng hoặc quyền, vẫn hiển thị thông tin cơ bản từ Google để không bị treo
+                fillFormData(user.displayName, "", "Công nhân", "Nhóm 1");
                 if(e.code === 'permission-denied') {
-                    alert("Lỗi quyền truy cập! Vui lòng báo Admin kiểm tra Firestore Rules.");
+                    alert("Cảnh báo: Bạn chưa cấu hình Firestore Rules cho phép đọc dữ liệu!");
                 }
             }
         }
 
-        // --- 5. LOGIC SIDEBAR & ROLE ---
+        function fillFormData(name, phone, position, unit) {
+            document.getElementById('display-name').innerText = name;
+            document.getElementById('inp-name').value = name;
+            document.getElementById('inp-phone').value = phone || "";
+            
+            // Xử lý giá trị mặc định nếu null
+            const finalPos = position || "Công nhân";
+            const finalUnit = unit || "Nhóm 1";
+
+            document.getElementById('inp-position').value = finalPos;
+            document.getElementById('inp-unit').value = finalUnit;
+            
+            document.getElementById('role-badge').innerText = finalPos;
+            document.getElementById('unit-badge').innerText = finalUnit;
+        }
+
         async function checkManagerRoleForSidebar(email) {
             try {
                 const doc = await db.collection("users").doc(email).get();
@@ -195,67 +205,41 @@
             const emailEl = document.getElementById('sidebar-user-email');
             if(nameEl && emailEl) { nameEl.innerText = user.displayName; emailEl.innerText = user.email; }
         }
-
         function highlightActiveMenu() {
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.menu-item').forEach(item => { if(item.getAttribute('onclick').includes('profile')) item.classList.add('active'); });
         }
 
-        // --- 6. CHỨC NĂNG SỬA & LƯU ---
         window.enableEdit = () => {
-            // Chỉ mở khóa Tên và SĐT
-            const nameInp = document.getElementById('inp-name');
-            nameInp.disabled = false;
-            nameInp.classList.add('bg-blue-50');
-            
-            const phoneInp = document.getElementById('inp-phone');
-            phoneInp.disabled = false;
-            phoneInp.classList.add('bg-blue-50');
-
-            // Hiển thị nút Lưu & Ghi chú
+            document.getElementById('inp-name').disabled = false;
+            document.getElementById('inp-name').classList.add('bg-blue-50');
+            document.getElementById('inp-phone').disabled = false;
+            document.getElementById('inp-phone').classList.add('bg-blue-50');
             document.getElementById('btn-save').classList.remove('hidden');
             document.getElementById('admin-note').classList.remove('hidden');
-            
-            // Focus vào tên
-            nameInp.focus();
+            document.getElementById('inp-name').focus();
         };
 
         window.saveProfile = async () => {
-            const btn = document.getElementById('btn-save'); 
-            btn.innerText = "ĐANG LƯU..."; 
-            btn.disabled = true;
-            
-            // Lấy giá trị hiện tại (Kể cả ô bị khóa Chức vụ/Đơn vị)
-            // Việc này đảm bảo nếu user là Tổ trưởng, giá trị "Tổ trưởng" vẫn được gửi lên lại
-            const currentPosition = document.getElementById('inp-position').value;
-            const currentUnit = document.getElementById('inp-unit').value;
-
+            const btn = document.getElementById('btn-save'); btn.innerText = "ĐANG LƯU..."; btn.disabled = true;
             try {
                 await db.collection("users").doc(currentUser.email).set({
                     name: document.getElementById('inp-name').value,
                     phone: document.getElementById('inp-phone').value,
-                    position: currentPosition, 
-                    unit: currentUnit,
+                    // Giữ nguyên chức vụ/đơn vị hiện tại
+                    position: document.getElementById('inp-position').value, 
+                    unit: document.getElementById('inp-unit').value,
                     email: currentUser.email,
                     lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true }); // Merge true: Chỉ cập nhật trường thay đổi, giữ nguyên các trường khác nếu có
-                
-                alert("Đã lưu thông tin thành công!"); 
-                location.reload();
-            } catch (e) { 
-                alert("Lỗi khi lưu: " + e.message); 
-                btn.innerText = "LƯU THAY ĐỔI"; 
-                btn.disabled = false; 
-            }
+                }, { merge: true });
+                alert("Đã lưu thông tin!"); location.reload();
+            } catch (e) { alert("Lỗi: " + e.message); btn.innerText = "LƯU THAY ĐỔI"; btn.disabled = false; }
         };
 
-        // --- 7. ĐIỀU HƯỚNG ---
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
-
         window.menuAction = (a) => {
             toggleSidebar();
             if(a==='report'||a==='assigned') window.location.href="index.html";
-            else if(a==='profile') {}; 
             else if(a==='guide') window.location.href="huongdan.html";
             else if(a==='send-notify') window.location.href="guithongbao.html";
             else if(a==='assign-task') window.location.href="giaocongviec.html";
