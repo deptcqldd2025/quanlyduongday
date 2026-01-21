@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiểm tra Trích xuất HLAT - v1.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #0068ff; }
+        body { background: #f1f5f9; font-family: sans-serif; }
+        .card { background: white; border-radius: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .form-input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; background: #fdfdfd; }
+        .form-input:focus { border-color: var(--primary); background: white; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-black text-blue-700 uppercase">Trích xuất Hồ sơ HLAT</h1>
+                <p class="text-gray-500 text-sm">Tự động bóc tách dữ liệu từ Giấy đề nghị & Bản đồ hiện trạng</p>
+            </div>
+            <button onclick="window.location.reload()" class="text-sm font-bold text-gray-400">LÀM MỚI</button>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <div class="space-y-6">
+                <div class="card p-6 border-2 border-dashed border-blue-200 text-center">
+                    <input type="file" id="fileInput" class="hidden" accept="image/*,application/pdf">
+                    <div id="dropZone" class="cursor-pointer" onclick="document.getElementById('fileInput').click()">
+                        <span class="text-4xl mb-4 block">📄</span>
+                        <p class="font-bold text-gray-700">Nhấp để tải lên hồ sơ HLAT</p>
+                        <p class="text-xs text-gray-400 mt-1">Hỗ trợ PDF hoặc ảnh chụp chất lượng rõ nét</p>
+                    </div>
+                </div>
+                
+                <div id="previewContainer" class="card p-4 hidden">
+                    <p class="text-xs font-bold text-gray-400 mb-2 uppercase italic">Minh chứng hồ sơ:</p>
+                    <div id="filePreview" class="rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center min-h-[300px]">
+                        </div>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-black text-gray-800 uppercase italic">Dữ liệu trích xuất</h3>
+                    <button id="btnScan" onclick="startAIScan()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-blue-200 flex items-center gap-2">
+                        <span>QUÉT HỒ SƠ</span>
+                    </button>
+                </div>
+
+                <form id="extractionForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Tên đơn vị/cá nhân đề nghị</label>
+                            <input id="orgName" class="form-input font-bold" placeholder="Đang chờ quét...">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Người liên hệ</label>
+                            <input id="contactPerson" class="form-input" placeholder="...">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Số điện thoại</label>
+                            <input id="phone" class="form-input" placeholder="...">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Địa chỉ công trình</label>
+                            <input id="address" class="form-input" placeholder="...">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Mục đích đề nghị</label>
+                            <select id="purpose" class="form-input">
+                                <option value="">-- Chọn --</option>
+                                <option value="Xây dựng mới">Xây dựng mới</option>
+                                <option value="Sửa chữa/Cải tạo">Sửa chữa/Cải tạo</option>
+                                <option value="Hợp thức hóa">Hợp thức hóa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Vị trí lưới điện</label>
+                            <input id="gridPos" class="form-input" placeholder="Vd: 220kV..." value="220kV">
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 p-4 rounded-2xl space-y-3 border border-blue-100">
+                        <p class="text-[10px] font-black text-blue-500 uppercase">Thông tin kỹ thuật HLAT</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[9px] font-bold text-gray-500 uppercase">DT HLAT Thực tế (m2)</label>
+                                <input id="hlatReal" class="form-input text-blue-600 font-bold" placeholder="0.0">
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-bold text-gray-500 uppercase">DT HLAT Quy hoạch (m2)</label>
+                                <input id="hlatPlan" class="form-input text-blue-600 font-bold" placeholder="0.0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        <button type="button" onclick="saveToWorkPool()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-green-100 active:scale-95 transition">LƯU VÀO KHO CÔNG VIỆC</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('filePreview');
+        const container = document.getElementById('previewContainer');
+
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            container.classList.remove('hidden');
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    preview.innerHTML = `<img src="${e.target.result}" class="max-w-full h-auto">`;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.innerHTML = `<p class="text-sm font-bold text-gray-500 italic">Đã tải lên tệp PDF: ${file.name}</p>`;
+            }
+        };
+
+        async function startAIScan() {
+            const btn = document.getElementById('btnScan');
+            btn.innerHTML = `<span class="loader"></span> ĐANG TRÍCH XUẤT...`;
+            btn.disabled = true;
+
+            // MÔ PHỎNG QUÁ TRÌNH AI TRÍCH XUẤT TỪ FILE 58-HLAT ANH ĐÃ GỬI
+            setTimeout(() => {
+                [span_0](start_span)document.getElementById('orgName').value = "Công ty TNHH XNK Thiết bị Công nghiệp Trung Việt";[span_0](end_span)
+                [span_1](start_span)[span_2](start_span)document.getElementById('contactPerson').value = "Nguyễn Thị Hằng";[span_1](end_span)[span_2](end_span)
+                [span_3](start_span)[span_4](start_span)document.getElementById('phone').value = "0862.611.299";[span_3](end_span)[span_4](end_span)
+                [span_5](start_span)[span_6](start_span)document.getElementById('address').value = "194D/4 đường TMT 17, Trung Mỹ Tây, Quận 12";[span_5](end_span)[span_6](end_span)
+                [span_7](start_span)document.getElementById('purpose').value = "Sửa chữa/Cải tạo";[span_7](end_span)
+                [span_8](start_span)document.getElementById('hlatReal').value = "24.1";[span_8](end_span)
+                [span_9](start_span)document.getElementById('hlatPlan').value = "178.5";[span_9](end_span)
+                
+                btn.innerHTML = `<span>QUÉT XONG ✓</span>`;
+                btn.classList.replace('bg-blue-600', 'bg-green-500');
+            }, 2500);
+        }
+
+        function saveToWorkPool() {
+            const data = {
+                title: document.getElementById('orgName').value,
+                location: document.getElementById('address').value,
+                details: `Mục đích: ${document.getElementById('purpose').value}. HLAT thực tế: ${document.getElementById('hlatReal').value}m2. [span_10](start_span)[span_11](start_span)Cán bộ thụ lý: Ngọc Lâm (QLLĐ2).`,[span_10](end_span)[span_11](end_span)
+                type: 'Kiểm tra HLAT',
+                status: 'new'
+            };
+
+            console.log("Đã đẩy vào kho công việc:", data);
+            alert("Thành công! Công việc đã được đưa vào kho và chờ anh phân công cho công nhân.");
+        }
+    </script>
+</body>
+</html>
