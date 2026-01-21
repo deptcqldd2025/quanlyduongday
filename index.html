@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.41</title>
+    <title>Sổ tay công việc - v1.43</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -22,6 +22,7 @@
             <img src="https://img.icons8.com/color/48/000000/google-logo.png" class="w-5 h-5"/>
             Đăng nhập Gmail
         </button>
+        <p id="loading-text" class="mt-4 text-[10px] text-white/50 hidden font-bold">Đang kết nối hệ thống...</p>
     </div>
 
     <div id="sidebar-container"></div>
@@ -76,9 +77,10 @@
         </div>
     </div>
 
-    <div class="footer-evn"><p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.41</p></div>
+    <div class="footer-evn"><p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.43</p></div>
 
     <script>
+        // CẤU HÌNH
         const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -87,20 +89,19 @@
 
         let selectedFiles = [];
         let editingId = null;
-        let currentUser = null; // Biến lưu user để dùng khi sidebar load chậm
+        let currentUser = null;
         const todayRaw = new Date();
         const formattedDate = `${todayRaw.getDate().toString().padStart(2, '0')}/${(todayRaw.getMonth() + 1).toString().padStart(2, '0')}/${todayRaw.getFullYear().toString().slice(-2)}`;
         const reportNameDefault = `Báo cáo ngày ${formattedDate}`;
 
-        // --- 1. TẢI MODULE SIDEBAR ---
+        // --- 1. TẢI SIDEBAR ---
         fetch('sidebar.html')
-            .then(response => response.text())
+            .then(res => res.text())
             .then(data => {
                 document.getElementById('sidebar-container').innerHTML = data;
-                // Nếu User đã đăng nhập xong trước khi Sidebar tải xong, cập nhật ngay
                 if(currentUser) updateSidebarInfo(currentUser);
             })
-            .catch(err => console.error('Lỗi tải sidebar:', err));
+            .catch(err => console.error("Lỗi tải sidebar:", err));
 
         // --- 2. XỬ LÝ AUTH ---
         auth.onAuthStateChanged(user => {
@@ -108,20 +109,18 @@
                 currentUser = user;
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
-                
                 document.getElementById('header-user-name').innerText = user.displayName;
-                // Cập nhật thông tin vào Sidebar (nếu sidebar đã tải xong)
-                updateSidebarInfo(user);
-
+                
+                updateSidebarInfo(user); // Cập nhật sidebar nếu đã load xong
                 checkAssignedTasks(user.displayName);
                 loadHistory(user.email);
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('main-app').classList.add('hidden');
+                document.getElementById('loading-text').classList.add('hidden');
             }
         });
 
-        // Hàm cập nhật thông tin lên Sidebar (An toàn)
         function updateSidebarInfo(user) {
             const nameEl = document.getElementById('sidebar-user-name');
             const emailEl = document.getElementById('sidebar-user-email');
@@ -131,10 +130,10 @@
             }
         }
 
-        // --- 3. CÁC HÀM ĐIỀU KHIỂN MENU (Global) ---
+        // --- 3. ĐIỀU HƯỚNG MENU ---
         window.toggleSidebar = () => {
-            const el = document.getElementById('sidebar');
-            if(el) el.classList.toggle('active');
+            const sb = document.getElementById('sidebar');
+            if(sb) sb.classList.toggle('active');
         };
 
         window.menuAction = (action) => {
@@ -148,13 +147,18 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else if (action === 'profile') {
                 window.location.href = "thongtincanhan.html";
+            } else if (action === 'guide') {
+                window.location.href = "huongdan.html";
             } else {
                 alert("Tính năng đang phát triển!");
             }
         };
 
-        window.handleLogin = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-        window.handleLogout = () => confirm("Xác nhận đăng xuất?") && auth.signOut();
+        window.handleLogin = () => {
+            document.getElementById('loading-text').classList.remove('hidden');
+            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => alert(e.message));
+        };
+        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut();
 
         // --- 4. LOGIC NGHIỆP VỤ ---
         async function checkAssignedTasks(workerName) {
@@ -164,7 +168,7 @@
                 const snap = await db.collection("tasks").where("assigned_leader", "==", workerName).where("status", "==", "assigned").get();
                 if (!snap.empty) {
                     taskOpt.classList.remove('hidden');
-                    taskList.innerHTML = snap.docs.map(doc => `<option value="${doc.id}">${doc.data().don_vi_de_nghi || 'Việc chưa đặt tên'}</option>`).join('');
+                    taskList.innerHTML = snap.docs.map(doc => `<option value="${doc.id}">${doc.data().don_vi_de_nghi || 'Công việc chưa tên'}</option>`).join('');
                 } else { taskOpt.classList.add('hidden'); }
             } catch (e) {}
         }
@@ -202,7 +206,6 @@
             try {
                 const type = document.getElementById('report-type').value;
                 const taskId = type === 'Công việc được giao' ? document.getElementById('assigned-task-list').value : null;
-
                 if (selectedFiles.length > 0) fetch(APPSCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ files: selectedFiles, user: user.email }) });
 
                 const reportData = {
@@ -214,9 +217,7 @@
                 if (editingId) await db.collection("daily_reports").doc(editingId).update(reportData);
                 else await db.collection("daily_reports").add(reportData);
 
-                alert("Thành công!");
-                resetForm();
-                setTimeout(() => loadHistory(user.email), 800);
+                alert("Thành công!"); resetForm(); setTimeout(() => loadHistory(user.email), 800);
             } catch (e) { alert("Lỗi: " + e.message); } finally { btn.disabled = false; btn.innerText = "Gửi báo cáo"; }
         };
 
