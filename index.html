@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Báo Cáo Tổ Đường Dây - v1.10</title>
+    <title>Báo Cáo Tổ Đường Dây - v1.11</title>
     
     <style>
         :root { --primary: #0068ff; --bg: #f2f4f8; --white: #ffffff; --text: #333; --radius: 12px; }
@@ -253,7 +253,7 @@
     <div id="loginScreen">
         <div style="text-align:center">
             <h1 style="color:#0068ff;font-weight:900;font-size:24px;margin-bottom:5px">TỔ ĐƯỜNG DÂY</h1>
-            <p style="color:#888;font-size:12px">Báo cáo công việc v1.10</p>
+            <p style="color:#888;font-size:12px">Báo cáo công việc v1.11</p>
             <button id="loginBtn" onclick="window.login()" style="background:#fff;border:1px solid #ddd;padding:12px 25px;border-radius:30px;font-weight:bold;color:#444;margin-top:25px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,0.05)">
                 Đăng nhập Gmail
             </button>
@@ -268,7 +268,12 @@
                 <input id="pName" placeholder="Họ tên" required style="margin-bottom:10px">
                 <input id="pId" placeholder="Mã NV" required style="margin-bottom:10px">
                 <select id="pRole" style="margin-bottom:15px">
-                    <option>Công nhân</option><option>Tổ trưởng</option><option>Tổ phó</option><option>Kỹ thuật viên</option>
+                    <option>Công nhân</option>
+                    <option>Tổ trưởng</option>
+                    <option>Tổ phó</option>
+                    <option>Kỹ thuật viên</option>
+                    <option>Lãnh đạo Đội</option>
+                    <option>Admin</option>
                 </select>
                 <button class="btn btn-primary">LƯU</button>
             </form>
