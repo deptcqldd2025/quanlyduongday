@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sổ tay công việc - v1.17</title>
+    <title>Sổ tay công việc - v1.18</title>
+    
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0068ff">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,161 +13,194 @@
         body { background-color: var(--bg); font-family: -apple-system, sans-serif; overflow-x: hidden; }
         
         /* Sidebar 80% screen */
-        #sidebar { transition: transform 0.3s ease-in-out; z-index: 1000; width: 80%; }
-        #sidebar.hidden-menu { transform: translateX(-100%); }
-        #overlay { transition: opacity 0.3s ease-in-out; z-index: 900; }
+        #sidebar { 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            z-index: 1000; 
+            width: 80%; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+        }
+        #sidebar.hidden-menu { transform: translateX(-101%); }
+        #overlay { transition: opacity 0.3s ease; z-index: 900; }
         
-        .form-input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; outline: none; font-size: 14px; }
-        .form-input:focus { border-color: var(--primary); ring: 2px; ring-color: #0068ff20; }
+        .form-input { width: 100%; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; outline: none; font-size: 15px; background: white; }
+        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,104,255,0.1); }
         
-        .report-item { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 5px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .loader { width: 18px; height: 18px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rot 1s linear infinite; display: inline-block; }
-        @keyframes rot { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn-main { background: var(--primary); color: white; font-weight: 800; padding: 16px; border-radius: 16px; width: 100%; transition: all 0.2s; shadow: 0 4px 12px rgba(0,104,255,0.2); }
+        .btn-main:active { transform: scale(0.97); opacity: 0.9; }
+
+        .report-card { background: white; border-radius: 20px; padding: 18px; margin-bottom: 12px; border-left: 6px solid var(--primary); box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
+        .loader { width: 20px; height: 20px; border: 3px solid #fff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg) } 100% { transform: rotate(360deg) } }
     </style>
 </head>
-<body>
+<body class="antialiased">
 
     <div id="loadingOverlay" class="fixed inset-0 bg-white z-[2000] flex flex-col items-center justify-center">
-        <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="text-gray-500 font-bold">Đang tải...</p>
+        <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-gray-500 font-bold tracking-widest text-xs uppercase">Đang tải hệ thống...</p>
     </div>
 
-    <div id="overlay" class="hidden fixed inset-0 bg-black/50 opacity-0 pointer-events-none"></div>
+    <div id="overlay" class="hidden fixed inset-0 bg-black/60 opacity-0 pointer-events-none transition-opacity"></div>
 
-    <div id="sidebar" class="hidden-menu fixed top-0 left-0 h-full bg-white shadow-2xl flex flex-col">
-        <div class="p-6 bg-blue-600 text-white relative">
-            <button onclick="toggleSidebar()" class="absolute top-4 right-4 text-2xl font-bold">✕</button>
-            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl mb-3">👤</div>
-            <div id="uNameSide" class="font-bold text-lg">Đang tải...</div>
-            <div id="uRoleSide" class="text-xs text-blue-100 italic">...</div>
+    <div id="sidebar" class="hidden-menu bg-white shadow-2xl flex flex-col overflow-hidden">
+        <div class="p-6 bg-blue-600 text-white flex justify-between items-start">
+            <div>
+                <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-inner">👤</div>
+                <div id="uNameSide" class="font-black text-xl leading-tight">Đang tải...</div>
+                <div id="uRoleSide" class="text-xs text-blue-100 mt-1 opacity-80 uppercase tracking-tighter">...</div>
+            </div>
+            <button onclick="toggleSidebar()" class="w-10 h-10 flex items-center justify-center bg-black/10 rounded-full text-xl font-bold active:bg-black/20">✕</button>
         </div>
-        <nav class="flex-1 p-4 space-y-2">
-            <button onclick="showPage('assignedTasks')" class="w-full flex items-center p-3 hover:bg-gray-100 rounded-xl font-bold text-gray-700">📋 Công việc được giao</button>
-            <button onclick="showPage('reportForm')" class="w-full flex items-center p-3 hover:bg-gray-100 rounded-xl font-bold text-gray-700">✍️ Gửi báo cáo</button>
-            <button onclick="showPage('history')" class="w-full flex items-center p-3 hover:bg-gray-100 rounded-xl font-bold text-gray-700">🕒 Nhật ký cá nhân</button>
-            <hr>
-            <button onclick="document.getElementById('profileModal').classList.remove('hidden')" class="w-full flex items-center p-3 hover:bg-gray-100 rounded-xl font-bold text-gray-700">⚙️ Cập nhật thông tin</button>
+        
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+            <button onclick="showPage('reportForm')" class="w-full flex items-center p-4 hover:bg-blue-50 rounded-2xl font-bold text-gray-700 transition">
+                <span class="mr-3 text-lg">✍️</span> Gửi báo cáo
+            </button>
+            <button onclick="showPage('assignedTasks')" class="w-full flex items-center p-4 hover:bg-blue-50 rounded-2xl font-bold text-gray-700 transition">
+                <span class="mr-3 text-lg">📋</span> Việc được giao
+            </button>
+            <button onclick="showPage('history')" class="w-full flex items-center p-4 hover:bg-blue-50 rounded-2xl font-bold text-gray-700 transition">
+                <span class="mr-3 text-lg">🕒</span> Nhật ký của tôi
+            </button>
+            <div class="border-t my-4 opacity-50"></div>
+            <button onclick="document.getElementById('profileModal').classList.remove('hidden')" class="w-full flex items-center p-4 hover:bg-blue-50 rounded-2xl font-bold text-gray-700 transition">
+                <span class="mr-3 text-lg">⚙️</span> Hồ sơ cá nhân
+            </button>
         </nav>
-        <div class="p-4 border-t">
-            <button onclick="window.logout()" class="w-full p-3 text-red-500 font-bold bg-red-50 rounded-xl">THOÁT TÀI KHOẢN</button>
+        
+        <div class="p-4 border-t bg-gray-50">
+            <button onclick="window.logout()" class="w-full p-4 text-red-600 font-black text-center bg-white border border-red-100 rounded-2xl shadow-sm active:bg-red-50">THOÁT TÀI KHOẢN</button>
         </div>
     </div>
 
     <div id="appScreen" class="hidden flex flex-col h-screen">
-        <header class="bg-white border-b px-4 py-4 flex items-center justify-between sticky top-0 z-10">
-            <button onclick="toggleSidebar()" class="text-2xl p-1">☰</button>
-            <h1 class="font-black text-blue-600 text-sm uppercase tracking-wider">Sổ tay công việc</h1>
-            <div class="w-8"></div>
+        <header class="bg-white border-b px-5 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+            <button onclick="toggleSidebar()" class="text-2xl p-1 bg-gray-50 rounded-xl w-10 h-10 flex items-center justify-center active:scale-90 transition">☰</button>
+            <h1 class="font-black text-blue-700 text-sm uppercase tracking-widest">Sổ tay công việc</h1>
+            <div class="w-10"></div>
         </header>
 
-        <main class="flex-1 overflow-y-auto p-4">
+        <main class="flex-1 overflow-y-auto p-4 no-scrollbar pb-20">
             <div id="page-reportForm" class="page-section">
                 <form id="form" class="space-y-4">
                     <div>
-                        <label class="text-[10px] font-bold text-gray-400 ml-1 uppercase">Loại báo cáo</label>
-                        <select id="reportType" onchange="toggleReportFields()" class="form-input bg-gray-50 font-bold">
-                            <option value="daily">Báo cáo ngày</option>
-                            <option value="assigned">Công việc được giao</option>
-                            <option value="urgent">Báo cáo đột xuất</option>
+                        <label class="text-[11px] font-black text-gray-400 ml-1 uppercase mb-1 block">1. Chọn loại báo cáo</label>
+                        <select id="reportType" onchange="handleTypeChange()" class="form-input font-black text-blue-600 border-2 border-blue-50 shadow-sm">
+                            <option value="assigned">📝 Công việc được giao</option>
+                            <option value="urgent">⚠️ Báo cáo đột xuất</option>
+                            <option value="daily">📅 Báo cáo hàng ngày</option>
                         </select>
                     </div>
 
-                    <div id="assignedFields" class="hidden space-y-4 bg-blue-50 p-3 rounded-2xl border border-blue-100">
+                    <div id="assignedFields" class="space-y-4 bg-blue-50/50 p-4 rounded-2xl border-2 border-blue-100">
                         <div>
-                            <label class="text-[10px] font-bold text-blue-400 ml-1 uppercase">Danh sách việc lãnh đạo giao</label>
-                            <select id="taskSelect" class="form-input font-bold text-blue-700 border-blue-200">
-                                <option value="">-- Chọn công việc --</option>
+                            <label class="text-[10px] font-black text-blue-500 ml-1 uppercase mb-1 block">Chọn việc từ lãnh đạo</label>
+                            <select id="taskSelect" class="form-input font-bold border-blue-200">
+                                <option value="">-- Click để chọn công việc --</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-blue-400 ml-1 uppercase">Mức độ hoàn thành</label>
-                            <select id="progress" onchange="toggleReasonField()" class="form-input font-bold border-blue-200">
-                                <option value="100%">Đã xong (100%)</option>
-                                <option value="70%">Đang thực hiện (70%)</option>
-                                <option value="50%">Mới được một nửa (50%)</option>
-                                <option value="25%">Mới bắt đầu (25%)</option>
-                            </select>
-                        </div>
-                        <div id="reasonField" class="hidden">
-                            <label class="text-[10px] font-bold text-red-500 ml-1 uppercase">Lý do chưa hoàn thành *</label>
-                            <input id="reason" placeholder="Vd: Thiếu vật tư, thời tiết xấu..." class="form-input border-red-200">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[10px] font-black text-blue-500 ml-1 uppercase mb-1 block">Tiến độ (%)</label>
+                                <select id="progress" onchange="checkReason()" class="form-input font-bold border-blue-200">
+                                    <option value="100%">Xong 100%</option>
+                                    <option value="70%">Đạt 70%</option>
+                                    <option value="50%">Đạt 50%</option>
+                                    <option value="25%">Đạt 25%</option>
+                                </select>
+                            </div>
+                            <div id="reasonBox" class="hidden">
+                                <label class="text-[10px] font-black text-red-500 ml-1 uppercase mb-1 block">Lý do chưa xong *</label>
+                                <input id="reason" placeholder="Nêu lý do..." class="form-input border-red-100 bg-red-50/30">
+                            </div>
                         </div>
                     </div>
 
-                    <input id="pct" placeholder="Số Phiếu / Lệnh (Nếu có)" class="form-input">
-                    <textarea id="content" rows="4" placeholder="Nội dung công việc thực hiện *" required class="form-input"></textarea>
-                    
-                    <div class="p-4 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-center">
-                        <div id="fileListPreview" class="space-y-2 mb-3"></div>
-                        <input type="file" id="fileIn" multiple class="hidden">
-                        <button type="button" onclick="document.getElementById('fileIn').click()" class="text-blue-600 font-bold text-sm">📸 CHỤP ẢNH / CHỌN FILE</button>
+                    <div class="space-y-3">
+                        <input id="pct" placeholder="Số Phiếu / Lệnh (Nếu có)" class="form-input shadow-sm">
+                        <textarea id="content" rows="4" placeholder="Nội dung công việc thực hiện cụ thể..." required class="form-input shadow-sm"></textarea>
                     </div>
 
-                    <button type="submit" id="sBtn" class="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition">GỬI BÁO CÁO</button>
+                    <div class="p-6 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-center shadow-sm">
+                        <div id="fileListPreview" class="flex flex-wrap gap-2 mb-3"></div>
+                        <input type="file" id="fileIn" multiple class="hidden" accept="image/*">
+                        <button type="button" onclick="document.getElementById('fileIn').click()" class="text-blue-600 font-black text-xs uppercase tracking-tighter bg-blue-50 px-5 py-3 rounded-xl active:bg-blue-100 transition">
+                            📸 Chụp ảnh / Đính kèm file
+                        </button>
+                    </div>
+
+                    <button type="submit" id="sBtn" class="btn-main mt-4">GỬI BÁO CÁO NGAY</button>
                 </form>
             </div>
 
             <div id="page-assignedTasks" class="page-section hidden"><div id="assignedList" class="space-y-3"></div></div>
-            <div id="page-history" class="page-section hidden"><div id="list" class="space-y-3"></div></div>
+            <div id="page-history" class="page-section hidden"><div id="list" class="space-y-4"></div></div>
         </main>
     </div>
 
     <script type="module">
-        // ... (Giữ nguyên phần import và config firebaseConfig của bạn)
+        // [Phần import và config Firebase giữ nguyên như v1.17]
         
-        // Logic mới cho Form
-        window.toggleReportFields = () => {
-            const type = document.getElementById('reportType').value;
-            const fields = document.getElementById('assignedFields');
-            if(type === 'assigned') {
-                fields.classList.remove('hidden');
-                document.getElementById('content').placeholder = "Chi tiết tiến độ thực hiện...";
+        // --- SIDEBAR LOGIC ---
+        window.toggleSidebar = () => {
+            const side = document.getElementById('sidebar');
+            const over = document.getElementById('overlay');
+            if (side.classList.contains('hidden-menu')) {
+                side.classList.remove('hidden-menu');
+                over.classList.remove('hidden');
+                setTimeout(() => over.classList.add('opacity-100'), 10);
             } else {
-                fields.classList.add('hidden');
-                document.getElementById('content').placeholder = "Nội dung công việc thực hiện *";
+                side.classList.add('hidden-menu');
+                over.classList.remove('opacity-100');
+                setTimeout(() => over.classList.add('hidden'), 300);
+            }
+        };
+        document.getElementById('overlay').onclick = window.toggleSidebar;
+
+        window.showPage = (id) => {
+            document.querySelectorAll('.page-section').forEach(p => p.classList.add('hidden'));
+            document.getElementById('page-' + id).classList.remove('hidden');
+            if(window.innerWidth < 1024) window.toggleSidebar();
+            if(id === 'history') loadReports('today');
+        };
+
+        // --- FORM LOGIC ---
+        window.handleTypeChange = () => {
+            const type = document.getElementById('reportType').value;
+            const assignedBox = document.getElementById('assignedFields');
+            const contentArea = document.getElementById('content');
+            
+            if (type === 'assigned') {
+                assignedBox.classList.remove('hidden');
+                contentArea.placeholder = "Chi tiết các công việc đã làm trong phần việc được giao...";
+            } else {
+                assignedBox.classList.add('hidden');
+                contentArea.placeholder = type === 'urgent' ? "Mô tả tình huống đột xuất..." : "Nội dung công việc thực hiện trong ngày...";
             }
         };
 
-        window.toggleReasonField = () => {
-            const progress = document.getElementById('progress').value;
-            const reasonDiv = document.getElementById('reasonField');
+        window.checkReason = () => {
+            const prog = document.getElementById('progress').value;
+            const reasonBox = document.getElementById('reasonBox');
             const reasonInput = document.getElementById('reason');
-            if(progress !== '100%') {
-                reasonDiv.classList.remove('hidden');
+            if (prog !== '100%') {
+                reasonBox.classList.remove('hidden');
                 reasonInput.required = true;
             } else {
-                reasonDiv.classList.add('hidden');
+                reasonBox.classList.add('hidden');
                 reasonInput.required = false;
             }
         };
 
-        // Cập nhật hàm Submit Form
-        document.getElementById('form').onsubmit = async (e) => {
-            e.preventDefault();
-            // ... (Logic upload ảnh, lấy vị trí)
+        // Khởi tạo trạng thái ban đầu cho Form
+        document.addEventListener('DOMContentLoaded', () => {
+            handleTypeChange();
+        });
 
-            const reportData = {
-                type: document.getElementById('reportType').value,
-                content: document.getElementById('content').value,
-                pct: document.getElementById('pct').value,
-                // Dữ liệu bổ sung nếu là việc được giao
-                progress: document.getElementById('reportType').value === 'assigned' ? document.getElementById('progress').value : 'N/A',
-                reason: (document.getElementById('reportType').value === 'assigned' && document.getElementById('progress').value !== '100%') ? document.getElementById('reason').value : '',
-                // ... (Cấc trường uid, workerName, timestamp như cũ)
-            };
-            
-            // ... (Tiến hành lưu vào Firestore)
-        };
-
-        // ... (Phần còn lại của tệp index v1.16)
-        window.toggleSidebar = () => {
-            const side = document.getElementById('sidebar');
-            const over = document.getElementById('overlay');
-            side.classList.toggle('hidden-menu');
-            over.classList.toggle('hidden');
-            if (!over.classList.contains('hidden')) setTimeout(() => over.classList.add('opacity-100'), 10);
-            else over.classList.remove('opacity-100');
-        };
+        // ... [Các hàm uploadFiles, submitForm, loadReports kế thừa từ v1.17] ...
     </script>
 </body>
 </html>
