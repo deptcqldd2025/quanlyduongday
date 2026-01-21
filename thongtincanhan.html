@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông tin cá nhân - EVN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="pb-16 bg-[#F4F7FA]">
+
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center border-2 border-white/30 text-white font-black text-xl">
+                    <i class="fa fa-user"></i>
+                </div>
+                <div>
+                    <p id="sidebar-user-name" class="font-black text-sm uppercase">...</p>
+                    <p id="sidebar-user-email" class="text-[10px] opacity-70">...</p>
+                </div>
+            </div>
+            <i class="fa fa-times absolute top-6 right-6 text-white/70 text-xl cursor-pointer" onclick="toggleSidebar()"></i>
+        </div>
+
+        <div class="flex-1 py-4 space-y-1 overflow-y-auto">
+            <div class="menu-item" onclick="window.location.href='index.html'">
+                <i class="fa fa-home"></i> Trang chủ
+            </div>
+            <div class="menu-item" onclick="window.location.href='index.html'">
+                <i class="fa fa-pen-to-square"></i> Gửi báo cáo
+            </div>
+            <div class="menu-item active">
+                <i class="fa fa-id-card"></i> Thông tin cá nhân
+            </div>
+        </div>
+        
+        <div class="p-4 border-t">
+            <div class="menu-item text-red-500 hover:bg-red-50" onclick="handleLogout()">
+                <i class="fa fa-sign-out-alt"></i> Đăng xuất
+            </div>
+        </div>
+    </div>
+
+    <div class="evn-header">
+        <div class="max-w-md mx-auto flex items-center">
+            <i class="fa fa-bars text-2xl cursor-pointer mr-4" onclick="toggleSidebar()"></i>
+            <h1 class="font-black text-lg italic uppercase leading-none">Hồ sơ nhân sự</h1>
+        </div>
+    </div>
+
+    <div class="max-w-md mx-auto px-6 -mt-8 space-y-6">
+        
+        <div class="bg-white p-6 rounded-[30px] shadow-xl border border-slate-50 flex flex-col items-center relative">
+            <div class="w-24 h-24 bg-blue-50 rounded-full p-1 mb-3 relative">
+                <img id="profile-img" src="https://img.icons8.com/fluency/96/user-male-circle.png" class="w-full h-full rounded-full object-cover shadow-sm">
+                <div class="absolute bottom-0 right-0 bg-[#1A479A] text-white w-8 h-8 rounded-full flex items-center justify-center border-2 border-white cursor-pointer shadow-md">
+                    <i class="fa fa-camera text-xs"></i>
+                </div>
+            </div>
+            <h2 id="display-name" class="font-black text-xl text-[#1A479A] uppercase">Đang tải...</h2>
+            <p id="display-email" class="text-xs text-slate-400 font-bold mb-4">...</p>
+            <div class="flex gap-2">
+                <span id="role-badge" class="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">Nhân viên</span>
+                <span id="unit-badge" class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">Đội QLLĐ 2</span>
+            </div>
+        </div>
+
+        <section class="bg-white p-6 rounded-[30px] shadow-lg border border-slate-50 space-y-4">
+            <div class="flex justify-between items-center border-b pb-2 mb-2">
+                <h3 class="text-[11px] font-black text-slate-800 uppercase tracking-widest border-l-4 border-blue-700 pl-2">Thông tin chi tiết</h3>
+                <i class="fa fa-pen text-blue-600 cursor-pointer" onclick="enableEdit()"></i>
+            </div>
+            
+            <div>
+                <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Họ và tên</label>
+                <input type="text" id="inp-name" class="input-evn font-bold text-[#1A479A]" disabled>
+            </div>
+
+            <div>
+                <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Số điện thoại</label>
+                <input type="tel" id="inp-phone" class="input-evn font-bold" placeholder="Cập nhật SĐT..." disabled>
+            </div>
+
+            <div>
+                <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Chức vụ / Chức danh</label>
+                <input type="text" id="inp-position" class="input-evn font-bold" placeholder="Ví dụ: Công nhân bậc 4/7" disabled>
+            </div>
+
+            <div>
+                <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Đơn vị công tác</label>
+                <select id="inp-unit" class="input-evn select-evn font-bold" disabled>
+                    <option value="Đội QLLĐ 2">Đội QLLĐ 2</option>
+                    <option value="Đội QLLĐ 1">Đội QLLĐ 1</option>
+                    <option value="Phòng Kỹ thuật">Phòng Kỹ thuật</option>
+                    <option value="Phòng Điều độ">Phòng Điều độ</option>
+                </select>
+            </div>
+
+            <button onclick="saveProfile()" id="btn-save" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-[11px] tracking-widest hidden active:scale-95 transition">
+                Lưu thay đổi
+            </button>
+        </section>
+    </div>
+
+    <div class="footer-evn">
+        <p>Hệ thống quản lý nhân sự - Version 1.37</p>
+    </div>
+
+    <script>
+        // CẤU HÌNH (Dùng chung với index)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
+            authDomain: "baocaongay-e73a2.firebaseapp.com",
+            projectId: "baocaongay-e73a2",
+            storageBucket: "baocaongay-e73a2.firebasestorage.app",
+            messagingSenderId: "75165392007",
+            appId: "1:75165392007:web:4ec22bb1612108b096ac22"
+        };
+        
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // 1. KIỂM TRA ĐĂNG NHẬP & TẢI DỮ LIỆU
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                // Hiển thị thông tin cơ bản từ Google Auth
+                document.getElementById('display-email').innerText = user.email;
+                document.getElementById('sidebar-user-name').innerText = user.displayName;
+                document.getElementById('sidebar-user-email').innerText = user.email;
+                
+                // Tải dữ liệu chi tiết từ Firestore Collection 'users'
+                loadUserProfile(user);
+            } else {
+                window.location.href = "index.html"; // Chưa đăng nhập thì đá về trang chủ
+            }
+        });
+
+        // 2. TẢI PROFILE TỪ FIRESTORE
+        async function loadUserProfile(user) {
+            try {
+                // Dùng Email làm ID document để dễ quản lý (hoặc dùng user.uid)
+                const docRef = db.collection("users").doc(user.email);
+                const doc = await docRef.get();
+
+                if (doc.exists) {
+                    const data = doc.data();
+                    // Điền dữ liệu vào Form
+                    document.getElementById('display-name').innerText = data.name || user.displayName;
+                    document.getElementById('inp-name').value = data.name || user.displayName;
+                    document.getElementById('inp-phone').value = data.phone || "";
+                    document.getElementById('inp-position').value = data.position || "";
+                    document.getElementById('inp-unit').value = data.unit || "Đội QLLĐ 2";
+                    
+                    // Cập nhật Badge
+                    document.getElementById('role-badge').innerText = data.position || "Nhân viên";
+                    document.getElementById('unit-badge').innerText = data.unit || "Đội QLLĐ 2";
+                } else {
+                    // Nếu chưa có dữ liệu trong 'users', điền mặc định từ Auth
+                    document.getElementById('display-name').innerText = user.displayName;
+                    document.getElementById('inp-name').value = user.displayName;
+                }
+            } catch (e) {
+                console.error("Lỗi tải profile:", e);
+            }
+        }
+
+        // 3. CHỨC NĂNG SỬA & LƯU
+        window.enableEdit = () => {
+            const inputs = document.querySelectorAll('.input-evn');
+            inputs.forEach(input => {
+                input.disabled = false;
+                input.classList.add('bg-blue-50'); // Highlight màu nền khi sửa
+            });
+            document.getElementById('btn-save').classList.remove('hidden');
+            document.getElementById('inp-name').focus();
+        };
+
+        window.saveProfile = async () => {
+            const user = auth.currentUser;
+            const btn = document.getElementById('btn-save');
+            btn.innerText = "ĐANG LƯU...";
+            btn.disabled = true;
+
+            const updatedData = {
+                name: document.getElementById('inp-name').value,
+                phone: document.getElementById('inp-phone').value,
+                position: document.getElementById('inp-position').value,
+                unit: document.getElementById('inp-unit').value,
+                email: user.email,
+                lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                // Lưu vào Collection 'users', Key là Email
+                await db.collection("users").doc(user.email).set(updatedData, { merge: true });
+                
+                alert("Cập nhật hồ sơ thành công!");
+                location.reload(); // Tải lại trang để cập nhật giao diện
+            } catch (e) {
+                alert("Lỗi: " + e.message);
+                btn.innerText = "LƯU THAY ĐỔI";
+                btn.disabled = false;
+            }
+        };
+
+        // Sidebar logic
+        window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
+        window.handleLogout = () => {
+            if(confirm("Đăng xuất?")) {
+                auth.signOut().then(() => window.location.href = "index.html");
+            }
+        };
+    </script>
+</body>
+</html>
