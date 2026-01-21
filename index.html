@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.32</title>
+    <title>Sổ tay công việc - v1.34</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -11,26 +11,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Tùy chỉnh Footer mảnh nhỏ màu xanh dương */
-        .footer-evn {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(244, 247, 250, 0.9);
-            padding: 10px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-            z-index: 50;
-        }
-        .footer-evn p {
-            color: #1A479A;
-            font-size: 9px;
-            font-weight: 400;
-            letter-spacing: 0.5px;
-            margin: 0;
-            text-transform: uppercase;
-        }
+        .footer-evn { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(244, 247, 250, 0.9); padding: 8px; text-align: center; border-top: 1px solid #e2e8f0; z-index: 50; }
+        .footer-evn p { color: #1A479A; font-size: 8px; font-weight: 400; text-transform: uppercase; margin: 0; }
+        .select-evn { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231A479A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
     </style>
 </head>
 <body class="pb-16">
@@ -52,7 +35,7 @@
                 <div class="flex items-center gap-3">
                     <i class="fa fa-align-left text-xl cursor-pointer" onclick="toggleSidebar()"></i>
                     <div>
-                        <h1 class="font-black text-lg italic uppercase leading-none">Sổ tay công việc</h1>
+                        <h1 id="app-title" class="font-black text-lg italic uppercase leading-none">Báo cáo ngày --/--/--</h1>
                         <p id="user-display-name" class="text-[10px] font-bold text-blue-200 mt-1 uppercase italic"></p>
                     </div>
                 </div>
@@ -62,37 +45,45 @@
 
         <div class="max-w-md mx-auto px-6 -mt-6 space-y-6">
             <section class="bg-white p-6 rounded-[30px] shadow-2xl space-y-4 border border-slate-50">
-                <h2 id="form-title" class="text-[10px] font-black text-slate-800 uppercase tracking-widest border-l-4 border-blue-700 pl-2">Báo cáo công việc</h2>
+                <h2 id="form-title" class="text-[10px] font-black text-slate-800 uppercase tracking-widest border-l-4 border-blue-700 pl-2">Gửi báo cáo</h2>
                 
-                <input type="text" id="job-id" class="input-evn" placeholder="Số Phiếu / Lệnh (Nếu có)">
+                <div>
+                    <label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Loại hình báo cáo</label>
+                    <select id="report-type" class="input-evn select-evn font-bold text-blue-900" onchange="handleTypeChange()">
+                        <option value="Báo cáo ngày">Báo cáo ngày</option>
+                        <option value="Báo cáo đột xuất">Báo cáo đột xuất</option>
+                        <option value="Công việc được giao" id="opt-assigned" class="hidden">Công việc được giao</option>
+                    </select>
+                </div>
+
+                <div id="assigned-tasks-container" class="hidden">
+                    <label class="text-[9px] font-black text-orange-500 uppercase ml-2 mb-1 block">Chọn công việc hiện trường</label>
+                    <select id="assigned-task-list" class="input-evn border-orange-200 bg-orange-50/30 font-bold text-slate-700"></select>
+                </div>
+
                 <textarea id="job-content" rows="4" class="input-evn" placeholder="Nội dung công việc hôm nay *"></textarea>
                 
                 <div id="file-list-container" class="space-y-2"></div>
-
                 <div class="border-2 border-dashed border-slate-100 rounded-[20px] p-4 text-center bg-slate-50/50 cursor-pointer" onclick="document.getElementById('file-in').click()">
                     <input type="file" id="file-in" class="hidden" multiple accept="image/*,.pdf">
-                    <div class="text-[10px] font-black text-blue-700 uppercase italic">+ Đính kèm Ảnh hoặc PDF</div>
+                    <div class="text-[10px] font-black text-blue-700 uppercase italic">+ Thêm file ảnh hoặc PDF</div>
                 </div>
 
                 <input type="text" id="job-note" class="input-evn" placeholder="Ghi chú / Kiến nghị">
 
-                <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-[11px] tracking-widest active:scale-95">
-                    Gửi báo cáo
-                </button>
+                <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-[11px] tracking-widest">Gửi báo cáo</button>
                 <button id="btn-cancel-edit" onclick="resetForm()" class="hidden w-full text-red-500 font-bold text-[10px] uppercase py-2">Hủy sửa đổi</button>
             </section>
 
             <section class="space-y-4 pb-16">
                 <h3 class="font-black text-slate-800 text-[11px] uppercase italic px-2 border-b pb-2">Nhật ký báo cáo hôm nay</h3>
-                <div id="history-list" class="space-y-4">
-                    <p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase italic">Đang tải dữ liệu...</p>
-                </div>
+                <div id="history-list" class="space-y-4"></div>
             </section>
         </div>
     </div>
 
     <div class="footer-evn">
-        <p id="footer-text">Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.32</p>
+        <p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.34</p>
     </div>
 
     <script type="module">
@@ -100,16 +91,21 @@
         if (!firebase.apps.length) firebase.initializeApp(CONFIG.FIREBASE);
         const db = firebase.firestore();
         const auth = firebase.auth();
-        const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
 
         let selectedFiles = [];
         let editingId = null;
+
+        // Định dạng tên tiêu đề
+        const todayRaw = new Date();
+        const formattedDate = `${todayRaw.getDate().toString().padStart(2, '0')}/${(todayRaw.getMonth() + 1).toString().padStart(2, '0')}/${todayRaw.getFullYear().toString().slice(-2)}`;
+        document.getElementById('app-title').innerText = `Báo cáo ngày ${formattedDate}`;
 
         auth.onAuthStateChanged(user => {
             if (user) {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
                 document.getElementById('user-display-name').innerText = user.displayName;
+                checkAssignedTasks(user.displayName);
                 loadHistory(user.email);
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
@@ -117,10 +113,36 @@
             }
         });
 
-        window.handleLogin = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-        window.handleLogout = () => confirm("Đăng xuất hệ thống?") && auth.signOut();
+        // KIỂM TRA CÔNG VIỆC ĐƯỢC GIAO TỪ ADMIN
+        async function checkAssignedTasks(workerName) {
+            const taskOpt = document.getElementById('opt-assigned');
+            const taskList = document.getElementById('assigned-task-list');
+            
+            try {
+                // Tìm trong collection 'tasks' những việc được giao cho user này
+                const snap = await db.collection("tasks")
+                                     .where("assigned_leader", "==", workerName)
+                                     .where("status", "==", "assigned").get();
+                
+                if (!snap.empty) {
+                    taskOpt.classList.remove('hidden');
+                    taskList.innerHTML = snap.docs.map(doc => {
+                        const d = doc.data();
+                        return `<option value="${doc.id}">${d.don_vi_de_nghi || 'Công trình HLAT'}</option>`;
+                    }).join('');
+                }
+            } catch (e) { console.error("Lỗi check việc:", e); }
+        }
 
-        // XỬ LÝ FILE ĐÍNH KÈM
+        window.handleTypeChange = () => {
+            const type = document.getElementById('report-type').value;
+            document.getElementById('assigned-tasks-container').classList.toggle('hidden', type !== 'Công việc được giao');
+        };
+
+        window.handleLogin = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut();
+
+        // Xử lý file đính kèm
         document.getElementById('file-in').onchange = (e) => {
             const files = Array.from(e.target.files);
             files.forEach(file => {
@@ -134,33 +156,29 @@
         };
 
         function renderFileList() {
-            const container = document.getElementById('file-list-container');
-            container.innerHTML = selectedFiles.map((f, i) => `
-                <div class="file-item">
-                    <span class="truncate"><i class="fa fa-file-image mr-2 text-blue-500"></i>${f.name}</span>
-                    <i class="fa fa-trash-alt text-red-500 cursor-pointer p-1" onclick="removeFile(${i})"></i>
-                </div>`).join('');
+            document.getElementById('file-list-container').innerHTML = selectedFiles.map((f, i) => `
+                <div class="file-item"><span class="truncate">${f.name}</span><i class="fa fa-trash-alt text-red-500" onclick="removeFile(${i})"></i></div>`).join('');
         }
         window.removeFile = (i) => { selectedFiles.splice(i, 1); renderFileList(); };
 
-        // GỬI BÁO CÁO
         window.submitReport = async () => {
             const user = auth.currentUser;
             const content = document.getElementById('job-content').value;
             if (!content) return alert("Vui lòng nhập nội dung!");
 
             const btn = document.getElementById('btn-submit');
-            btn.disabled = true; btn.innerText = "ĐANG XỬ LÝ...";
+            btn.disabled = true; btn.innerText = "ĐANG GỬI...";
 
             try {
-                if (selectedFiles.length > 0) {
-                    fetch(APPSCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ files: selectedFiles, user: user.email }) });
-                }
+                const type = document.getElementById('report-type').value;
+                const taskId = type === 'Công việc được giao' ? document.getElementById('assigned-task-list').value : null;
 
                 const reportData = {
                     worker: user.displayName,
                     email: user.email,
-                    jobId: document.getElementById('job-id').value,
+                    reportType: type,
+                    assignedTaskId: taskId,
+                    reportTitle: `Báo cáo ngày ${formattedDate}`,
                     content: content,
                     note: document.getElementById('job-note').value,
                     status: "pending",
@@ -174,72 +192,48 @@
                     await db.collection("daily_reports").add(reportData);
                 }
 
-                alert("Gửi báo cáo thành công!");
+                alert("Thành công!");
                 resetForm();
                 setTimeout(() => loadHistory(user.email), 800);
             } catch (e) { alert("Lỗi: " + e.message); }
             finally { btn.disabled = false; btn.innerText = "Gửi báo cáo"; }
         };
 
-        // TẢI NHẬT KÝ (FIX LỖI INDEX)
         async function loadHistory(email) {
             const list = document.getElementById('history-list');
             const today = new Date().toLocaleDateString('vi-VN');
-            
             try {
-                // Thêm logic lọc an toàn
-                let query = db.collection("daily_reports")
-                              .where("email", "==", email)
-                              .where("date", "==", today)
-                              .orderBy("timestamp", "desc");
-
-                const snap = await query.get();
+                const snap = await db.collection("daily_reports")
+                    .where("email", "==", email)
+                    .where("date", "==", today)
+                    .orderBy("timestamp", "desc").get();
 
                 if (snap.empty) {
                     list.innerHTML = `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase italic">Chưa có báo cáo hôm nay</p>`;
                     return;
                 }
-
                 list.innerHTML = snap.docs.map(doc => {
                     const d = doc.data();
                     const canEdit = d.status === "pending";
-                    return `
-                    <div class="card-history p-4 bg-white border border-slate-100 rounded-3xl shadow-sm">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-[8px] font-black px-2 py-0.5 rounded ${canEdit ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'} uppercase">
-                                ${canEdit ? 'Chờ duyệt' : 'Đã duyệt'}
-                            </span>
-                            ${canEdit ? `<i class="fa fa-pen-to-square text-blue-600 text-sm cursor-pointer" onclick="editReport('${doc.id}')"></i>` : ''}
+                    return `<div class="card-history p-4 bg-white border border-slate-100 rounded-3xl shadow-sm">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-[8px] font-black px-2 py-0.5 rounded ${canEdit ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'} uppercase">${d.reportType}</span>
+                            ${canEdit ? `<i class="fa fa-edit text-blue-600 cursor-pointer" onclick="editReport('${doc.id}')"></i>` : ''}
                         </div>
-                        <p class="text-[9px] font-black text-blue-800 uppercase leading-none">Phiếu: ${d.jobId || '---'}</p>
-                        <p class="text-xs text-slate-600 font-bold mt-2 leading-relaxed">${d.content}</p>
+                        <p class="text-[9px] font-black text-blue-800 uppercase leading-none">${d.reportTitle}</p>
+                        <p class="text-xs text-slate-600 font-bold mt-2">${d.content}</p>
                     </div>`;
                 }).join('');
-            } catch (err) {
-                console.error("Lỗi tải nhật ký:", err);
-                // Nếu bị lỗi Index, code sẽ tự động dùng phương thức dự phòng (không sắp xếp)
-                list.innerHTML = `<p class="text-center py-10 text-red-300 text-[9px] uppercase font-bold italic">Vui lòng chờ hệ thống khởi tạo...</p>`;
-            }
+            } catch (e) { list.innerHTML = `<p class="text-center py-10 text-red-300 text-[9px] font-bold">Lỗi tải dữ liệu.</p>`; }
         }
-
-        window.editReport = async (id) => {
-            const doc = await db.collection("daily_reports").doc(id).get();
-            const d = doc.data();
-            editingId = id;
-            document.getElementById('job-id').value = d.jobId;
-            document.getElementById('job-content').value = d.content;
-            document.getElementById('job-note').value = d.note;
-            document.getElementById('form-title').innerText = "CHỈNH SỬA BÁO CÁO";
-            document.getElementById('btn-cancel-edit').classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
 
         window.resetForm = () => {
             editingId = null;
-            document.getElementById('job-id').value = "";
             document.getElementById('job-content').value = "";
             document.getElementById('job-note').value = "";
-            document.getElementById('form-title').innerText = "Báo cáo công việc";
+            document.getElementById('report-type').value = "Báo cáo ngày";
+            document.getElementById('assigned-tasks-container').classList.add('hidden');
+            document.getElementById('form-title').innerText = "Gửi báo cáo";
             document.getElementById('btn-cancel-edit').classList.add('hidden');
             selectedFiles = []; renderFileList();
         };
