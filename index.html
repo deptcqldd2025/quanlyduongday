@@ -2,194 +2,147 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản lý Nhân sự - v21.13</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sổ tay công việc - v1.23</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0068ff">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <style>
-        :root { --primary: #0068ff; }
-        body { background: #f1f5f9; font-family: system-ui, sans-serif; }
-        .card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; }
-        .input-field { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 14px; outline: none; transition: 0.2s; }
-        .input-field:focus { border-color: var(--primary); background: #f8faff; }
-        .btn-tab { flex: 1; padding: 12px; font-weight: 800; font-size: 12px; text-transform: uppercase; border-radius: 12px; transition: 0.3s; }
-        .active-tab { background: white; color: var(--primary); shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        .loader { border: 2px solid #f3f3f3; border-top: 2px solid var(--primary); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        :root { --primary: #0068ff; --bg: #f8fafc; }
+        body { background-color: var(--bg); font-family: -apple-system, sans-serif; overflow-x: hidden; }
+        #sidebar { transition: transform 0.3s ease; z-index: 1000; width: 80%; position: fixed; top: 0; left: 0; height: 100%; }
+        #sidebar.hidden-menu { transform: translateX(-101%); }
+        #overlay { transition: opacity 0.3s ease; z-index: 900; }
+        .form-input { width: 100%; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; outline: none; background: white; }
+        .hidden { display: none !important; }
+        .loader { width: 20px; height: 20px; border: 3px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rot 1s linear infinite; display: inline-block; }
+        @keyframes rot { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body>
 
-    <div class="max-w-4xl mx-auto">
-        <header class="mb-8">
-            <h1 class="text-2xl font-black text-slate-800 uppercase italic">Hệ thống Nhân sự</h1>
-            <p id="status-fb" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Đang kết nối dữ liệu...</p>
-            
-            <nav class="flex bg-slate-200/50 p-1 rounded-2xl mt-6">
-                <button onclick="switchTab('profile')" id="tab-profile" class="btn-tab active-tab">Cập nhật cá nhân</button>
-                <button onclick="switchTab('list')" id="tab-list" class="btn-tab text-slate-500">Danh sách nhân sự</button>
-            </nav>
-        </header>
-
-        <section id="profile-section" class="space-y-6">
-            <div class="card p-6 md:p-8">
-                <h2 class="text-lg font-black text-slate-700 uppercase italic mb-6">Thông tin công nhân</h2>
-                <form id="user-form" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Họ và Tên</label>
-                        <input type="text" id="user-name" class="input-field font-bold" placeholder="Nhập họ tên đầy đủ">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Số điện thoại</label>
-                        <input type="tel" id="user-phone" class="input-field" placeholder="090xxxxxxx">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Cấp bậc thợ</label>
-                        <select id="user-rank" class="input-field font-bold">
-                            <option value="Bậc 1/5">Bậc 1/5</option>
-                            <option value="Bậc 2/5">Bậc 2/5</option>
-                            <option value="Bậc 3/5">Bậc 3/5</option>
-                            <option value="Bậc 4/5">Bậc 4/5</option>
-                            <option value="Bậc 5/5">Bậc 5/5 (Bậc cao)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Vai trò chính</label>
-                        <select id="user-role" class="input-field">
-                            <option value="Công nhân">Công nhân</option>
-                            <option value="Trưởng nhóm">Trưởng nhóm/Chỉ huy</option>
-                            <option value="Kỹ thuật">Kỹ thuật viên</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2 pt-4">
-                        <button type="button" onclick="saveUser()" id="btn-save" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition uppercase tracking-widest">
-                            Cập nhật thông tin lên hệ thống
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </section>
-
-        <section id="list-section" class="hidden space-y-6">
-            <div class="card overflow-hidden">
-                <div class="p-6 border-b flex justify-between items-center bg-slate-50">
-                    <h3 class="font-black text-slate-800 text-sm uppercase italic italic">Danh sách cán bộ đội QLLĐ 2</h3>
-                    <button onclick="fetchAllWorkers()" class="text-blue-600 font-bold text-[10px] uppercase">Làm mới ↻</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-50/50 text-[10px] text-slate-400 uppercase">
-                            <tr>
-                                <th class="py-4 px-6">Nhân sự</th>
-                                <th class="py-4 px-6 text-center">Bậc thợ</th>
-                                <th class="py-4 px-6 text-right">Liên hệ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="worker-table" class="text-xs divide-y divide-slate-100">
-                            </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
+    <div id="loadingOverlay" class="fixed inset-0 bg-white z-[2000] flex flex-col items-center justify-center">
+        <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p class="mt-4 text-gray-500 font-bold text-xs uppercase">Đang khởi động...</p>
     </div>
 
-    <script>
-        // Cấu hình Firebase của anh
-        const firebaseConfig = {
-            apiKey: "AIzaSyCzWjfcD5Dgq7V-i2izb9tKLR6QM6qWPQo",
-            authDomain: "tavietnam-78ae8.firebaseapp.com",
-            projectId: "tavietnam-78ae8",
-            storageBucket: "tavietnam-78ae8.firebasestorage.app",
-            messagingSenderId: "670121705534",
-            appId: "1:670121705534:web:1027ad98550573ad37116f"
+    <div id="loginScreen" class="hidden fixed inset-0 bg-white z-[1500] flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-2xl font-black text-blue-800 mb-6 uppercase">SỔ TAY CÔNG VIỆC</h1>
+        <button id="btnClickLogin" class="w-full max-w-xs bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg">Đăng nhập bằng Google</button>
+    </div>
+
+    <div id="overlay" class="hidden fixed inset-0 bg-black/60 opacity-0 transition-opacity"></div>
+    
+    <div id="sidebar" class="hidden-menu bg-white shadow-2xl flex flex-col">
+        <div class="p-6 bg-blue-600 text-white flex justify-between items-start">
+            <div>
+                <b id="uNameSide" class="text-lg block">...</b>
+                <span id="uRoleSide" class="text-xs opacity-80 uppercase italic">...</span>
+            </div>
+            <button onclick="toggleSidebar()" class="text-xl font-bold">✕</button>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="showPage('reportForm')" class="w-full text-left p-4 hover:bg-blue-50 rounded-xl font-bold">✍️ Gửi báo cáo</button>
+            <button onclick="showPage('assignedTasks')" class="w-full text-left p-4 hover:bg-blue-50 rounded-xl font-bold">📋 Việc được giao</button>
+            <button onclick="showPage('history')" class="w-full text-left p-4 hover:bg-blue-50 rounded-xl font-bold">🕒 Nhật ký</button>
+            <button onclick="window.logout()" class="w-full text-left p-4 text-red-500 font-bold">THOÁT</button>
+        </nav>
+    </div>
+
+    <div id="appScreen" class="hidden flex flex-col h-screen">
+        <header class="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-10">
+            <button onclick="toggleSidebar()" class="text-2xl">☰</button>
+            <b class="text-blue-600 text-sm uppercase">Sổ tay công việc</b>
+            <div class="w-8"></div>
+        </header>
+        <main class="flex-1 overflow-y-auto p-4 pb-20">
+            <div id="page-reportForm" class="page-section">
+                <form id="formMain" class="space-y-4">
+                    <select id="reportType" onchange="handleTypeChange()" class="form-input font-bold text-blue-600 border-2 border-blue-50">
+                        <option value="assigned">📝 Công việc được giao</option>
+                        <option value="urgent">⚠️ Báo cáo đột xuất</option>
+                        <option value="daily">📅 Báo cáo hàng ngày</option>
+                    </select>
+                    <div id="assignedFields" class="space-y-4 bg-blue-50 p-4 rounded-2xl border-2 border-blue-100">
+                        <select id="taskSelect" class="form-input text-sm"><option value="">-- Chọn công việc --</option></select>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="progress" onchange="handleProg()" class="form-input text-sm">
+                                <option value="100%">Xong 100%</option>
+                                <option value="70%">70%</option><option value="50%">50%</option><option value="25%">25%</option>
+                            </select>
+                            <input id="reason" placeholder="Lý do chưa xong" class="hidden form-input text-sm border-red-200">
+                        </div>
+                    </div>
+                    <textarea id="content" rows="4" placeholder="Nội dung chi tiết..." required class="form-input"></textarea>
+                    
+                    <div class="p-4 border-2 border-dashed rounded-2xl text-center">
+                        <div id="filePreview" class="text-xs space-y-1 mb-2"></div>
+                        <input type="file" id="fileInput" multiple class="hidden" accept="image/*">
+                        <button type="button" onclick="document.getElementById('fileInput').click()" class="text-blue-600 font-bold text-xs uppercase">📸 Thêm ảnh / file</button>
+                    </div>
+
+                    <button type="submit" id="sBtn" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl">GỬI BÁO CÁO</button>
+                </form>
+            </div>
+            <div id="page-history" class="page-section hidden"><div id="list" class="space-y-4"></div></div>
+            <div id="page-assignedTasks" class="page-section hidden"><div id="assignedList" class="space-y-3"></div></div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, doc, getDoc, setDoc, addDoc, query, where, getDocs, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        document.getElementById('btnClickLogin').onclick = () => {
+            signInWithPopup(auth, provider).catch(err => alert("Lỗi: " + err.message));
         };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
 
-        // 1. CHUYỂN TAB
-        function switchTab(tab) {
-            document.getElementById('profile-section').classList.toggle('hidden', tab !== 'profile');
-            document.getElementById('list-section').classList.toggle('hidden', tab !== 'list');
-            document.getElementById('tab-profile').classList.toggle('active-tab', tab === 'profile');
-            document.getElementById('tab-list').classList.toggle('active-tab', tab === 'list');
-            if(tab === 'list') fetchAllWorkers();
-        }
+        window.logout = () => signOut(auth).then(() => location.reload());
 
-        // 2. LƯU THÔNG TIN CÔNG NHÂN (Cập nhật hoặc tạo mới dựa trên SĐT làm khóa)
-        async function saveUser() {
-            const name = document.getElementById('user-name').value;
-            const phone = document.getElementById('user-phone').value;
-            const rank = document.getElementById('user-rank').value;
-            const role = document.getElementById('user-role').value;
-
-            if (!name || !phone) return alert("Vui lòng nhập đầy đủ Tên và Số điện thoại!");
-
-            const btn = document.getElementById('btn-save');
-            btn.disabled = true;
-            btn.innerHTML = `<span class="loader"></span> ĐANG LƯU...`;
-
-            try {
-                // Sử dụng phone làm Document ID để tránh trùng lặp công nhân
-                await db.collection("users").doc(phone).set({
-                    name: name,
-                    phone: phone,
-                    rank: rank,
-                    role: role,
-                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-
-                alert("Chúc mừng! Thông tin của anh đã được cập nhật vào hệ thống điều hành.");
-                switchTab('list');
-            } catch (e) {
-                alert("Lỗi: " + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = "Cập nhật thông tin lên hệ thống";
-            }
-        }
-
-        // 3. XEM TOÀN BỘ DANH SÁCH
-        async function fetchAllWorkers() {
-            const tbody = document.getElementById('worker-table');
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center py-10 italic text-slate-400">Đang tải danh sách...</td></tr>';
-            
-            try {
-                const snapshot = await db.collection("users").orderBy("name").get();
-                tbody.innerHTML = "";
-                if (snapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-10 italic text-slate-400">Chưa có dữ liệu nhân sự.</td></tr>';
-                    return;
+        onAuthStateChanged(auth, async (user) => {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+            if (user) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('appScreen').classList.remove('hidden');
+                const snap = await getDoc(doc(db, "users", user.uid));
+                if (snap.exists()) {
+                    const u = snap.data();
+                    document.getElementById('uNameSide').innerText = u.name;
+                    document.getElementById('uRoleSide').innerText = u.role;
                 }
-                snapshot.forEach(doc => {
-                    const u = doc.data();
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="py-4 px-6">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 uppercase text-[10px]">${u.name.charAt(0)}</div>
-                                    <div>
-                                        <p class="font-black text-slate-800 uppercase tracking-tight">${u.name}</p>
-                                        <p class="text-[9px] text-slate-400 font-bold uppercase">${u.role}</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="py-4 px-6 text-center">
-                                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded-md font-bold text-[10px]">${u.rank}</span>
-                            </td>
-                            <td class="py-4 px-6 text-right font-mono text-slate-500 font-bold">${u.phone}</td>
-                        </tr>
-                    `;
-                });
-                document.getElementById('status-fb').innerText = `✅ Đã kết nối: ${snapshot.size} nhân sự`;
-            } catch (e) {
-                console.error(e);
-                document.getElementById('status-fb').innerText = "❌ Lỗi kết nối Firebase";
+            } else {
+                document.getElementById('loginScreen').classList.remove('hidden');
             }
-        }
+        });
 
-        // Khởi tạo
-        fetchAllWorkers();
+        window.toggleSidebar = () => {
+            document.getElementById('sidebar').classList.toggle('hidden-menu');
+            document.getElementById('overlay').classList.toggle('hidden');
+            setTimeout(() => document.getElementById('overlay').classList.toggle('opacity-100'), 10);
+        };
+
+        window.showPage = (id) => {
+            document.querySelectorAll('.page-section').forEach(p => p.classList.add('hidden'));
+            document.getElementById('page-' + id).classList.remove('hidden');
+            window.toggleSidebar();
+        };
+
+        window.handleTypeChange = () => {
+            const isAssigned = document.getElementById('reportType').value === 'assigned';
+            document.getElementById('assignedFields').classList.toggle('hidden', !isAssigned);
+        };
+
+        window.handleProg = () => {
+            const isNot100 = document.getElementById('progress').value !== '100%';
+            document.getElementById('reason').classList.toggle('hidden', !isNot100);
+        };
     </script>
 </body>
 </html>
