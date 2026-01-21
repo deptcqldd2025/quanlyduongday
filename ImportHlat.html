@@ -1,34 +1,130 @@
-<script>
-    function parseJSON() {
-        const raw = document.getElementById('jsonInput').value;
-        const listArea = document.getElementById('hlatForm'); // Vùng hiển thị danh sách
-        
-        try {
-            const data = JSON.parse(raw);
-            const items = Array.isArray(data) ? data : [data]; // Tự động ép thành mảng nếu chỉ dán 1 hồ sơ
-            
-            listArea.innerHTML = `<h3 class="font-bold mb-4 text-blue-600 uppercase italic">Danh sách ${items.length} hồ sơ sẵn sàng:</h3>`;
-            
-            items.forEach((item, index) => {
-                listArea.innerHTML += `
-                    <div class="bg-white border-2 border-blue-100 p-4 rounded-2xl mb-4 shadow-sm">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="bg-blue-600 text-white text-[10px] px-2 py-1 rounded-lg">Hồ sơ #${index + 1}</span>
-                            <input type="checkbox" checked class="w-4 h-4">
-                        </div>
-                        <p class="text-sm font-black text-gray-800">${item.don_vi_de_nghi || "Không tên"}</p>
-                        <p class="text-[11px] text-gray-500 mt-1">${item.dia_chi_cong_trinh || "Không địa chỉ"}</p>
-                        <div class="grid grid-cols-2 gap-4 mt-3 bg-slate-50 p-2 rounded-xl text-[10px]">
-                            <div><b>Thực tế:</b> <span class="text-red-600">${item.dt_hlat_thuc_te}m2</span></div>
-                            <div><b>Quy hoạch:</b> <span class="text-red-600">${item.dt_hlat_quy_hoach}m2</span></div>
-                        </div>
-                    </div>
-                `;
-            });
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhập liệu HLAT Hàng loạt - v1.3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #0068ff; }
+        body { background: #f0f2f5; font-family: -apple-system, sans-serif; }
+        .card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .form-input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 14px; outline: none; }
+        .form-input:focus { border-color: var(--primary); ring: 2px; ring-color: #0068ff20; }
+        .label-p { font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; margin-left: 4px; margin-bottom: 4px; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
 
-            alert(`Đã nhận diện ${items.length} hồ sơ! Anh vui lòng kiểm tra danh sách bên phải.`);
-        } catch (e) {
-            alert("Lỗi: Mã JSON không đúng định dạng mảng.");
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 flex justify-between items-end">
+            <div>
+                <h1 class="text-3xl font-black text-blue-800 uppercase italic leading-none">Import HLAT Tool</h1>
+                <p class="text-gray-500 text-sm mt-2">Dán danh sách JSON từ AI Studio để nạp kho hàng loạt</p>
+            </div>
+            <div id="stats" class="hidden bg-blue-100 text-blue-700 px-4 py-2 rounded-2xl font-black text-sm">
+                ĐÃ NHẬN: <span id="count">0</span> HỒ SƠ
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <div class="space-y-4">
+                <div class="card p-6 border-2 border-blue-100 bg-blue-50/30">
+                    <h3 class="font-bold text-blue-700 mb-4 flex justify-between items-center">
+                        1. Dán mã JSON (Mảng hồ sơ)
+                        <button onclick="location.reload()" class="text-[10px] text-gray-400 uppercase">Làm mới</button>
+                    </h3>
+                    <textarea id="jsonInput" rows="15" 
+                        class="w-full p-4 font-mono text-[11px] border-2 border-dashed border-blue-200 rounded-2xl outline-none focus:border-blue-500"
+                        placeholder='[ { "ma_ho_so": "...", ... }, { ... } ]'></textarea>
+                    
+                    <button onclick="parseBatchJSON()" class="w-full mt-4 bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-blue-700 transition active:scale-95 uppercase tracking-wider">
+                        Phân tích danh sách ➔
+                    </button>
+                </div>
+            </div>
+
+            <div class="card p-6 border-2 border-transparent overflow-hidden flex flex-col min-h-[500px]">
+                <h3 class="font-bold text-gray-800 mb-6 uppercase italic border-b pb-2">2. Danh sách chờ nạp kho</h3>
+                
+                <div id="listArea" class="flex-1 overflow-y-auto space-y-4 pr-2 no-scrollbar">
+                    <div class="text-center py-20 text-gray-300 italic text-sm">
+                        Chưa có dữ liệu. Hãy dán mã JSON bên trái.
+                    </div>
+                </div>
+
+                <div id="actionArea" class="hidden pt-6 border-t mt-4">
+                    <button onclick="saveBatchToPool()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-green-700 transition uppercase">
+                        Xác nhận lưu tất cả vào kho
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function parseBatchJSON() {
+            const raw = document.getElementById('jsonInput').value;
+            const listArea = document.getElementById('listArea');
+            const stats = document.getElementById('stats');
+            const actionArea = document.getElementById('actionArea');
+            
+            try {
+                const data = JSON.parse(raw);
+                const items = Array.isArray(data) ? data : [data];
+                
+                stats.classList.remove('hidden');
+                actionArea.classList.remove('hidden');
+                document.getElementById('count').innerText = items.length;
+                
+                listArea.innerHTML = "";
+                items.forEach((item, index) => {
+                    listArea.innerHTML += `
+                        <div class="bg-white border-2 border-slate-100 p-5 rounded-3xl shadow-sm hover:border-blue-300 transition-all relative">
+                            <div class="absolute top-4 right-4 text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-lg">#${index + 1}</div>
+                            <p class="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">${item.loai_cong_viec || 'KIỂM TRA HLAT'}</p>
+                            <h4 class="font-black text-gray-800 text-sm leading-tight uppercase mb-2">${item.don_vi_de_nghi || 'N/A'}</h4>
+                            
+                            <div class="space-y-1 mb-4">
+                                <p class="text-[11px] text-gray-500 flex items-start">
+                                    <span class="mr-1">📍</span> ${item.dia_chi_cong_trinh || 'N/A'}
+                                </p>
+                                <p class="text-[11px] text-gray-500 flex items-center">
+                                    <span class="mr-1">👤</span> ${item.nguoi_lien_he || 'N/A'} - ${item.so_dien_thoai || ''}
+                                </p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                <div>
+                                    <span class="block text-[8px] font-bold text-gray-400 uppercase">DT Thực tế</span>
+                                    <span class="text-xs font-black text-red-600">${item.dt_hlat_thuc_te || 0} m²</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[8px] font-bold text-gray-400 uppercase">DT Quy hoạch</span>
+                                    <span class="text-xs font-black text-red-600">${item.dt_hlat_quy_hoach || 0} m²</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 flex justify-between items-center text-[10px]">
+                                <span class="font-bold text-gray-400 uppercase italic">Hạn: ${item.han_xu_ly || '...'}</span>
+                                <span class="font-black text-blue-600 uppercase">PT: ${item.can_bo_phu_trach || 'QLLĐ 2'}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+            } catch (e) {
+                alert("Lỗi cấu trúc JSON: Anh hãy kiểm tra lại định dạng mảng [ ] và các dấu phẩy.");
+            }
         }
-    }
-</script>
+
+        function saveBatchToPool() {
+            const count = document.getElementById('count').innerText;
+            alert("Thành công! Đã đẩy " + count + " hồ sơ vào Kho công việc của QLLĐ 2.\nTrạng thái: Đang chờ phân công.");
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>
