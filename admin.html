@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản Lý Tổ Đường Dây - Admin v1.2</title>
+    <title>Quản Lý Tổ Đường Dây - Admin v1.3</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -31,7 +31,7 @@
             .map-view { height: 40%; }
         }
 
-        #loadingScreen { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        #loadingScreen { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -42,7 +42,6 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // --- CẤU HÌNH SUPER ADMIN ---
-        // Email này sẽ luôn được phép truy cập bất kể chức vụ là gì
         const SUPER_ADMIN_EMAIL = "deptc.qldd2025@gmail.com"; 
 
         const firebaseConfig = {
@@ -63,6 +62,15 @@
         let map, markers = [];
         let allReports = [];
 
+        // --- CƠ CHẾ CHỐNG TREO (Safety Timeout) ---
+        // Sau 7 giây mà chưa tải xong thì tự động tắt Loading và hiện nút đăng xuất
+        setTimeout(() => {
+            const screen = document.getElementById('loadingScreen');
+            if (!screen.classList.contains('hidden')) {
+                document.getElementById('statusText').innerHTML = `<span style='color:red;font-weight:bold'>⚠️ Quá thời gian tải!</span><br>Có thể do mạng chậm hoặc lỗi cấu hình.<br><button onclick="window.logout()" style="margin-top:10px;text-decoration:underline;color:blue">Bấm vào đây để Đăng xuất / Thử lại</button>`;
+            }
+        }, 7000);
+
         window.login = () => signInWithPopup(auth, provider).catch(e => alert(e.message));
         window.logout = () => signOut(auth).then(() => location.reload());
 
@@ -71,32 +79,45 @@
             const statusText = document.getElementById('statusText');
 
             if(user) {
+                console.log("User detected:", user.email);
                 statusText.innerText = "Đang kiểm tra hồ sơ...";
+                
                 try {
-                    // 1. Kiểm tra Email ưu tiên trước
-                    if (user.email === SUPER_ADMIN_EMAIL) {
+                    // Chuẩn hóa email để so sánh (chữ thường, bỏ khoảng trắng thừa)
+                    const cleanEmail = user.email.toLowerCase().trim();
+                    const cleanAdminEmail = SUPER_ADMIN_EMAIL.toLowerCase().trim();
+
+                    // 1. Kiểm tra Email ưu tiên
+                    if (cleanEmail === cleanAdminEmail) {
+                         console.log("Super Admin Login Success");
                          grantAccess(user.displayName || "SUPER ADMIN");
                          return;
                     }
 
-                    // 2. Nếu không phải Email ưu tiên, kiểm tra DB
+                    // 2. Kiểm tra DB
                     const snap = await getDoc(doc(db, "users", user.uid));
                     if(snap.exists()) {
                         const profile = snap.data();
-                        // Danh sách chức vụ được phép vào trang Admin
+                        console.log("Profile Role:", profile.role);
                         const allowedRoles = ['Tổ trưởng', 'Tổ phó', 'Kỹ thuật viên', 'Lãnh đạo', 'Admin', 'Lãnh đạo Đội'];
                         
                         if(allowedRoles.includes(profile.role)) {
                             grantAccess(profile.name);
                         } else {
-                            alert(`⛔ Từ chối truy cập!\nChức vụ của bạn: '${profile.role}'\nTrang này chỉ dành cho Lãnh đạo.`);
+                            alert(`⛔ Từ chối truy cập!\nChức vụ hiện tại: '${profile.role}'\nEmail: ${user.email}\nTrang này chỉ dành cho Lãnh đạo.`);
                             await signOut(auth);
                         }
                     } else {
-                        alert("⚠️ Tài khoản chưa có hồ sơ nhân sự.\nVui lòng qua trang Báo cáo để cập nhật thông tin trước.");
+                        alert(`⚠️ Tài khoản ${user.email} chưa có hồ sơ.\nVui lòng qua trang Báo cáo để cập nhật thông tin trước.`);
                         await signOut(auth);
                     }
-                } catch(e) { alert("Lỗi: " + e.message); }
+                } catch(e) { 
+                    console.error(e);
+                    alert("Lỗi: " + e.message); 
+                    // Nếu lỗi thì tắt loading để user biết
+                    screen.classList.add('hidden');
+                    document.getElementById('loginArea').classList.remove('hidden');
+                }
             } else {
                 screen.classList.add('hidden');
                 document.getElementById('loginArea').classList.remove('hidden');
@@ -107,7 +128,7 @@
             document.getElementById('adminName').innerText = name;
             document.getElementById('loginArea').classList.add('hidden');
             document.getElementById('mainArea').classList.remove('hidden');
-            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('loadingScreen').classList.add('hidden'); // TẮT LOADING NGAY
             initMap();
             loadData('today');
         }
@@ -145,8 +166,11 @@
             if(mode === 'yesterday') { start.setDate(start.getDate()-1); end.setDate(end.getDate()-1); }
             else if (mode === 'month') { start.setDate(1); }
             else if (mode === 'custom') {
-                start = new Date(document.getElementById('dateStart').value);
-                end = new Date(document.getElementById('dateEnd').value);
+                const sVal = document.getElementById('dateStart').value;
+                const eVal = document.getElementById('dateEnd').value;
+                if(!sVal || !eVal) { alert("Vui lòng chọn ngày bắt đầu và kết thúc"); return; }
+                start = new Date(sVal);
+                end = new Date(eVal);
                 end.setHours(23,59,59,999);
             }
 
@@ -201,7 +225,7 @@
 <body>
     <div id="loadingScreen">
         <div class="loader mb-2"></div>
-        <p id="statusText" class="text-gray-500">Đang tải...</p>
+        <p id="statusText" class="text-gray-500">Đang khởi động...</p>
     </div>
 
     <div id="loginArea" class="hidden fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
