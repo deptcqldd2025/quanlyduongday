@@ -1,7 +1,148 @@
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0068ff">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Sổ Tay">
-<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sổ tay công việc - v1.23</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0068ff">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #0068ff; --bg: #f8fafc; }
+        body { background-color: var(--bg); font-family: -apple-system, sans-serif; overflow-x: hidden; }
+        #sidebar { transition: transform 0.3s ease; z-index: 1000; width: 80%; position: fixed; top: 0; left: 0; height: 100%; }
+        #sidebar.hidden-menu { transform: translateX(-101%); }
+        #overlay { transition: opacity 0.3s ease; z-index: 900; }
+        .form-input { width: 100%; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; outline: none; background: white; }
+        .hidden { display: none !important; }
+        .loader { width: 20px; height: 20px; border: 3px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rot 1s linear infinite; display: inline-block; }
+        @keyframes rot { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay" class="fixed inset-0 bg-white z-[2000] flex flex-col items-center justify-center">
+        <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p class="mt-4 text-gray-500 font-bold text-xs uppercase">Đang khởi động...</p>
+    </div>
+
+    <div id="loginScreen" class="hidden fixed inset-0 bg-white z-[1500] flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-2xl font-black text-blue-800 mb-6 uppercase">SỔ TAY CÔNG VIỆC</h1>
+        <button id="btnClickLogin" class="w-full max-w-xs bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg">Đăng nhập bằng Google</button>
+    </div>
+
+    <div id="overlay" class="hidden fixed inset-0 bg-black/60 opacity-0 transition-opacity"></div>
+    
+    <div id="sidebar" class="hidden-menu bg-white shadow-2xl flex flex-col">
+        <div class="p-6 bg-blue-600 text-white flex justify-between items-start">
+            <div>
+                <b id="uNameSide" class="text-lg block">...</b>
+                <span id="uRoleSide" class="text-xs opacity-80 uppercase italic">...</span>
+            </div>
+            <button onclick="toggleSidebar()" class="text-xl font-bold">✕</button>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="showPage('reportForm')" class="w-full text-left p-4 hover:bg-blue-50 rounded-xl font-bold">✍️ Gửi báo cáo</button>
+            <button onclick="showPage('assignedTasks')" class="w-full text-left p-4 hover:bg-blue-50 rounded-xl font-bold">📋 Việc được giao</button>
+            <button onclick="showPage('history')" class="w-full text-left p-4 hover:bg-blue-50 rounded-xl font-bold">🕒 Nhật ký</button>
+            <button onclick="window.logout()" class="w-full text-left p-4 text-red-500 font-bold">THOÁT</button>
+        </nav>
+    </div>
+
+    <div id="appScreen" class="hidden flex flex-col h-screen">
+        <header class="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-10">
+            <button onclick="toggleSidebar()" class="text-2xl">☰</button>
+            <b class="text-blue-600 text-sm uppercase">Sổ tay công việc</b>
+            <div class="w-8"></div>
+        </header>
+        <main class="flex-1 overflow-y-auto p-4 pb-20">
+            <div id="page-reportForm" class="page-section">
+                <form id="formMain" class="space-y-4">
+                    <select id="reportType" onchange="handleTypeChange()" class="form-input font-bold text-blue-600 border-2 border-blue-50">
+                        <option value="assigned">📝 Công việc được giao</option>
+                        <option value="urgent">⚠️ Báo cáo đột xuất</option>
+                        <option value="daily">📅 Báo cáo hàng ngày</option>
+                    </select>
+                    <div id="assignedFields" class="space-y-4 bg-blue-50 p-4 rounded-2xl border-2 border-blue-100">
+                        <select id="taskSelect" class="form-input text-sm"><option value="">-- Chọn công việc --</option></select>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="progress" onchange="handleProg()" class="form-input text-sm">
+                                <option value="100%">Xong 100%</option>
+                                <option value="70%">70%</option><option value="50%">50%</option><option value="25%">25%</option>
+                            </select>
+                            <input id="reason" placeholder="Lý do chưa xong" class="hidden form-input text-sm border-red-200">
+                        </div>
+                    </div>
+                    <textarea id="content" rows="4" placeholder="Nội dung chi tiết..." required class="form-input"></textarea>
+                    
+                    <div class="p-4 border-2 border-dashed rounded-2xl text-center">
+                        <div id="filePreview" class="text-xs space-y-1 mb-2"></div>
+                        <input type="file" id="fileInput" multiple class="hidden" accept="image/*">
+                        <button type="button" onclick="document.getElementById('fileInput').click()" class="text-blue-600 font-bold text-xs uppercase">📸 Thêm ảnh / file</button>
+                    </div>
+
+                    <button type="submit" id="sBtn" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl">GỬI BÁO CÁO</button>
+                </form>
+            </div>
+            <div id="page-history" class="page-section hidden"><div id="list" class="space-y-4"></div></div>
+            <div id="page-assignedTasks" class="page-section hidden"><div id="assignedList" class="space-y-3"></div></div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, doc, getDoc, setDoc, addDoc, query, where, getDocs, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        document.getElementById('btnClickLogin').onclick = () => {
+            signInWithPopup(auth, provider).catch(err => alert("Lỗi: " + err.message));
+        };
+
+        window.logout = () => signOut(auth).then(() => location.reload());
+
+        onAuthStateChanged(auth, async (user) => {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+            if (user) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('appScreen').classList.remove('hidden');
+                const snap = await getDoc(doc(db, "users", user.uid));
+                if (snap.exists()) {
+                    const u = snap.data();
+                    document.getElementById('uNameSide').innerText = u.name;
+                    document.getElementById('uRoleSide').innerText = u.role;
+                }
+            } else {
+                document.getElementById('loginScreen').classList.remove('hidden');
+            }
+        });
+
+        window.toggleSidebar = () => {
+            document.getElementById('sidebar').classList.toggle('hidden-menu');
+            document.getElementById('overlay').classList.toggle('hidden');
+            setTimeout(() => document.getElementById('overlay').classList.toggle('opacity-100'), 10);
+        };
+
+        window.showPage = (id) => {
+            document.querySelectorAll('.page-section').forEach(p => p.classList.add('hidden'));
+            document.getElementById('page-' + id).classList.remove('hidden');
+            window.toggleSidebar();
+        };
+
+        window.handleTypeChange = () => {
+            const isAssigned = document.getElementById('reportType').value === 'assigned';
+            document.getElementById('assignedFields').classList.toggle('hidden', !isAssigned);
+        };
+
+        window.handleProg = () => {
+            const isNot100 = document.getElementById('progress').value !== '100%';
+            document.getElementById('reason').classList.toggle('hidden', !isNot100);
+        };
+    </script>
+</body>
+</html>
