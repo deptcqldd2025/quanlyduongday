@@ -3,41 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sổ tay công việc - v1.20</title>
+    <title>Sổ tay công việc - v1.21</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0068ff">
+    <link rel="apple-touch-icon" href="icon-192.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --primary: #0068ff; --bg: #f8fafc; }
-        body { background-color: var(--bg); font-family: -apple-system, sans-serif; overflow-x: hidden; }
-        #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; width: 80%; position: fixed; top: 0; left: 0; height: 100%; }
+        body { background-color: var(--bg); font-family: -apple-system, sans-serif; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+        
+        /* Sidebar 80% screen */
+        #sidebar { 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            z-index: 1000; width: 80%; position: fixed; top: 0; left: 0; height: 100%;
+        }
         #sidebar.hidden-menu { transform: translateX(-101%); }
         #overlay { transition: opacity 0.3s ease; z-index: 900; }
-        .form-input { width: 100%; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; outline: none; background: white; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .loader { width: 20px; height: 20px; border: 3px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rot 1s linear infinite; display: inline-block; }
+        
+        .form-input { width: 100%; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; outline: none; font-size: 15px; background: white; }
+        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,104,255,0.1); }
+        
+        .report-card { background: white; border-radius: 20px; padding: 18px; margin-bottom: 12px; border-left: 6px solid var(--primary); box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
+        .loader { width: 18px; height: 18px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rot 1s linear infinite; display: inline-block; }
         @keyframes rot { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="antialiased">
+<body class="antialiased no-scrollbar">
 
     <div id="loadingOverlay" class="fixed inset-0 bg-white z-[2000] flex flex-col items-center justify-center">
         <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="text-gray-500 font-bold text-xs uppercase tracking-widest">Đang tải...</p>
+        <p class="text-gray-500 font-bold text-xs uppercase tracking-widest">Đang khởi động...</p>
     </div>
 
     <div id="loginScreen" class="hidden fixed inset-0 bg-white z-[1500] flex flex-col items-center justify-center p-6 text-center">
         <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mb-6 shadow-sm"><span class="text-4xl">⚡</span></div>
         <h1 class="text-2xl font-black text-blue-800 mb-2 uppercase">Sổ tay công việc</h1>
-        <p class="text-gray-400 text-sm mb-10">Vui lòng đăng nhập để tiếp tục</p>
-        <button id="mainLoginBtn" class="w-full max-w-xs bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition">
-            Đăng nhập bằng Google
-        </button>
+        <p class="text-gray-400 text-sm mb-10">Hệ thống quản lý nội bộ vận hành</p>
+        <button id="mainLoginBtn" class="w-full max-w-xs bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition">Đăng nhập bằng Google</button>
     </div>
 
     <div id="overlay" class="hidden fixed inset-0 bg-black/60 opacity-0 pointer-events-none transition-opacity"></div>
+
     <div id="sidebar" class="hidden-menu bg-white shadow-2xl flex flex-col overflow-hidden">
         <div class="p-6 bg-blue-600 text-white flex justify-between items-start">
             <div>
@@ -47,70 +56,135 @@
             </div>
             <button onclick="toggleSidebar()" class="w-10 h-10 flex items-center justify-center bg-black/10 rounded-full text-xl font-bold active:bg-black/20 transition">✕</button>
         </div>
-        <nav class="flex-1 p-4 space-y-1">
-            <button onclick="showPage('reportForm')" class="w-full text-left p-4 hover:bg-blue-50 rounded-2xl font-bold text-sm">✍️ Gửi báo cáo</button>
-            <button onclick="showPage('assignedTasks')" class="w-full text-left p-4 hover:bg-blue-50 rounded-2xl font-bold text-sm">📋 Công việc mới</button>
-            <button onclick="showPage('history')" class="w-full text-left p-4 hover:bg-blue-50 rounded-2xl font-bold text-sm">🕒 Nhật ký</button>
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+            <button onclick="showPage('reportForm')" class="w-full flex items-center p-4 hover:bg-blue-50 rounded-2xl font-bold text-gray-700 text-sm"><span class="mr-3 text-lg">✍️</span> Gửi báo cáo</button>
+            <button onclick="showPage('assignedTasks')" class="w-full flex items-center p-4 hover:bg-blue-50 rounded-2xl font-bold text-gray-700 text-sm"><span class="mr-3 text-lg">📋</span> Công việc mới (Giao)</button>
+            <button onclick="showPage('history')" class="w-full flex items-center p-4 hover:bg-blue-50 rounded-2xl font-bold text-gray-700 text-sm"><span class="mr-3 text-lg">🕒</span> Nhật ký của tôi</button>
+            <hr class="my-3 opacity-50">
+            <button onclick="document.getElementById('profileModal').classList.remove('hidden')" class="w-full flex items-center p-4 hover:bg-blue-50 rounded-2xl font-bold text-gray-700 text-sm"><span class="mr-3 text-lg">⚙️</span> Hồ sơ cá nhân</button>
+            <button onclick="alert('Hướng dẫn: \n1. Nhận việc trong mục Công việc mới.\n2. Chụp ảnh & ghi báo cáo.\n3. Gửi lời phê/phản hồi từ lãnh đạo sẽ hiện ở mục Nhật ký.')" class="w-full flex items-center p-4 hover:bg-blue-50 rounded-2xl font-bold text-gray-700 text-sm"><span class="mr-3 text-lg">📖</span> Hướng dẫn sử dụng</button>
         </nav>
-        <div class="p-4 border-t"><button id="mainLogoutBtn" class="w-full p-4 text-red-500 font-bold bg-red-50 rounded-2xl">THOÁT</button></div>
+        <div class="p-4 border-t">
+            <button id="mainLogoutBtn" class="w-full p-4 text-red-500 font-bold text-sm text-center bg-red-50 rounded-2xl">THOÁT</button>
+        </div>
     </div>
 
     <div id="appScreen" class="hidden flex flex-col h-screen">
         <header class="bg-white border-b px-4 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-            <button onclick="toggleSidebar()" class="text-2xl p-1 bg-gray-50 rounded-xl w-10 h-10">☰</button>
-            <h1 class="font-black text-blue-600 text-sm uppercase">Sổ tay công việc</h1>
+            <button onclick="toggleSidebar()" class="text-2xl p-1 bg-gray-50 rounded-xl w-10 h-10 flex items-center justify-center">☰</button>
+            <h1 class="font-black text-blue-600 text-sm uppercase tracking-widest">Sổ tay công việc</h1>
             <div class="w-10"></div>
         </header>
-        <main class="flex-1 overflow-y-auto p-4 pb-20">
+
+        <main class="flex-1 overflow-y-auto p-4 no-scrollbar pb-10">
             <div id="page-reportForm" class="page-section">
                 <form id="form" class="space-y-4">
-                    <select id="reportType" onchange="handleTypeChange()" class="form-input font-black text-blue-600 border-2 border-blue-50">
-                        <option value="assigned">📝 Công việc được giao</option>
-                        <option value="urgent">⚠️ Báo cáo đột xuất</option>
-                        <option value="daily">📅 Báo cáo hàng ngày</option>
-                    </select>
-                    <div id="assignedFields" class="space-y-4 bg-blue-50 p-4 rounded-2xl border-2 border-blue-100">
-                        <select id="taskSelect" class="form-input font-bold border-blue-200"><option value="">-- Chọn công việc --</option></select>
-                        <div class="grid grid-cols-2 gap-3">
-                            <select id="progress" onchange="handleProgressChange()" class="form-input font-bold border-blue-200">
-                                <option value="100%">Xong 100%</option>
-                                <option value="70%">70%</option><option value="50%">50%</option><option value="25%">25%</option>
+                    <div>
+                        <label class="text-[10px] font-black text-gray-400 ml-1 uppercase mb-1 block">1. Loại báo cáo</label>
+                        <select id="reportType" onchange="handleTypeChange()" class="form-input font-black text-blue-600 border-2 border-blue-50">
+                            <option value="assigned">📝 Công việc được giao</option>
+                            <option value="urgent">⚠️ Báo cáo đột xuất</option>
+                            <option value="daily">📅 Báo cáo hàng ngày</option>
+                        </select>
+                    </div>
+
+                    <div id="assignedFields" class="space-y-4 bg-blue-50/50 p-4 rounded-2xl border-2 border-blue-100">
+                        <div>
+                            <label class="text-[10px] font-black text-blue-500 ml-1 uppercase mb-1 block">Chọn việc lãnh đạo giao</label>
+                            <select id="taskSelect" class="form-input font-bold border-blue-200">
+                                <option value="">-- Click để chọn công việc --</option>
                             </select>
-                            <input id="reason" placeholder="Lý do..." class="hidden form-input border-red-100">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[10px] font-black text-blue-500 ml-1 uppercase mb-1 block">Mức độ (%)</label>
+                                <select id="progress" onchange="handleProgressChange()" class="form-input font-bold border-blue-200">
+                                    <option value="100%">Xong 100%</option>
+                                    <option value="70%">70%</option>
+                                    <option value="50%">50%</option>
+                                    <option value="25%">25%</option>
+                                </select>
+                            </div>
+                            <div id="reasonBox" class="hidden">
+                                <label class="text-[10px] font-black text-red-500 ml-1 uppercase mb-1 block">Lý do chưa xong *</label>
+                                <input id="reason" placeholder="Nêu lý do..." class="form-input border-red-100 bg-red-50/30">
+                            </div>
                         </div>
                     </div>
-                    <textarea id="content" rows="4" placeholder="Nội dung thực hiện..." required class="form-input shadow-sm"></textarea>
-                    <button type="submit" id="sBtn" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl">GỬI BÁO CÁO</button>
+
+                    <div class="space-y-3">
+                        <input id="pct" placeholder="Số Phiếu / Lệnh (Nếu có)" class="form-input shadow-sm">
+                        <textarea id="content" rows="4" placeholder="Nội dung thực hiện..." required class="form-input shadow-sm"></textarea>
+                    </div>
+                    
+                    <div class="p-6 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-center shadow-sm">
+                        <div id="fileListPreview" class="flex flex-wrap gap-2 mb-3"></div>
+                        <input type="file" id="fileIn" multiple class="hidden" accept="image/*">
+                        <button type="button" onclick="document.getElementById('fileIn').click()" class="bg-blue-50 text-blue-600 font-black text-xs px-5 py-3 rounded-xl uppercase active:bg-blue-100 transition">
+                            📸 CHỤP ẢNH / CHỌN FILE
+                        </button>
+                    </div>
+
+                    <button type="submit" id="sBtn" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition">GỬI BÁO CÁO NGAY</button>
                 </form>
             </div>
-            <div id="page-history" class="page-section hidden"><div id="list" class="space-y-4"></div></div>
+
+            <div id="page-assignedTasks" class="page-section hidden">
+                <h2 class="text-lg font-black mb-4 text-gray-800 uppercase italic">📋 Công việc được giao</h2>
+                <div id="assignedList" class="space-y-3"></div>
+            </div>
+
+            <div id="page-history" class="page-section hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-black text-gray-800 uppercase italic">🕒 Nhật ký</h2>
+                    <select id="timeFilter" onchange="loadReports(this.value)" class="text-[10px] font-bold border rounded-lg p-1 uppercase">
+                        <option value="today">Hôm nay</option><option value="week">Tuần này</option><option value="month">Tháng này</option>
+                    </select>
+                </div>
+                <div id="list" class="space-y-4"></div>
+            </div>
         </main>
     </div>
 
     <div id="profileModal" class="hidden fixed inset-0 bg-black/80 z-[2000] flex items-center justify-center p-6">
         <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl">
-            <form id="pForm"><input id="pName" placeholder="Họ tên" required class="form-input mb-3"><button class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">LƯU</button></form>
+            <h3 class="text-lg font-black mb-4 text-center text-blue-600 uppercase italic">Cập nhật hồ sơ</h3>
+            <form onsubmit="saveProfile(event)" class="space-y-3">
+                <input id="pEmail" disabled class="form-input bg-gray-100 text-gray-400">
+                <input id="pName" placeholder="Họ và tên" required class="form-input">
+                <input id="pId" placeholder="Mã nhân viên" required class="form-input">
+                <select id="pRole" class="form-input font-bold">
+                    <option value="Công nhân">Công nhân</option>
+                    <option value="Tổ trưởng">Tổ trưởng</option>
+                    <option value="Tổ phó">Tổ phó</option>
+                    <option value="Kỹ thuật viên">Kỹ thuật viên</option>
+                    <option value="Lãnh đạo Đội">Lãnh đạo Đội</option>
+                    <option value="Admin">Admin</option>
+                </select>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl mt-2">LƯU THÔNG TIN</button>
+                <button type="button" onclick="document.getElementById('profileModal').classList.add('hidden')" class="w-full text-gray-400 text-[10px] font-bold mt-2">ĐÓNG</button>
+            </form>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, doc, getDoc, setDoc, addDoc, query, where, getDocs, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, setDoc, addDoc, query, where, getDocs, orderBy, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
+        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+        let currentUser = null, selectedFiles = [];
 
-        // Gán sự kiện cho nút đăng nhập bằng code (Tránh lỗi module)
+        // --- AUTH ---
         document.getElementById('mainLoginBtn').onclick = () => {
-            signInWithPopup(auth, provider)
-            .then(() => console.log("Login success"))
-            .catch(err => alert("Lỗi đăng nhập: " + err.message));
+            signInWithPopup(auth, provider).catch(err => alert("Lỗi: " + err.message));
         };
-
         document.getElementById('mainLogoutBtn').onclick = () => signOut(auth).then(() => location.reload());
 
         onAuthStateChanged(auth, async (user) => {
@@ -120,28 +194,152 @@
                 document.getElementById('appScreen').classList.remove('hidden');
                 const snap = await getDoc(doc(db, "users", user.uid));
                 if (snap.exists()) {
-                    const u = snap.data();
-                    document.getElementById('uNameSide').innerText = u.name;
-                    document.getElementById('uRoleSide').innerText = u.role;
-                } else { document.getElementById('profileModal').classList.remove('hidden'); }
-            } else {
-                document.getElementById('loginScreen').classList.remove('hidden');
-            }
+                    currentUser = snap.data();
+                    document.getElementById('uNameSide').innerText = currentUser.name;
+                    document.getElementById('uRoleSide').innerText = `${currentUser.role} - ID: ${currentUser.empId}`;
+                    loadAssignedTasks();
+                    showPage('reportForm');
+                } else {
+                    document.getElementById('profileModal').classList.remove('hidden');
+                    document.getElementById('pEmail').value = user.email;
+                }
+            } else { document.getElementById('loginScreen').classList.remove('hidden'); }
         });
 
-        // Các hàm Sidebar & UI
+        // --- SIDEBAR & NAVIGATION ---
         window.toggleSidebar = () => {
-            document.getElementById('sidebar').classList.toggle('hidden-menu');
-            document.getElementById('overlay').classList.toggle('hidden');
+            const side = document.getElementById('sidebar'), over = document.getElementById('overlay');
+            side.classList.toggle('hidden-menu');
+            over.classList.toggle('hidden');
+            if (!over.classList.contains('hidden')) setTimeout(() => over.classList.add('opacity-100'), 10);
+            else over.classList.remove('opacity-100');
         };
+        document.getElementById('overlay').onclick = window.toggleSidebar;
+
+        window.showPage = (id) => {
+            document.querySelectorAll('.page-section').forEach(p => p.classList.add('hidden'));
+            document.getElementById('page-' + id).classList.remove('hidden');
+            if(!document.getElementById('sidebar').classList.contains('hidden-menu')) window.toggleSidebar();
+            if (id === 'history') loadReports('today');
+            if (id === 'assignedTasks') loadAssignedTasks();
+        };
+
+        // --- FORM LOGIC ---
         window.handleTypeChange = () => {
-            const isAssigned = document.getElementById('reportType').value === 'assigned';
-            document.getElementById('assignedFields').classList.toggle('hidden', !isAssigned);
+            const type = document.getElementById('reportType').value;
+            document.getElementById('assignedFields').classList.toggle('hidden', type !== 'assigned');
         };
         window.handleProgressChange = () => {
-            const needReason = document.getElementById('progress').value !== '100%';
-            document.getElementById('reason').classList.toggle('hidden', !needReason);
+            const prog = document.getElementById('progress').value;
+            const box = document.getElementById('reasonBox');
+            box.classList.toggle('hidden', prog === '100%');
+            document.getElementById('reason').required = prog !== '100%';
         };
+
+        // --- FILE HANDLING ---
+        document.getElementById('fileIn').onchange = (e) => {
+            selectedFiles = selectedFiles.concat(Array.from(e.target.files));
+            const preview = document.getElementById('fileListPreview');
+            preview.innerHTML = selectedFiles.map((f, i) => `
+                <div class="flex justify-between items-center text-[10px] bg-gray-50 p-2 rounded-lg border w-full">
+                    <span class="truncate w-4/5 font-bold">${f.name}</span>
+                    <button type="button" onclick="removeFile(${i})" class="text-red-500 font-bold px-2">✕</button>
+                </div>`).join('');
+        };
+        window.removeFile = (i) => { selectedFiles.splice(i, 1); document.getElementById('fileIn').dispatchEvent(new Event('change')); };
+
+        async function uploadFiles() {
+            let urls = [];
+            for (let f of selectedFiles) {
+                let reader = new FileReader();
+                let b64 = await new Promise(r => { reader.readAsDataURL(f); reader.onload = () => r(reader.result.split(',')[1]) });
+                try {
+                    let res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ filename: Date.now()+"_"+f.name, mimeType: f.type, file: b64 }) });
+                    let j = await res.json(); if (j.status == "success") urls.push(j.url);
+                } catch (e) { console.error(e); }
+            }
+            return urls;
+        }
+
+        // --- DATA ---
+        async function loadAssignedTasks() {
+            const list = document.getElementById('assignedList'), sel = document.getElementById('taskSelect');
+            try {
+                const q = query(collection(db, "assigned_tasks"), where("targetId", "==", currentUser.empId), where("status", "==", "new"));
+                const snap = await getDocs(q);
+                sel.innerHTML = '<option value="">-- Click để chọn công việc --</option>';
+                list.innerHTML = "";
+                if (snap.empty) list.innerHTML = '<p class="text-center text-gray-400 py-10 text-sm">Không có việc mới được giao.</p>';
+                snap.forEach(d => {
+                    const t = d.data();
+                    sel.innerHTML += `<option value="${t.content}">${t.content.substring(0,30)}...</option>`;
+                    list.innerHTML += `<div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 shadow-sm">
+                        <div class="text-[10px] font-black text-blue-400 mb-1 uppercase tracking-tighter">Công việc giao</div>
+                        <div class="text-sm font-bold text-gray-800">${t.content}</div>
+                        <button onclick="pickTask('${t.content.replace(/'/g, "\\'")}')" class="w-full bg-blue-600 text-white text-xs py-2 rounded-xl font-bold mt-3">CHỌN VIỆC NÀY</button>
+                    </div>`;
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        window.pickTask = (content) => { document.getElementById('content').value = content; document.getElementById('reportType').value = 'assigned'; window.handleTypeChange(); showPage('reportForm'); };
+
+        document.getElementById('form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('sBtn'); btn.innerHTML = `<span class="loader"></span> Đang gửi...`; btn.disabled = true;
+            let lat = 0, lng = 0;
+            try { let p = await new Promise((r,j)=>navigator.geolocation.getCurrentPosition(r,j,{timeout:3000})); lat=p.coords.latitude; lng=p.coords.longitude; } catch(e){}
+            let att = await uploadFiles();
+            try {
+                await addDoc(collection(db, "daily_reports"), {
+                    uid: auth.currentUser.uid, workerName: currentUser.name, workerId: currentUser.empId,
+                    type: document.getElementById('reportType').value,
+                    progress: document.getElementById('progress').value,
+                    reason: document.getElementById('reason').value,
+                    timestamp: Timestamp.now(), locationCoords: { lat, lng },
+                    pct: document.getElementById('pct').value, content: document.getElementById('content').value,
+                    attachments: att, status: "pending"
+                });
+                alert("Đã gửi thành công!"); location.reload();
+            } catch(e) { alert(e.message); }
+            btn.innerHTML = "GỬI BÁO CÁO NGAY"; btn.disabled = false;
+        };
+
+        window.loadReports = async (m) => {
+            const list = document.getElementById('list'); list.innerHTML = `<p class="text-center text-gray-300 py-10">Đang tải...</p>`;
+            let s = new Date(); s.setHours(0,0,0,0);
+            if(m === 'week') s.setDate(s.getDate() - 7); if(m === 'month') s.setDate(1);
+            const q = query(collection(db, "daily_reports"), where("uid", "==", auth.currentUser.uid), where("timestamp", ">=", Timestamp.fromDate(s)), orderBy("timestamp", "desc"));
+            const snap = await getDocs(q);
+            list.innerHTML = "";
+            snap.forEach(d => {
+                const r = d.data(), id = d.id, date = r.timestamp.toDate();
+                let f = r.attachments ? r.attachments.map((u,i) => `<a href="${u}" target="_blank" class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[9px] mr-1 mt-1 font-bold inline-block border border-blue-100">📎 File ${i+1}</a>`).join("") : "";
+                list.innerHTML += `
+                    <div class="report-card">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-[10px] font-black text-gray-400">${date.toLocaleTimeString('vi-VN').slice(0,5)} | ${date.toLocaleDateString('vi-VN')}</span>
+                            <span class="text-[9px] font-bold text-blue-500 uppercase">${r.type}</span>
+                        </div>
+                        <div class="text-sm text-gray-700 font-bold mb-1">${r.content}</div>
+                        ${r.progress && r.type === 'assigned' ? `<div class="text-[10px] text-green-600 font-bold">Tiến độ: ${r.progress}</div>` : ''}
+                        ${r.reason ? `<div class="text-[10px] text-red-500 italic">Lý do: ${r.reason}</div>` : ''}
+                        ${r.reply ? `<div class="bg-yellow-50 p-2 rounded-lg text-xs text-yellow-700 mt-2">💬 Phản hồi: ${r.reply}</div>` : ''}
+                        <div class="mt-2">${f}</div>
+                    </div>`;
+            });
+        };
+
+        window.saveProfile = async (e) => {
+            e.preventDefault();
+            await setDoc(doc(db, "users", auth.currentUser.uid), {
+                name: document.getElementById('pName').value, empId: document.getElementById('pId').value,
+                role: document.getElementById('pRole').value, email: auth.currentUser.email, uid: auth.currentUser.uid
+            }, {merge: true});
+            location.reload();
+        };
+
+        window.handleTypeChange();
     </script>
 </body>
 </html>
