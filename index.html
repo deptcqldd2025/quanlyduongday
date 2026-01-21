@@ -3,17 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Báo Cáo Tổ Đường Dây - v1.9</title>
+    <title>Báo Cáo Tổ Đường Dây - v1.10</title>
     
     <style>
         :root { --primary: #0068ff; --bg: #f2f4f8; --white: #ffffff; --text: #333; --radius: 12px; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; }
         .hidden { display: none !important; }
 
-        /* Màn hình cài đặt Link */
-        #configScreen { position: fixed; inset: 0; background: #fff; z-index: 999; display: flex; flex-direction: column; justify-content: center; padding: 30px; text-align: center; }
-        #configInput { width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; margin: 20px 0; outline: none; }
-        
         /* Layout */
         .app-container { max-width: 500px; margin: 0 auto; background: var(--white); height: 100%; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
         .header { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; z-index: 10; }
@@ -59,8 +55,8 @@
         import { getFirestore, collection, doc, getDoc, setDoc, addDoc, query, where, getDocs, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // CẤU HÌNH: Nếu bạn đã có link, dán đè vào trong cặp dấu ngoặc kép "" ở dưới để đỡ phải nhập lại
-        let scriptUrl = ""; 
+        // --- CẤU HÌNH LIÊN KẾT (ĐÃ GẮN CỨNG LINK CỦA BẠN) ---
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
@@ -78,31 +74,6 @@
         const provider = new GoogleAuthProvider();
         let currentUser = null;
 
-        // --- HÀM CHECK LINK APPS SCRIPT ---
-        function checkConfig() {
-            // Ưu tiên link dán cứng trong code -> sau đó đến localStorage
-            if(scriptUrl.length > 10) return;
-            
-            const stored = localStorage.getItem("APPS_SCRIPT_URL");
-            if (stored && stored.length > 10) {
-                scriptUrl = stored;
-            } else {
-                document.getElementById('configScreen').classList.remove('hidden');
-            }
-        }
-        
-        window.saveConfig = () => {
-            const val = document.getElementById('configInput').value.trim();
-            if (val.startsWith("https://script.google.com/")) {
-                localStorage.setItem("APPS_SCRIPT_URL", val);
-                scriptUrl = val;
-                document.getElementById('configScreen').classList.add('hidden');
-                alert("Đã lưu cấu hình!");
-            } else {
-                alert("Link không hợp lệ!");
-            }
-        }
-
         // --- AUTH ---
         window.login = () => {
             const btn = document.getElementById('loginBtn');
@@ -116,7 +87,6 @@
         window.logout = () => signOut(auth).then(() => location.reload());
 
         onAuthStateChanged(auth, async (user) => {
-            checkConfig();
             if (user) {
                 document.getElementById('loginScreen').classList.add('hidden');
                 try {
@@ -125,7 +95,6 @@
                         currentUser = snap.data();
                         document.getElementById('appScreen').classList.remove('hidden');
                         document.getElementById('uName').innerText = currentUser.name;
-                        // Mặc định load báo cáo hôm nay
                         loadReports('today');
                     } else {
                         document.getElementById('profileModal').classList.remove('hidden');
@@ -158,7 +127,7 @@
                 let reader = new FileReader();
                 let base64 = await new Promise(r => { reader.readAsDataURL(f); reader.onload = () => r(reader.result.split(',')[1]) });
                 try {
-                    let res = await fetch(scriptUrl, {
+                    let res = await fetch(APPS_SCRIPT_URL, {
                         method: "POST",
                         body: JSON.stringify({ filename: Date.now() + "_" + f.name, mimeType: f.type, file: base64 })
                     });
@@ -188,7 +157,7 @@
 
             try {
                 await addDoc(collection(db, "daily_reports"), {
-                    uid: auth.currentUser.uid, // Quan trọng để lọc riêng tư
+                    uid: auth.currentUser.uid, 
                     workerName: currentUser.name,
                     workerId: currentUser.empId,
                     role: currentUser.role,
@@ -202,8 +171,6 @@
                 alert("Đã gửi báo cáo!");
                 document.getElementById('form').reset();
                 document.getElementById('fileTxt').innerText = "📸 Chọn nhiều ảnh / tài liệu";
-                
-                // Reset về xem hôm nay
                 document.getElementById('timeFilter').value = 'today';
                 loadReports('today'); 
             } catch(e) { alert("Lỗi: " + e.message); }
@@ -212,27 +179,26 @@
         });
 
         document.getElementById('fileIn').onchange = function() {
-            document.getElementById('fileTxt').innerText = this.files.length ? `Đã chọn ${this.files.length} file (Sẵn sàng gửi)` : "📸 Chọn nhiều ảnh / tài liệu";
+            document.getElementById('fileTxt').innerText = this.files.length ? `Đã chọn ${this.files.length} file` : "📸 Chọn nhiều ảnh / tài liệu";
         }
 
-        // --- TẢI BÁO CÁO (LỌC THEO NGƯỜI DÙNG & THỜI GIAN) ---
+        // --- TẢI BÁO CÁO ---
         window.loadReports = async (mode) => {
             const list = document.getElementById('list');
             list.innerHTML = `<div style="text-align:center;padding:10px"><span class="loader" style="border-color:#888;border-bottom-color:transparent"></span></div>`;
             
             let startDate = new Date();
-            startDate.setHours(0,0,0,0); // Mặc định đầu ngày hôm nay
+            startDate.setHours(0,0,0,0); 
 
             if (mode === 'week') {
                 const day = startDate.getDay();
-                const diff = startDate.getDate() - day + (day == 0 ? -6 : 1); // Thứ 2 đầu tuần
+                const diff = startDate.getDate() - day + (day == 0 ? -6 : 1); 
                 startDate.setDate(diff);
             } else if (mode === 'month') {
-                startDate.setDate(1); // Mùng 1 đầu tháng
+                startDate.setDate(1); 
             }
 
             try {
-                // Query: Chỉ lấy báo cáo của User hiện tại (auth.currentUser.uid) + Thời gian >= startDate
                 const q = query(
                     collection(db, "daily_reports"), 
                     where("uid", "==", auth.currentUser.uid), 
@@ -244,7 +210,7 @@
                 list.innerHTML = "";
                 
                 if(snap.empty) {
-                    list.innerHTML = "<p style='text-align:center;color:#999;font-style:italic;margin-top:20px'>Không có báo cáo nào trong khoảng thời gian này.</p>";
+                    list.innerHTML = "<p style='text-align:center;color:#999;font-style:italic;margin-top:20px'>Không có báo cáo.</p>";
                     return;
                 }
 
@@ -272,12 +238,9 @@
             } catch (error) {
                 console.error(error);
                 if (error.message.includes("requires an index")) {
-                    list.innerHTML = `<div style="color:red;padding:10px;text-align:center;border:1px dashed red;border-radius:8px">
-                        <b>⚠️ CẦN TẠO INDEX MỚI</b><br>
-                        Do thay đổi bộ lọc riêng tư, bạn cần bấm vào link trong Console (F12) hoặc <a href="#" onclick="alert('Hãy mở Console của trình duyệt (F12) để lấy link tạo Index!')" style="text-decoration:underline">xem hướng dẫn</a>.
-                    </div>`;
+                    list.innerHTML = `<div style="color:red;padding:10px;text-align:center;border:1px dashed red;border-radius:8px"><b>⚠️ CẦN TẠO INDEX MỚI</b><br>Kiểm tra Console (F12) để lấy link kích hoạt.</div>`;
                 } else {
-                    list.innerHTML = `<p style="color:red;text-align:center">Lỗi tải dữ liệu: ${error.message}</p>`;
+                    list.innerHTML = `<p style="color:red;text-align:center">Lỗi: ${error.message}</p>`;
                 }
             }
         }
@@ -287,17 +250,10 @@
 </head>
 <body>
 
-    <div id="configScreen" class="hidden">
-        <h2 style="color:#0068ff">⚙️ CẤU HÌNH</h2>
-        <p style="color:#666;font-size:13px">Nhập Link Apps Script để gửi ảnh:</p>
-        <input type="text" id="configInput" placeholder="https://script.google.com/macros/s/...">
-        <button onclick="window.saveConfig()" class="btn btn-primary">LƯU</button>
-    </div>
-
     <div id="loginScreen">
         <div style="text-align:center">
             <h1 style="color:#0068ff;font-weight:900;font-size:24px;margin-bottom:5px">TỔ ĐƯỜNG DÂY</h1>
-            <p style="color:#888;font-size:12px">Báo cáo công việc v1.9</p>
+            <p style="color:#888;font-size:12px">Báo cáo công việc v1.10</p>
             <button id="loginBtn" onclick="window.login()" style="background:#fff;border:1px solid #ddd;padding:12px 25px;border-radius:30px;font-weight:bold;color:#444;margin-top:25px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,0.05)">
                 Đăng nhập Gmail
             </button>
