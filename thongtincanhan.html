@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông tin cá nhân - v1.45</title>
+    <title>Thông tin cá nhân - v1.46</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -42,7 +42,7 @@
         <section class="bg-white p-6 rounded-[30px] shadow-lg border border-slate-50 space-y-4">
             <div class="flex justify-between items-center border-b pb-2 mb-2">
                 <h3 class="text-[11px] font-black text-slate-800 uppercase tracking-widest border-l-4 border-blue-700 pl-2">Thông tin chi tiết</h3>
-                <i class="fa fa-pen text-blue-600 cursor-pointer" onclick="enableEdit()"></i>
+                <i class="fa fa-pen text-blue-600 cursor-pointer p-2 hover:bg-blue-50 rounded-full transition" onclick="enableEdit()"></i>
             </div>
             
             <div>
@@ -56,27 +56,37 @@
             </div>
 
             <div>
-                <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Chức vụ</label>
-                <select id="inp-position" class="input-evn select-evn font-bold" disabled>
+                <div class="flex justify-between ml-2">
+                    <label class="text-[9px] font-black text-slate-400 uppercase">Chức vụ</label>
+                    <i class="fa fa-lock text-[10px] text-slate-300" title="Chỉ Admin được sửa"></i>
+                </div>
+                <select id="inp-position" class="input-evn select-evn font-bold bg-slate-100 text-slate-500 cursor-not-allowed" disabled>
                     <option value="Công nhân">Công nhân</option>
                     <option value="Kỹ thuật viên">Kỹ thuật viên</option>
                     <option value="Tổ phó">Tổ phó</option>
                     <option value="Tổ trưởng">Tổ trưởng</option>
                     <option value="Đội phó">Đội phó</option>
                     <option value="Đội trưởng">Đội trưởng</option>
+                    <option value="Lãnh đạo">Lãnh đạo</option>
                 </select>
             </div>
 
             <div>
-                <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Đơn vị công tác</label>
-                <select id="inp-unit" class="input-evn select-evn font-bold" disabled>
+                <div class="flex justify-between ml-2">
+                    <label class="text-[9px] font-black text-slate-400 uppercase">Đơn vị công tác</label>
+                    <i class="fa fa-lock text-[10px] text-slate-300" title="Chỉ Admin được sửa"></i>
+                </div>
+                <select id="inp-unit" class="input-evn select-evn font-bold bg-slate-100 text-slate-500 cursor-not-allowed" disabled>
                     <option value="Nhóm 1">Nhóm 1</option>
                     <option value="Nhóm 2">Nhóm 2</option>
                     <option value="Nhóm 3">Nhóm 3</option>
                     <option value="Nhóm 4">Nhóm 4</option>
                     <option value="Nhóm kỹ thuật">Nhóm kỹ thuật</option>
+                    <option value="Văn phòng đội">Văn phòng đội</option>
                 </select>
             </div>
+            
+            <p class="text-[9px] text-red-400 italic text-center mt-2 hidden" id="admin-note">* Liên hệ Admin để thay đổi Chức vụ/Đơn vị</p>
 
             <button onclick="saveProfile()" id="btn-save" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-[11px] tracking-widest hidden active:scale-95 transition">
                 Lưu thay đổi
@@ -84,7 +94,7 @@
         </section>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý nhân sự - Version 1.45</p></div>
+    <div class="footer-evn"><p>Hệ thống quản lý nhân sự - Version 1.46</p></div>
 
     <script>
         const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
@@ -93,7 +103,7 @@
         const auth = firebase.auth();
         let currentUser = null;
 
-        // 1. TẢI SIDEBAR
+        // Tải Sidebar
         fetch('sidebar.html').then(r=>r.text()).then(d=>{
             document.getElementById('sidebar-container').innerHTML=d;
             if(currentUser) updateSidebarInfo(currentUser);
@@ -105,21 +115,19 @@
                 currentUser = user;
                 document.getElementById('display-email').innerText = user.email;
                 updateSidebarInfo(user);
-                checkManagerRoleForSidebar(user.email); // Kiểm tra quyền Lãnh đạo
+                checkManagerRoleForSidebar(user.email);
                 loadUserProfile(user);
             } else { window.location.href = "index.html"; }
         });
 
-        // 2. CHECK QUYỀN LÃNH ĐẠO (ĐỂ HIỆN NÚT TRÊN SIDEBAR)
+        // Hàm kiểm tra quyền để hiện menu (nếu là lãnh đạo)
         async function checkManagerRoleForSidebar(email) {
             try {
                 const doc = await db.collection("users").doc(email).get();
                 if(doc.exists) {
                     const role = doc.data().position || "";
                     const allowed = ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó"];
-                    if(allowed.includes(role)) {
-                        setTimeout(() => document.querySelectorAll('.manager-only').forEach(el => el.classList.remove('hidden')), 500);
-                    }
+                    if(allowed.includes(role)) setTimeout(() => document.querySelectorAll('.manager-only').forEach(el => el.classList.remove('hidden')), 500);
                 }
             } catch(e) {}
         }
@@ -129,42 +137,75 @@
             const emailEl = document.getElementById('sidebar-user-email');
             if(nameEl && emailEl) { nameEl.innerText = user.displayName; emailEl.innerText = user.email; }
         }
-
         function highlightActiveMenu() {
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.menu-item').forEach(item => { if(item.getAttribute('onclick').includes('profile')) item.classList.add('active'); });
         }
 
+        // TẢI DỮ LIỆU USER
         async function loadUserProfile(user) {
             try {
                 const doc = await db.collection("users").doc(user.email).get();
                 if (doc.exists) {
                     const data = doc.data();
                     document.getElementById('display-name').innerText = data.name || user.displayName;
+                    
                     document.getElementById('inp-name').value = data.name || user.displayName;
                     document.getElementById('inp-phone').value = data.phone || "";
+                    
+                    // Gán giá trị (Dù bị disable vẫn gán để hiển thị đúng)
                     document.getElementById('inp-position').value = data.position || "Công nhân";
                     document.getElementById('inp-unit').value = data.unit || "Nhóm 1";
+                    
                     document.getElementById('role-badge').innerText = data.position || "Công nhân";
                     document.getElementById('unit-badge').innerText = data.unit || "Nhóm 1";
                 } else {
+                    // Mặc định cho User mới
                     document.getElementById('display-name').innerText = user.displayName;
                     document.getElementById('inp-name').value = user.displayName;
+                    document.getElementById('role-badge').innerText = "Công nhân";
+                    document.getElementById('unit-badge').innerText = "Nhóm 1";
+                    // Các select box đã mặc định sẵn value "Công nhân" và "Nhóm 1" trong HTML
                 }
             } catch (e) { console.error(e); }
         }
 
-        window.enableEdit = () => { document.querySelectorAll('.input-evn').forEach(inp => { inp.disabled = false; inp.classList.add('bg-blue-50'); }); document.getElementById('btn-save').classList.remove('hidden'); };
+        // CHỈ MỞ KHÓA TÊN VÀ SĐT
+        window.enableEdit = () => {
+            // Mở khóa Tên
+            const nameInp = document.getElementById('inp-name');
+            nameInp.disabled = false;
+            nameInp.classList.add('bg-blue-50');
+            
+            // Mở khóa SĐT
+            const phoneInp = document.getElementById('inp-phone');
+            phoneInp.disabled = false;
+            phoneInp.classList.add('bg-blue-50');
+
+            // KHÔNG MỞ KHÓA inp-position và inp-unit
+            
+            document.getElementById('btn-save').classList.remove('hidden');
+            document.getElementById('admin-note').classList.remove('hidden'); // Hiện chú thích
+        };
 
         window.saveProfile = async () => {
             const btn = document.getElementById('btn-save'); btn.innerText = "ĐANG LƯU..."; btn.disabled = true;
+            
+            // Lấy giá trị hiện tại (bao gồm cả giá trị mặc định trong ô bị khóa)
+            const positionVal = document.getElementById('inp-position').value;
+            const unitVal = document.getElementById('inp-unit').value;
+
             try {
                 await db.collection("users").doc(currentUser.email).set({
-                    name: document.getElementById('inp-name').value, phone: document.getElementById('inp-phone').value,
-                    position: document.getElementById('inp-position').value, unit: document.getElementById('inp-unit').value,
-                    email: currentUser.email, lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                    name: document.getElementById('inp-name').value,
+                    phone: document.getElementById('inp-phone').value,
+                    // Vẫn gửi chức vụ/đơn vị lên để đảm bảo DB có dữ liệu, nhưng là dữ liệu cũ/mặc định
+                    position: positionVal, 
+                    unit: unitVal,
+                    email: currentUser.email,
+                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
-                alert("Đã lưu hồ sơ!"); location.reload();
+                alert("Cập nhật thành công!"); location.reload();
             } catch (e) { alert("Lỗi: " + e.message); btn.innerText = "LƯU THAY ĐỔI"; btn.disabled = false; }
         };
 
@@ -173,7 +214,7 @@
         window.menuAction = (action) => {
             toggleSidebar();
             if (action === 'report' || action === 'assigned') window.location.href = "index.html";
-            else if (action === 'profile') {}; // Current page
+            else if (action === 'profile') {}; 
             else if (action === 'guide') window.location.href = "huongdan.html";
             else if (action === 'send-notify') window.location.href = "guithongbao.html";
             else if (action === 'assign-task') window.location.href = "giaocongviec.html";
