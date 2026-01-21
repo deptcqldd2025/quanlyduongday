@@ -1,10 +1,156 @@
-/* style.css - v1.28 | EVN Smart Line  */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-:root { --evn-blue: #1A479A; --bg-light: #F4F7FA; }
-body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); margin: 0; padding-bottom: 80px; }
-.evn-header { background-color: var(--evn-blue); color: white; padding: 25px 20px 50px 20px; border-bottom-left-radius: 35px; border-bottom-right-radius: 35px; }
-.input-evn { width: 100%; padding: 14px; border-radius: 18px; border: 1px solid #E5E7EB; outline: none; font-size: 14px; box-sizing: border-box; }
-.card-history { background: white; padding: 16px; border-radius: 24px; border: 1px solid #E2E8F0; margin-bottom: 15px; }
-/* Màn hình đăng nhập */
-.login-overlay { position: fixed; inset: 0; background: var(--evn-blue); z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; padding: 40px; }
-.btn-google { background: white; color: #444; padding: 15px 25px; border-radius: 15px; font-weight: 900; display: flex; items-center; gap: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+/* style.css - v1.28 | Sổ Tay Công Việc QLLĐ 2 */
+
+/* 1. THIẾT LẬP CỐT LÕI */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
+:root {
+    --evn-blue: #1A479A;       /* Xanh dương EVN chủ đạo */
+    --evn-blue-light: #2563EB;
+    --bg-light: #F4F7FA;       /* Nền xám nhạt hiện đại */
+    --text-main: #1F2937;
+    --white: #FFFFFF;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-main);
+    margin: 0;
+    padding-bottom: 80px; /* Chừa khoảng trống cho footer */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 2. MÀN HÌNH ĐĂNG NHẬP (LOGIN OVERLAY) */
+.login-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--evn-blue);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    padding: 40px;
+}
+
+.btn-google {
+    background: var(--white);
+    color: #444;
+    padding: 16px 28px;
+    border-radius: 16px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.btn-google:active {
+    transform: scale(0.95);
+}
+
+/* 3. CẤU TRÚC HEADER */
+.evn-header {
+    background-color: var(--evn-blue);
+    color: var(--white);
+    padding: 25px 20px 55px 20px;
+    border-bottom-left-radius: 35px;
+    border-bottom-right-radius: 35px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* 4. SIDEBAR ĐIỀU HƯỚNG */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 280px;
+    height: 100%;
+    background: var(--white);
+    z-index: 300;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 10px 0 25px rgba(0,0,0,0.1);
+}
+
+.sidebar.active {
+    left: 0;
+}
+
+/* 5. FORM NHẬP LIỆU & INPUTS */
+.input-evn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 18px;
+    border: 1px solid #E5E7EB;
+    background: #FFF;
+    outline: none;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.input-evn:focus {
+    border-color: var(--evn-blue);
+    box-shadow: 0 0 0 4px rgba(26, 71, 154, 0.1);
+}
+
+/* 6. DANH SÁCH FILE ĐÍNH KÈM (QUẢN LÝ FILE) */
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #F1F5F9;
+    padding: 10px 14px;
+    border-radius: 14px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    border: 1px solid #E2E8F0;
+}
+
+.file-item i.fa-trash-alt {
+    color: #EF4444;
+    cursor: pointer;
+    padding: 5px;
+}
+
+/* 7. NHẬT KÝ BÁO CÁO (HISTORY CARDS) */
+.card-history {
+    background: var(--white);
+    padding: 18px;
+    border-radius: 26px;
+    border: 1px solid #E2E8F0;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+}
+
+/* 8. FOOTER CỐ ĐỊNH */
+.footer-fixed {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 14px;
+    text-align: center;
+    border-top: 1px solid #EEE;
+    font-size: 10px;
+    font-weight: 800;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    z-index: 150;
+}
+
+/* 9. TIỆN ÍCH KHÁC */
+.hidden { display: none !important; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+.btn-submit-active:active { transform: scale(0.96); }
