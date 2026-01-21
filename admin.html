@@ -3,292 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản lý Công việc - v1.7</title>
+    <title>Hệ thống Quản trị QLLĐ 2 - v21.11</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #0068ff; }
-        body { background: #f8fafc; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        .header { height: 60px; background: white; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; }
-        .main-container { flex: 1; display: flex; overflow: hidden; }
-        .tab-content { flex: 1; display: flex; overflow: hidden; }
-        .active-tab { border-bottom: 3px solid var(--primary); color: var(--primary); }
-        #map { height: 100%; width: 100%; border-radius: 12px; }
-        .table-container { height: 100%; overflow-y: auto; }
-        th { position: sticky; top: 0; background: #f1f5f9; z-index: 10; }
-        .hidden { display: none !important; }
+        body { background: #f1f5f9; font-family: system-ui, sans-serif; }
+        .tab-btn { padding: 12px 24px; font-weight: 800; font-size: 13px; text-transform: uppercase; color: #94a3b8; border-bottom: 3px solid transparent; transition: all 0.3s; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: #f8faff; }
+        .card { background: white; border-radius: 1.5rem; transition: all 0.2s; border: 1px solid #e2e8f0; }
+        .hidden { display: none; }
     </style>
 </head>
-<body>
+<body class="p-4 md:p-8">
 
-    <div class="header">
-        <h1 class="font-black text-blue-700 uppercase tracking-tighter">Hệ thống Quản lý Công việc</h1>
-        <div class="flex items-center gap-6">
-            <nav class="flex gap-4 h-full">
-                <button onclick="switchTab('reports')" id="btn-reports" class="tab-btn active-tab font-bold text-sm h-[60px]">BÁO CÁO</button>
-                <button onclick="switchTab('assign')" id="btn-assign" class="tab-btn font-bold text-sm h-[60px]">GIAO VIỆC</button>
-                <button onclick="switchTab('workers')" id="btn-workers" class="tab-btn font-bold text-sm h-[60px]">NHÂN SỰ</button>
+    <div class="max-w-7xl mx-auto">
+        <header class="bg-white rounded-3xl shadow-sm border mb-8 overflow-hidden">
+            <div class="p-6 border-b flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-black text-slate-800 uppercase italic">Hệ thống Điều hành</h1>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Đội Quản lý Lưới điện 2</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full font-black">ADMIN MODE</span>
+                </div>
+            </div>
+            <nav class="flex">
+                <button onclick="switchTab('nhansu')" id="btn-nhansu" class="tab-btn flex-1 active">Quản lý Nhân sự</button>
+                <button onclick="switchTab('khoviec')" id="btn-khoviec" class="tab-btn flex-1">Kho việc & Phân công</button>
             </nav>
-            <div class="flex items-center gap-3 border-l pl-4">
-                <span id="adminName" class="text-xs font-bold text-gray-600"></span>
-                <button onclick="window.logout()" class="text-red-500 text-xs font-bold bg-red-50 px-3 py-1.5 rounded-lg">THOÁT</button>
+        </header>
+
+        <section id="tab-nhansu-content" class="space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-black text-slate-700 uppercase italic">Danh sách cán bộ công nhân viên</h2>
+                <button class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase shadow-lg shadow-blue-100">+ Thêm nhân sự</button>
             </div>
-        </div>
+            <div id="staffGrid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                </div>
+        </section>
+
+        <section id="tab-khoviec-content" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-black text-slate-700 uppercase italic italic">Hồ sơ công việc chờ phân công</h2>
+                <div class="flex bg-slate-200 p-1 rounded-xl text-[10px]">
+                    <button onclick="filterWork('new')" id="work-new" class="bg-white px-3 py-1 rounded-lg font-black text-blue-600 shadow-sm">CHỜ GIAO</button>
+                    <button onclick="filterWork('assigned')" id="work-done" class="px-3 py-1 rounded-lg font-black text-slate-500">ĐÃ GIAO</button>
+                </div>
+            </div>
+            <div id="workGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+        </section>
     </div>
 
-    <div id="tab-reports" class="tab-content">
-        <div class="w-[70%] flex flex-col border-r bg-white">
-            <div class="p-4 bg-slate-50 border-b flex items-center justify-between gap-4">
-                <div class="flex gap-2">
-                    <select id="timeFilter" onchange="loadReports()" class="border p-2 rounded text-xs font-bold outline-none">
-                        <option value="today">Hôm nay</option>
-                        <option value="week">Tuần này</option>
-                        <option value="month">Tháng này</option>
-                    </select>
-                    <select id="workerFilter" onchange="loadReports()" class="border p-2 rounded text-xs font-bold outline-none">
-                        <option value="all">Tất cả công nhân</option>
-                    </select>
-                </div>
-                <button onclick="exportExcel()" class="bg-green-600 text-white text-xs px-4 py-2 rounded font-bold">XUẤT EXCEL</button>
-            </div>
-            <div class="table-container p-4">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="text-[11px] uppercase text-gray-400 border-b">
-                            <th class="p-3">Thời gian</th>
-                            <th class="p-3">Nhân viên</th>
-                            <th class="p-3">Nội dung công việc</th>
-                            <th class="p-3">Minh chứng</th>
-                            <th class="p-3 text-center">Duyệt</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reportTableBody" class="text-sm"></tbody>
-                </table>
-            </div>
-        </div>
-        <div class="w-[30%] p-4 bg-gray-100">
-            <div id="map"></div>
-        </div>
-    </div>
-
-    <div id="tab-assign" class="tab-content hidden p-6 overflow-y-auto">
-        <div class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border">
-            <h2 class="text-xl font-bold mb-6 text-blue-700">Giao việc cho tổ viên</h2>
-            <form id="assignForm" class="space-y-4">
+    <div id="assignModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl">
+            <h3 class="text-lg font-black text-slate-800 uppercase italic mb-1">Giao việc cho tổ</h3>
+            <p id="modalTaskName" class="text-xs font-bold text-blue-600 mb-6 pb-4 border-b"></p>
+            
+            <form class="space-y-6">
                 <div>
-                    <label class="block text-xs font-bold mb-1">CÔNG NHÂN NHẬN VIỆC</label>
-                    <select id="assignTarget" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Nhóm trưởng chịu trách nhiệm</label>
+                    <select id="selectMain" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:border-blue-500">
+                        </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold mb-1">NỘI DUNG GIAO VIỆC</label>
-                    <textarea id="assignContent" rows="4" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Mô tả chi tiết công việc..."></textarea>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Nhóm viên phối hợp</label>
+                    <div id="checkSupport" class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
+                        </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold mb-1">THỜI HẠN (DEADLINE)</label>
-                        <input type="date" id="assignDeadline" required class="w-full p-3 border rounded-xl outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold mb-1">FILE ĐÍNH KÈM (PCT/LCT)</label>
-                        <input type="file" id="assignFile" class="w-full p-2 border border-dashed rounded-xl text-xs">
-                    </div>
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="closeModal()" class="flex-1 py-4 font-bold text-slate-400 text-xs">HỦY</button>
+                    <button type="button" onclick="confirmAssign()" class="flex-[2] bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 uppercase text-xs tracking-widest">Xác nhận giao</button>
                 </div>
-                <button type="submit" id="btnAssign" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 transition">PHÁT LỆNH GIAO VIỆC</button>
             </form>
         </div>
     </div>
 
-    <div id="tab-workers" class="tab-content hidden p-6 overflow-y-auto">
-        <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border p-6">
-            <h2 class="text-xl font-bold mb-4">Quản lý nhân sự trong tổ</h2>
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-slate-50 text-xs font-bold">
-                        <th class="p-4 border-b">Họ tên</th>
-                        <th class="p-4 border-b">Mã NV</th>
-                        <th class="p-4 border-b">Chức vụ</th>
-                        <th class="p-4 border-b">Email</th>
-                        <th class="p-4 border-b">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody id="workerTableBody" class="text-sm"></tbody>
-            </table>
-        </div>
-    </div>
+    <script>
+        // DỮ LIỆU NHÂN SỰ GỐC (Dùng chung cho cả 2 tab)
+        const staffData = [
+            { id: "CN01", name: "Trần Công Đẹp", rank: "Bậc 5/5", role: "Chỉ huy" },
+            { id: "CN02", name: "Nguyễn Văn An", rank: "Bậc 4/5", role: "Công nhân" },
+            { id: "CN03", name: "Lê Thị Bình", rank: "Bậc 3/5", role: "Công nhân" },
+            { id: "CN04", name: "Vũ Hoài Nam", rank: "Bậc 5/5", role: "Kỹ thuật" }
+        ];
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, doc, getDoc, getDocs, setDoc, query, where, orderBy, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        // DỮ LIỆU CÔNG VIỆC (Từ Kho việc HLAT)
+        const workData = [
+            { id: 101, org: "Công ty TNHH XNK Thiết bị CN Trung Việt", addr: "194D/4 đường TMT 17, Quận 12", real: 24.1, plan: 178.5, status: "new" },
+            { id: 102, org: "Ông Vũ Hoài Nam", addr: "92/8/11 Đường Nguyễn Sơn, Tân Phú", real: 0.0, plan: 0.0, status: "new" }
+        ];
 
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
-        const firebaseConfig = {
-            apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
-            authDomain: "baocaongay-e73a2.firebaseapp.com",
-            projectId: "baocaongay-e73a2",
-            storageBucket: "baocaongay-e73a2.firebasestorage.app",
-            messagingSenderId: "75165392007",
-            appId: "1:75165392007:web:4ec22bb1612108b096ac22",
-            measurementId: "G-TEGTD9KFCW"
-        };
+        // CHUYỂN TAB
+        function switchTab(tab) {
+            document.getElementById('tab-nhansu-content').classList.add('hidden');
+            document.getElementById('tab-khoviec-content').classList.add('hidden');
+            document.getElementById('btn-nhansu').classList.remove('active');
+            document.getElementById('btn-khoviec').classList.remove('active');
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-        
-        let map, markers = [], allReports = [];
-
-        onAuthStateChanged(auth, async (user) => {
-            if(user) {
-                const snap = await getDoc(doc(db, "users", user.uid));
-                const p = snap.exists() ? snap.data() : {};
-                document.getElementById('adminName').innerText = p.name || user.email;
-                initMap();
-                loadWorkers();
-                loadReports();
-            } else { window.location.href = "index.html"; }
-        });
-
-        window.switchTab = (name) => {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
-            document.getElementById('tab-' + name).classList.remove('hidden');
-            document.getElementById('btn-' + name).classList.add('active-tab');
-            if(name === 'reports') map.invalidateSize();
-        };
-
-        // --- QUẢN LÝ BÁO CÁO ---
-        window.loadReports = async () => {
-            const timeMode = document.getElementById('timeFilter').value;
-            const workerFilter = document.getElementById('workerFilter').value;
-            let start = new Date(); start.setHours(0,0,0,0);
-            if(timeMode === 'week') start.setDate(start.getDate() - 7);
-            if(timeMode === 'month') start.setDate(1);
-
-            let q = query(collection(db, "daily_reports"), where("timestamp", ">=", Timestamp.fromDate(start)), orderBy("timestamp", "desc"));
-            const snap = await getDocs(q);
-            const tbody = document.getElementById('reportTableBody');
-            tbody.innerHTML = "";
-            markers.forEach(m => map.removeLayer(m));
-            markers = [];
-            allReports = [];
-
-            snap.forEach(d => {
-                const r = d.data();
-                if(workerFilter !== 'all' && r.workerName !== workerFilter) return;
-                
-                allReports.push(r);
-                const id = d.id;
-                const timeStr = r.timestamp.toDate().toLocaleString('vi-VN');
-                const isReviewed = r.status === 'reviewed';
-
-                tbody.innerHTML += `
-                    <tr class="border-b hover:bg-blue-50 transition">
-                        <td class="p-3 text-[11px] font-bold text-gray-500">${timeStr}</td>
-                        <td class="p-3 font-bold">${r.workerName}</td>
-                        <td class="p-3 text-gray-700">${r.content} ${r.reply ? `<br><span class="text-xs text-blue-600 font-bold italic">Phản hồi: ${r.reply}</span>` : ''}</td>
-                        <td class="p-3">${r.attachments ? r.attachments.map((u,i) => `<a href="${u}" target="_blank" class="text-blue-500 mr-2">📎</a>`).join('') : ''}</td>
-                        <td class="p-3 text-center flex gap-2 justify-center">
-                            <button onclick="reviewReport('${id}')" title="Duyệt">${isReviewed ? '🔒' : '👁️'}</button>
-                            <button onclick="replyReport('${id}')" title="Phản hồi">💬</button>
-                        </td>
-                    </tr>`;
-                
-                if(r.locationCoords?.lat) {
-                    const m = L.marker([r.locationCoords.lat, r.locationCoords.lng]).addTo(map).bindPopup(r.workerName);
-                    markers.push(m);
-                }
-            });
-        };
-
-        window.reviewReport = async (id) => {
-            await updateDoc(doc(db, "daily_reports", id), { status: "reviewed" });
-            loadReports();
-        };
-
-        window.replyReport = async (id) => {
-            const msg = prompt("Gửi ý kiến phản hồi cho báo cáo này:");
-            if(msg) {
-                await updateDoc(doc(db, "daily_reports", id), { reply: msg });
-                loadReports();
-            }
-        };
-
-        // --- QUẢN LÝ NHÂN SỰ ---
-        window.loadWorkers = async () => {
-            const snap = await getDocs(collection(db, "users"));
-            const tbody = document.getElementById('workerTableBody');
-            const selectAssign = document.getElementById('assignTarget');
-            const selectFilter = document.getElementById('workerFilter');
+            document.getElementById(`tab-${tab}-content`).classList.remove('hidden');
+            document.getElementById(`btn-${tab}`).classList.add('active');
             
-            tbody.innerHTML = "";
-            selectAssign.innerHTML = "";
-            selectFilter.innerHTML = `<option value="all">Tất cả công nhân</option>`;
-
-            snap.forEach(d => {
-                const w = d.data();
-                const id = d.id;
-                tbody.innerHTML += `
-                    <tr class="border-b">
-                        <td class="p-4"><input onchange="updateWorker('${id}', 'name', this.value)" value="${w.name}" class="bg-transparent font-bold"></td>
-                        <td class="p-4"><input onchange="updateWorker('${id}', 'empId', this.value)" value="${w.empId}" class="bg-transparent"></td>
-                        <td class="p-4"><input onchange="updateWorker('${id}', 'role', this.value)" value="${w.role}" class="bg-transparent text-blue-600 font-bold"></td>
-                        <td class="p-4 text-gray-400">${w.email}</td>
-                        <td class="p-4"><button onclick="deleteUser('${id}')" class="text-red-500">🗑️</button></td>
-                    </tr>`;
-                selectAssign.innerHTML += `<option value="${w.empId}">${w.name} (${w.empId})</option>`;
-                selectFilter.innerHTML += `<option value="${w.name}">${w.name}</option>`;
-            });
-        };
-
-        window.updateWorker = async (id, field, value) => {
-            await updateDoc(doc(db, "users", id), { [field]: value });
-        };
-
-        // --- GIAO VIỆC ---
-        document.getElementById('assignForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btnAssign');
-            btn.innerText = "ĐANG GỬI LỆNH..."; btn.disabled = true;
-
-            let fileUrl = "";
-            const file = document.getElementById('assignFile').files[0];
-            if(file) {
-                let reader = new FileReader();
-                let base64 = await new Promise(r => { reader.readAsDataURL(file); reader.onload = () => r(reader.result.split(',')[1]) });
-                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ filename: "GIAOVIEC_"+file.name, mimeType: file.type, file: base64 }) });
-                const json = await res.json();
-                fileUrl = json.url;
-            }
-
-            await addDoc(collection(db, "assigned_tasks"), {
-                targetId: document.getElementById('assignTarget').value,
-                content: document.getElementById('assignContent').value,
-                deadline: document.getElementById('assignDeadline').value,
-                attachment: fileUrl,
-                status: "new",
-                createdAt: Timestamp.now()
-            });
-
-            alert("Đã giao việc thành công!");
-            document.getElementById('assignForm').reset();
-            btn.innerText = "PHÁT LỆNH GIAO VIỆC"; btn.disabled = false;
-        };
-
-        function initMap() {
-            map = L.map('map').setView([10.7769, 106.7009], 11);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            if(tab === 'nhansu') loadStaffGrid();
+            if(tab === 'khoviec') filterWork('new');
         }
 
-        window.logout = () => signOut(auth).then(() => location.reload());
-        window.exportExcel = () => {
-            const ws = XLSX.utils.json_to_sheet(allReports.map(r => ({ "Giờ": r.timestamp.toDate().toLocaleString(), "Nhân viên": r.workerName, "Nội dung": r.content, "Phản hồi": r.reply || "" })));
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "BaoCao");
-            XLSX.writeFile(wb, "Hệ_Thống_Quản_Lý.xlsx");
-        };
+        // LOAD DANH SÁCH NHÂN SỰ (Tab 1)
+        function loadStaffGrid() {
+            const grid = document.getElementById('staffGrid');
+            grid.innerHTML = staffData.map(s => `
+                <div class="card p-4 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center font-black text-blue-600">${s.name.charAt(0)}</div>
+                    <div>
+                        <h4 class="text-xs font-black text-slate-800 uppercase">${s.name}</h4>
+                        <p class="text-[10px] text-slate-400 font-bold">${s.rank} - ${s.role}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // LOAD DANH SÁCH KHO VIỆC (Tab 2)
+        function filterWork(status) {
+            const grid = document.getElementById('workGrid');
+            const data = workData.filter(w => w.status === status);
+            
+            grid.innerHTML = data.map(w => `
+                <div class="card p-5 flex flex-col h-full bg-white">
+                    <div class="flex justify-between mb-3"><span class="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-lg uppercase">HLAT</span></div>
+                    <h4 class="font-black text-slate-800 text-[13px] mb-1 uppercase leading-tight">${w.org}</h4>
+                    <p class="text-[10px] text-slate-500 mb-4 italic">📍 ${w.addr}</p>
+                    <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border mb-5">
+                        <div class="text-center"><span class="block text-[8px] font-bold text-slate-400 uppercase italic uppercase">Thực tế</span><span class="text-[11px] font-black text-red-600">${w.real} m²</span></div>
+                        <div class="text-center border-l"><span class="block text-[8px] font-bold text-slate-400 uppercase italic">Quy hoạch</span><span class="text-[11px] font-black text-red-600">${w.plan} m²</span></div>
+                    </div>
+                    <button onclick="openAssignModal('${w.org}')" class="w-full bg-blue-600 text-white font-black py-3 rounded-xl shadow-lg shadow-blue-100 uppercase text-[10px] mt-auto">Phân công ngay</button>
+                </div>
+            `).join('');
+        }
+
+        // MODAL PHÂN CÔNG
+        function openAssignModal(name) {
+            document.getElementById('modalTaskName').innerText = name;
+            const mainSelect = document.getElementById('selectMain');
+            const supportCheck = document.getElementById('checkSupport');
+            
+            mainSelect.innerHTML = '<option value="">-- Chọn trưởng nhóm --</option>' + 
+                staffData.map(s => `<option value="${s.id}">${s.name} (${s.rank})</option>`).join('');
+            
+            supportCheck.innerHTML = staffData.map(s => `
+                <label class="flex items-center p-2 bg-slate-50 border rounded-lg cursor-pointer">
+                    <input type="checkbox" class="mr-2"> <span class="text-[10px] font-bold">${s.name}</span>
+                </label>
+            `).join('');
+
+            document.getElementById('assignModal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('assignModal').classList.add('hidden'); }
+        function confirmAssign() { alert("Phân công thành công!"); closeModal(); }
+
+        // Khởi tạo mặc định
+        loadStaffGrid();
     </script>
 </body>
 </html>
