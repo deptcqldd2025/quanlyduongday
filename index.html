@@ -2,21 +2,153 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Sổ tay công việc v1.22</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sổ tay công việc - v1.23</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #F4F7FA; }
+        .evn-blue { background-color: #1A479A; }
+        .input-evn { width: 100%; padding: 16px; border-radius: 20px; border: 1px solid #E5E7EB; background: #FFF; outline: none; font-size: 14px; transition: 0.3s; }
+        .input-evn:focus { border-color: #1A479A; box-shadow: 0 0 0 4px rgba(26, 71, 154, 0.1); }
+        .card-history { background: white; border-radius: 24px; padding: 20px; border: 1px solid #F1F5F9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
+    </style>
 </head>
-<body class="p-4">
-    <div id="app-container">
+<body class="pb-24">
+
+    <div class="evn-blue text-white p-8 rounded-b-[40px] shadow-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="font-black text-xl italic uppercase tracking-tighter">Sổ tay công việc</h1>
+                <p id="display-name" class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Đang tải...</p>
+            </div>
+            <button onclick="location.reload()" class="bg-white/20 p-2 rounded-full"><img src="https://img.icons8.com/ios-glyphs/24/ffffff/refresh.png" class="w-4"/></button>
         </div>
+    </div>
+
+    <div class="max-w-md mx-auto px-6 -mt-10 space-y-8">
+        <section class="bg-white p-6 rounded-[32px] shadow-xl border border-slate-50 space-y-4">
+            <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Gửi báo cáo hiện trường</h2>
+            
+            <input type="text" id="job-id" class="input-evn" placeholder="Số Phiếu / Lệnh (Nếu có)">
+            
+            <textarea id="job-content" rows="4" class="input-evn" placeholder="Nội dung công việc hôm nay *"></textarea>
+
+            <div class="border-2 border-dashed border-slate-100 rounded-[24px] p-6 text-center bg-slate-50/50 cursor-pointer" onclick="document.getElementById('file-in').click()">
+                <input type="file" id="file-in" class="hidden" multiple accept="image/*">
+                <p id="file-status" class="text-[10px] font-bold text-slate-400 uppercase italic">Chưa chọn ảnh</p>
+                <div class="mt-2 inline-flex items-center gap-2 bg-white border px-4 py-2 rounded-xl shadow-sm">
+                    <span class="text-[10px] font-black text-[#1A479A]">+ CHỌN ẢNH</span>
+                </div>
+            </div>
+
+            <input type="text" id="job-note" class="input-evn" placeholder="Ghi chú / Kiến nghị">
+
+            <button onclick="submitReport()" id="btn-submit" class="w-full evn-blue text-white font-black py-5 rounded-[24px] shadow-lg shadow-blue-100 uppercase text-xs tracking-widest active:scale-95 transition">
+                Xác nhận gửi báo cáo
+            </button>
+        </section>
+
+        <section class="space-y-4">
+            <div class="flex justify-between items-center px-2">
+                <h3 class="font-black text-slate-800 text-sm uppercase italic">Nhật ký hôm nay</h3>
+                <span class="text-[10px] font-bold text-slate-400" id="current-date">--/--/----</span>
+            </div>
+
+            <div id="history-list" class="space-y-4">
+                <p class="text-center py-10 text-slate-300 text-[10px] font-bold uppercase italic">Đang tải...</p>
+            </div>
+        </section>
+    </div>
 
     <script type="module">
-        import { firebaseConfig } from './js/config.js';
-        import { submitReport, getTodayHistory } from './js/app.js';
+        import { CONFIG } from './config.js';
 
-        firebase.initializeApp(firebaseConfig);
-        // Khởi tạo ứng dụng tại đây...
+        // Khởi tạo Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(CONFIG.FIREBASE);
+        }
+        const db = firebase.firestore();
+
+        // Giả định User (Anh có thể thay bằng logic login thực tế)
+        const user = { name: "Trần Công Đẹp", phone: "090xxxxxxx" };
+        document.getElementById('display-name').innerText = `Chào, ${user.name}`;
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('vi-VN');
+
+        // Theo dõi chọn file
+        document.getElementById('file-in').onchange = (e) => {
+            const count = e.target.files.length;
+            document.getElementById('file-status').innerText = count > 0 ? `✅ Đã chọn ${count} file` : "Chưa chọn ảnh";
+        };
+
+        // Hàm Gửi báo cáo
+        window.submitReport = async () => {
+            const content = document.getElementById('job-content').value;
+            if (!content) return alert("Vui lòng nhập nội dung!");
+
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true;
+            btn.innerText = "ĐANG XỬ LÝ...";
+
+            const data = {
+                worker: user.name,
+                jobId: document.getElementById('job-id').value,
+                content: content,
+                note: document.getElementById('job-note').value,
+                date: new Date().toLocaleDateString('vi-VN'),
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection("daily_reports").add(data);
+                alert("Đã gửi báo cáo thành công!");
+                document.getElementById('job-content').value = "";
+                loadHistory();
+            } catch (e) {
+                alert("Lỗi kết nối: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "XÁC NHẬN GỬI BÁO CÁO";
+            }
+        };
+
+        // Hàm Tải nhật ký
+        async function loadHistory() {
+            const list = document.getElementById('history-list');
+            const today = new Date().toLocaleDateString('vi-VN');
+
+            try {
+                const snap = await db.collection("daily_reports")
+                    .where("worker", "==", user.name)
+                    .where("date", "==", today)
+                    .orderBy("timestamp", "desc").get();
+
+                if (snap.empty) {
+                    list.innerHTML = `<p class="text-center py-10 text-slate-300 text-[10px] font-bold uppercase italic">Chưa có báo cáo nào</p>`;
+                    return;
+                }
+
+                list.innerHTML = snap.docs.map(doc => {
+                    const d = doc.data();
+                    return `
+                        <div class="card-history">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[9px] font-black text-[#1A479A] uppercase">Phiếu: ${d.jobId || '---'}</span>
+                                <span class="text-[9px] font-bold text-slate-300 italic">Đã gửi</span>
+                            </div>
+                            <p class="text-xs font-bold text-slate-700 leading-relaxed">${d.content}</p>
+                            ${d.note ? `<p class="mt-2 text-[10px] text-slate-400 italic border-t pt-2">Ghi chú: ${d.note}</p>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                list.innerHTML = `<p class="text-center text-red-300 text-[9px]">Lỗi tải dữ liệu</p>`;
+            }
+        }
+
+        loadHistory();
     </script>
 </body>
 </html>
