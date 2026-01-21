@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.26</title>
+    <title>Sổ tay công việc - v1.27</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -15,149 +15,189 @@
 
     <div id="sidebar" class="sidebar p-6">
         <div class="flex justify-between items-center mb-8">
-            <h2 class="font-black text-blue-900 italic">DANH MỤC</h2>
+            <h2 class="font-black text-blue-900 italic uppercase">Cài đặt</h2>
             <i class="fa fa-times text-xl text-gray-400" onclick="toggleSidebar()"></i>
         </div>
         <nav class="space-y-4 font-bold text-gray-600 uppercase text-xs">
-            <div class="flex items-center gap-3 p-3 bg-blue-50 text-blue-700 rounded-xl"><i class="fa fa-edit"></i> Báo cáo mới</div>
-            <div class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl"><i class="fa fa-history"></i> Lịch sử tháng</div>
-            <div class="flex items-center gap-3 p-3 text-red-500 rounded-xl" onclick="handleLogout()"><i class="fa fa-sign-out"></i> Thoát hệ thống</div>
+            <div class="flex items-center gap-3 p-4 bg-blue-50 text-blue-700 rounded-2xl"><i class="fa fa-file-pen"></i> Báo cáo mới</div>
+            <div class="flex items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl" onclick="handleLogout()"><i class="fa fa-sign-out"></i> Đăng xuất</div>
         </nav>
     </div>
 
     <div class="evn-header">
         <div class="max-w-md mx-auto flex items-center gap-4">
-            <i class="fa fa-bars text-xl cursor-pointer" onclick="toggleSidebar()"></i>
+            <i class="fa fa-align-left text-xl cursor-pointer" onclick="toggleSidebar()"></i>
             <div>
                 <h1 class="font-black text-lg italic uppercase tracking-tighter leading-none">Sổ tay công việc</h1>
-                <p id="user-display-name" class="text-[11px] font-bold text-blue-200 mt-1">...</p>
+                <p id="user-display-name" class="text-[11px] font-bold text-blue-200 mt-1 uppercase italic">Xác thực danh tính...</p>
             </div>
         </div>
     </div>
 
     <div class="max-w-md mx-auto px-6 -mt-6 space-y-6">
-        <section class="bg-white p-6 rounded-[28px] shadow-2xl space-y-4 border border-slate-50">
-            <h2 class="text-[10px] font-black text-slate-800 uppercase tracking-widest border-l-4 border-blue-700 pl-2">Báo cáo công việc</h2>
+        <section class="bg-white p-6 rounded-[30px] shadow-2xl space-y-4">
+            <h2 id="form-title" class="text-[10px] font-black text-slate-800 uppercase tracking-widest border-l-4 border-blue-700 pl-2">Báo cáo công việc</h2>
             
             <input type="text" id="job-id" class="input-evn" placeholder="Số Phiếu / Lệnh (Nếu có)">
             <textarea id="job-content" rows="4" class="input-evn" placeholder="Nội dung công việc hôm nay *"></textarea>
 
-            <div id="file-list-container" class="space-y-1"></div>
-
+            <div id="file-list-container"></div>
             <div class="border-2 border-dashed border-slate-100 rounded-[20px] p-4 text-center bg-slate-50/50 cursor-pointer" onclick="document.getElementById('file-in').click()">
                 <input type="file" id="file-in" class="hidden" multiple accept="image/*,.pdf">
-                <div class="inline-flex items-center gap-2 text-[10px] font-black text-blue-700 uppercase">
-                    <i class="fa fa-paperclip"></i> Đính kèm Ảnh hoặc PDF
-                </div>
+                <div class="text-[10px] font-black text-blue-700 uppercase"><i class="fa fa-cloud-upload mr-2"></i>Chọn Ảnh hoặc PDF</div>
             </div>
 
             <input type="text" id="job-note" class="input-evn" placeholder="Ghi chú / Kiến nghị">
 
-            <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-xs tracking-widest active:scale-95 transition">
-                Gửi báo cáo thực tế
+            <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-[11px] tracking-widest active:scale-95">
+                Xác nhận gửi báo cáo
             </button>
+            <button id="btn-cancel-edit" onclick="resetForm()" class="hidden w-full text-red-500 font-bold text-[10px] uppercase">Hủy sửa đổi</button>
         </section>
 
-        <section class="space-y-4 pb-10">
-            <h3 class="font-black text-slate-800 text-xs uppercase italic px-2">Nhật ký hôm nay</h3>
-            <div id="history-list" class="space-y-3"></div>
+        <section class="space-y-4 pb-12">
+            <h3 class="font-black text-slate-800 text-[11px] uppercase italic px-2">Nhật ký báo cáo</h3>
+            <div id="history-list" class="space-y-4"></div>
         </section>
     </div>
 
-    <footer class="footer-fixed">
-        <span id="footer-info">TÁC GIẢ: TRẦN CÔNG ĐẸP | PHIÊN BẢN: 1.26</span>
-    </footer>
+    <footer class="footer-fixed">TÁC GIẢ: TRẦN CÔNG ĐẸP | VERSION: 1.27</footer>
 
     <script type="module">
         import { CONFIG } from './config.js';
         firebase.initializeApp(CONFIG.FIREBASE);
         const db = firebase.firestore();
         const auth = firebase.auth();
+        const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
 
         let selectedFiles = [];
+        let editingId = null;
 
-        // 1. KIỂM TRA ĐĂNG NHẬP GMAIL THỰC TẾ 
         auth.onAuthStateChanged(user => {
             if (user) {
                 document.getElementById('user-display-name').innerText = user.displayName;
                 loadHistory(user.email);
             } else {
-                // Nếu chưa đăng nhập, sử dụng Google Provider
-                const provider = new firebase.auth.GoogleAuthProvider();
-                auth.signInWithRedirect(provider);
+                auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
             }
         });
 
-        // 2. QUẢN LÝ SIDEBAR
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
 
-        // 3. QUẢN LÝ FILE ĐÍNH KÈM (CÓ NÚT XÓA)
         document.getElementById('file-in').onchange = (e) => {
-            const newFiles = Array.from(e.target.files);
-            selectedFiles = [...selectedFiles, ...newFiles];
-            renderFileList();
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    selectedFiles.push({ name: file.name, type: file.type, data: ev.target.result.split(',')[1] });
+                    renderFileList();
+                };
+                reader.readAsDataURL(file);
+            });
         };
 
         function renderFileList() {
-            const container = document.getElementById('file-list-container');
-            container.innerHTML = selectedFiles.map((file, index) => `
+            document.getElementById('file-list-container').innerHTML = selectedFiles.map((f, i) => `
                 <div class="file-item">
-                    <span><i class="fa fa-file-alt mr-2 text-blue-400"></i>${file.name}</span>
-                    <i class="fa fa-trash-alt text-red-400 cursor-pointer" onclick="removeFile(${index})"></i>
-                </div>
-            `).join('');
+                    <span>${f.name}</span>
+                    <i class="fa fa-times text-red-400" onclick="removeFile(${i})"></i>
+                </div>`).join('');
         }
+        window.removeFile = (i) => { selectedFiles.splice(i, 1); renderFileList(); };
 
-        window.removeFile = (index) => {
-            selectedFiles.splice(index, 1);
-            renderFileList();
-        };
-
-        // 4. GỬI BÁO CÁO THỰC TẾ 
         window.submitReport = async () => {
             const user = auth.currentUser;
             const content = document.getElementById('job-content').value;
-            if (!content) return alert("Vui lòng nhập nội dung!");
+            if (!content) return alert("Chưa nhập nội dung!");
 
             const btn = document.getElementById('btn-submit');
-            btn.disabled = true; btn.innerText = "ĐANG TRUYỀN DỮ LIỆU...";
+            btn.disabled = true; btn.innerText = "ĐANG XỬ LÝ DỮ LIỆU...";
 
             try {
-                await db.collection("daily_reports").add({
+                // 1. Gửi file lên Google Drive qua AppScript
+                let driveUrls = [];
+                if (selectedFiles.length > 0) {
+                    const response = await fetch(APPSCRIPT_URL, {
+                        method: "POST",
+                        body: JSON.stringify({ files: selectedFiles, folder: "DailyReports" })
+                    });
+                    const resData = await response.json();
+                    driveUrls = resData.urls; 
+                }
+
+                const data = {
                     worker: user.displayName,
                     email: user.email,
                     jobId: document.getElementById('job-id').value,
                     content: content,
                     note: document.getElementById('job-note').value,
+                    files: driveUrls,
+                    status: "pending", // Mặc định là chưa xem
                     date: new Date().toLocaleDateString('vi-VN'),
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                alert("Đã gửi thành công!");
-                selectedFiles = []; renderFileList();
-                document.getElementById('job-content').value = "";
+                };
+
+                if (editingId) {
+                    await db.collection("daily_reports").doc(editingId).update(data);
+                    alert("Cập nhật thành công!");
+                } else {
+                    await db.collection("daily_reports").add(data);
+                    alert("Gửi báo cáo thành công!");
+                }
+                resetForm();
                 loadHistory(user.email);
-            } catch (e) { alert("Lỗi: " + e.message); }
-            finally { btn.disabled = false; btn.innerText = "GỬI BÁO CÁO THỰC TẾ"; }
+            } catch (e) { alert("Lỗi hệ thống: " + e.message); }
+            finally { btn.disabled = false; btn.innerText = "XÁC NHẬN GỬI BÁO CÁO"; }
         };
 
-        // 5. TẢI NHẬT KÝ (KHÔNG THỜI GIAN ĐỂ TRÁNH SAI LỆCH) 
         async function loadHistory(email) {
             const list = document.getElementById('history-list');
-            const today = new Date().toLocaleDateString('vi-VN');
             const snap = await db.collection("daily_reports")
                 .where("email", "==", email)
-                .where("date", "==", today)
+                .where("date", "==", new Date().toLocaleDateString('vi-VN'))
                 .orderBy("timestamp", "desc").get();
 
-            list.innerHTML = snap.empty ? `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase italic">Chưa có báo cáo hôm nay</p>` :
-                snap.docs.map(doc => {
-                    const d = doc.data();
-                    return `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                        <p class="text-[9px] font-black text-blue-600 mb-1 uppercase tracking-tighter">Phiếu: ${d.jobId || '---'}</p>
-                        <p class="text-xs font-bold text-slate-700 leading-relaxed">${d.content}</p>
-                    </div>`;
-                }).join('');
+            list.innerHTML = snap.docs.map(doc => {
+                const d = doc.data();
+                const canEdit = d.status === "pending";
+                return `
+                <div class="card-history p-5 bg-white border border-slate-100 rounded-3xl shadow-sm">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="status-tag ${canEdit ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}">
+                            ${canEdit ? 'Chờ duyệt' : 'Đã duyệt'}
+                        </span>
+                        ${canEdit ? `<button onclick="editReport('${doc.id}')" class="text-blue-600 text-[10px] font-black uppercase"><i class="fa fa-edit"></i> Sửa</button>` : ''}
+                    </div>
+                    <p class="text-[9px] font-black text-blue-800 uppercase mb-1">Phiếu: ${d.jobId || '---'}</p>
+                    <p class="text-xs font-bold text-slate-600">${d.content}</p>
+                    <div class="mt-3 flex gap-2">
+                        ${(d.files || []).map(url => `<a href="${url}" target="_blank" class="text-[9px] font-bold text-blue-500"><i class="fa fa-file"></i> Xem file</a>`).join('')}
+                    </div>
+                </div>`;
+            }).join('');
         }
+
+        window.editReport = async (id) => {
+            const doc = await db.collection("daily_reports").doc(id).get();
+            const d = doc.data();
+            editingId = id;
+            document.getElementById('job-id').value = d.jobId;
+            document.getElementById('job-content').value = d.content;
+            document.getElementById('job-note').value = d.note;
+            document.getElementById('form-title').innerText = "CHỈNH SỬA BÁO CÁO";
+            document.getElementById('btn-cancel-edit').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.resetForm = () => {
+            editingId = null;
+            document.getElementById('job-id').value = "";
+            document.getElementById('job-content').value = "";
+            document.getElementById('job-note').value = "";
+            document.getElementById('form-title').innerText = "BÁO CÁO CÔNG VIỆC";
+            document.getElementById('btn-cancel-edit').classList.add('hidden');
+            selectedFiles = []; renderFileList();
+        };
 
         window.handleLogout = () => auth.signOut().then(() => location.reload());
     </script>
