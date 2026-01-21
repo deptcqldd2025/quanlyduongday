@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông tin cá nhân - v1.42</title>
+    <title>Thông tin cá nhân - v1.45</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -84,7 +84,7 @@
         </section>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý nhân sự - Version 1.42</p></div>
+    <div class="footer-evn"><p>Hệ thống quản lý nhân sự - Version 1.45</p></div>
 
     <script>
         const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
@@ -93,58 +93,48 @@
         const auth = firebase.auth();
         let currentUser = null;
 
-        // --- 1. TẢI MODULE SIDEBAR ---
-        fetch('sidebar.html')
-            .then(res => res.text())
-            .then(data => {
-                document.getElementById('sidebar-container').innerHTML = data;
-                if(currentUser) updateSidebarInfo(currentUser);
-                // Highlight mục Thông tin cá nhân
-                highlightActiveMenu(); 
-            })
-            .catch(e => console.error("Lỗi tải sidebar:", e));
+        // 1. TẢI SIDEBAR
+        fetch('sidebar.html').then(r=>r.text()).then(d=>{
+            document.getElementById('sidebar-container').innerHTML=d;
+            if(currentUser) updateSidebarInfo(currentUser);
+            highlightActiveMenu();
+        });
 
-        // --- 2. AUTH & LOAD DATA ---
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
-                // Điền thông tin vào phần Header của trang này
                 document.getElementById('display-email').innerText = user.email;
-                
-                // Cập nhật Sidebar nếu sidebar đã tải xong
                 updateSidebarInfo(user);
-
-                // Tải dữ liệu chi tiết
+                checkManagerRoleForSidebar(user.email); // Kiểm tra quyền Lãnh đạo
                 loadUserProfile(user);
-            } else {
-                window.location.href = "index.html";
-            }
+            } else { window.location.href = "index.html"; }
         });
 
-        // Hàm cập nhật Sidebar
+        // 2. CHECK QUYỀN LÃNH ĐẠO (ĐỂ HIỆN NÚT TRÊN SIDEBAR)
+        async function checkManagerRoleForSidebar(email) {
+            try {
+                const doc = await db.collection("users").doc(email).get();
+                if(doc.exists) {
+                    const role = doc.data().position || "";
+                    const allowed = ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó"];
+                    if(allowed.includes(role)) {
+                        setTimeout(() => document.querySelectorAll('.manager-only').forEach(el => el.classList.remove('hidden')), 500);
+                    }
+                }
+            } catch(e) {}
+        }
+
         function updateSidebarInfo(user) {
             const nameEl = document.getElementById('sidebar-user-name');
             const emailEl = document.getElementById('sidebar-user-email');
-            if(nameEl && emailEl) {
-                nameEl.innerText = user.displayName;
-                emailEl.innerText = user.email;
-            }
+            if(nameEl && emailEl) { nameEl.innerText = user.displayName; emailEl.innerText = user.email; }
         }
 
-        // Hàm đánh dấu menu đang chọn
         function highlightActiveMenu() {
-            // Xóa active cũ (nếu sidebar.html có mặc định active ở mục khác)
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-            // Tìm mục Profile để thêm active (Dựa vào text hoặc icon, ở đây ta dùng logic onclick)
-            const items = document.querySelectorAll('.menu-item');
-            items.forEach(item => {
-                if(item.getAttribute('onclick').includes('profile')) {
-                    item.classList.add('active');
-                }
-            });
+            document.querySelectorAll('.menu-item').forEach(item => { if(item.getAttribute('onclick').includes('profile')) item.classList.add('active'); });
         }
 
-        // --- 3. LOGIC TRANG CÁ NHÂN ---
         async function loadUserProfile(user) {
             try {
                 const doc = await db.collection("users").doc(user.email).get();
@@ -164,42 +154,33 @@
             } catch (e) { console.error(e); }
         }
 
-        window.enableEdit = () => {
-            document.querySelectorAll('.input-evn').forEach(inp => { inp.disabled = false; inp.classList.add('bg-blue-50'); });
-            document.getElementById('btn-save').classList.remove('hidden');
-        };
+        window.enableEdit = () => { document.querySelectorAll('.input-evn').forEach(inp => { inp.disabled = false; inp.classList.add('bg-blue-50'); }); document.getElementById('btn-save').classList.remove('hidden'); };
 
         window.saveProfile = async () => {
             const btn = document.getElementById('btn-save'); btn.innerText = "ĐANG LƯU..."; btn.disabled = true;
             try {
                 await db.collection("users").doc(currentUser.email).set({
-                    name: document.getElementById('inp-name').value,
-                    phone: document.getElementById('inp-phone').value,
-                    position: document.getElementById('inp-position').value,
-                    unit: document.getElementById('inp-unit').value,
+                    name: document.getElementById('inp-name').value, phone: document.getElementById('inp-phone').value,
+                    position: document.getElementById('inp-position').value, unit: document.getElementById('inp-unit').value,
                     email: currentUser.email, lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
                 alert("Đã lưu hồ sơ!"); location.reload();
             } catch (e) { alert("Lỗi: " + e.message); btn.innerText = "LƯU THAY ĐỔI"; btn.disabled = false; }
         };
 
-        // --- 4. ĐIỀU HƯỚNG MENU (Cần định nghĩa lại vì đang ở trang con) ---
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
 
         window.menuAction = (action) => {
             toggleSidebar();
-            if (action === 'report' || action === 'assigned') {
-                window.location.href = "index.html"; // Quay về trang chủ
-            } else if (action === 'profile') {
-                // Đang ở trang profile rồi, không làm gì
-            } else {
-                alert("Tính năng đang phát triển!");
-            }
+            if (action === 'report' || action === 'assigned') window.location.href = "index.html";
+            else if (action === 'profile') {}; // Current page
+            else if (action === 'guide') window.location.href = "huongdan.html";
+            else if (action === 'send-notify') window.location.href = "guithongbao.html";
+            else if (action === 'assign-task') window.location.href = "giaocongviec.html";
+            else alert("Đang phát triển!");
         };
 
-        window.handleLogout = () => {
-            if(confirm("Đăng xuất?")) auth.signOut().then(() => window.location.href = "index.html");
-        };
+        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
     </script>
 </body>
 </html>
