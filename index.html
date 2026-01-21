@@ -3,91 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.25</title>
+    <title>Sổ tay công việc - v1.26</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+    <div id="sidebar" class="sidebar p-6">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="font-black text-blue-900 italic">DANH MỤC</h2>
+            <i class="fa fa-times text-xl text-gray-400" onclick="toggleSidebar()"></i>
+        </div>
+        <nav class="space-y-4 font-bold text-gray-600 uppercase text-xs">
+            <div class="flex items-center gap-3 p-3 bg-blue-50 text-blue-700 rounded-xl"><i class="fa fa-edit"></i> Báo cáo mới</div>
+            <div class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl"><i class="fa fa-history"></i> Lịch sử tháng</div>
+            <div class="flex items-center gap-3 p-3 text-red-500 rounded-xl" onclick="handleLogout()"><i class="fa fa-sign-out"></i> Thoát hệ thống</div>
+        </nav>
+    </div>
+
     <div class="evn-header">
-        <div class="max-w-md mx-auto flex justify-between items-start">
+        <div class="max-w-md mx-auto flex items-center gap-4">
+            <i class="fa fa-bars text-xl cursor-pointer" onclick="toggleSidebar()"></i>
             <div>
-                <h1 class="font-black text-2xl italic uppercase tracking-tighter">Sổ tay công việc</h1>
-                <div class="mt-1">
-                    <p id="user-name" class="text-xs font-black uppercase tracking-widest text-blue-200 italic">Đang xác thực...</p>
-                    <p id="user-email" class="text-[9px] font-bold opacity-60 italic">...</p>
-                </div>
+                <h1 class="font-black text-lg italic uppercase tracking-tighter leading-none">Sổ tay công việc</h1>
+                <p id="user-display-name" class="text-[11px] font-bold text-blue-200 mt-1">...</p>
             </div>
-            <button onclick="firebase.auth().signOut()" class="bg-white/10 p-2 rounded-2xl border border-white/20">
-                <i class="fa fa-sign-out"></i>
-            </button>
         </div>
     </div>
 
-    <div class="max-w-md mx-auto px-6 -mt-8 space-y-8">
-        <section class="bg-white p-6 rounded-[32px] shadow-2xl border border-slate-50 space-y-4">
-            <h2 class="text-[11px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                <span class="w-1 h-3 bg-blue-700 rounded-full"></span> BÁO CÁO CÔNG VIỆC
-            </h2>
+    <div class="max-w-md mx-auto px-6 -mt-6 space-y-6">
+        <section class="bg-white p-6 rounded-[28px] shadow-2xl space-y-4 border border-slate-50">
+            <h2 class="text-[10px] font-black text-slate-800 uppercase tracking-widest border-l-4 border-blue-700 pl-2">Báo cáo công việc</h2>
             
             <input type="text" id="job-id" class="input-evn" placeholder="Số Phiếu / Lệnh (Nếu có)">
             <textarea id="job-content" rows="4" class="input-evn" placeholder="Nội dung công việc hôm nay *"></textarea>
 
-            <div class="border-2 border-dashed border-slate-100 rounded-[24px] p-6 text-center bg-slate-50/50 cursor-pointer" onclick="document.getElementById('file-in').click()">
+            <div id="file-list-container" class="space-y-1"></div>
+
+            <div class="border-2 border-dashed border-slate-100 rounded-[20px] p-4 text-center bg-slate-50/50 cursor-pointer" onclick="document.getElementById('file-in').click()">
                 <input type="file" id="file-in" class="hidden" multiple accept="image/*,.pdf">
-                <p id="file-status" class="text-[10px] font-black text-slate-400 uppercase italic">Đính kèm Ảnh hoặc PDF</p>
-                <div class="mt-2 inline-flex items-center gap-2 bg-white border px-5 py-2 rounded-xl shadow-sm text-[10px] font-black text-[#1A479A]">
-                    + CHỌN TỆP
+                <div class="inline-flex items-center gap-2 text-[10px] font-black text-blue-700 uppercase">
+                    <i class="fa fa-paperclip"></i> Đính kèm Ảnh hoặc PDF
                 </div>
             </div>
 
             <input type="text" id="job-note" class="input-evn" placeholder="Ghi chú / Kiến nghị">
 
-            <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-5 rounded-[24px] shadow-lg uppercase text-xs tracking-widest active:scale-95 transition">
-                Gửi dữ liệu thực tế
+            <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-xs tracking-widest active:scale-95 transition">
+                Gửi báo cáo thực tế
             </button>
         </section>
 
-        <section class="space-y-4">
-            <h3 class="font-black text-slate-800 text-sm uppercase italic px-2">Nhật ký báo cáo</h3>
-            <div id="history-list" class="space-y-4 pb-10">
-                <p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Đang tải...</p>
-            </div>
+        <section class="space-y-4 pb-10">
+            <h3 class="font-black text-slate-800 text-xs uppercase italic px-2">Nhật ký hôm nay</h3>
+            <div id="history-list" class="space-y-3"></div>
         </section>
     </div>
 
     <footer class="footer-fixed">
-        <span>TÁC GIẢ: TRẦN CÔNG ĐẸP | PHIÊN BẢN: 1.25</span>
+        <span id="footer-info">TÁC GIẢ: TRẦN CÔNG ĐẸP | PHIÊN BẢN: 1.26</span>
     </footer>
 
     <script type="module">
         import { CONFIG } from './config.js';
-
-        // Khởi tạo Firebase từ dữ liệu thật của anh 
         firebase.initializeApp(CONFIG.FIREBASE);
         const db = firebase.firestore();
         const auth = firebase.auth();
 
-        // Kiểm tra trạng thái đăng nhập THẬT 
+        let selectedFiles = [];
+
+        // 1. KIỂM TRA ĐĂNG NHẬP GMAIL THỰC TẾ 
         auth.onAuthStateChanged(user => {
             if (user) {
-                document.getElementById('user-name').innerText = user.displayName || "Cán bộ QLLĐ 2";
-                document.getElementById('user-email').innerText = user.email;
+                document.getElementById('user-display-name').innerText = user.displayName;
                 loadHistory(user.email);
             } else {
-                window.location.href = "login.html"; // Chuyển về login nếu chưa đăng nhập
+                // Nếu chưa đăng nhập, sử dụng Google Provider
+                const provider = new firebase.auth.GoogleAuthProvider();
+                auth.signInWithRedirect(provider);
             }
         });
 
-        // Xử lý đính kèm
+        // 2. QUẢN LÝ SIDEBAR
+        window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
+
+        // 3. QUẢN LÝ FILE ĐÍNH KÈM (CÓ NÚT XÓA)
         document.getElementById('file-in').onchange = (e) => {
-            document.getElementById('file-status').innerText = `✅ Đã chọn ${e.target.files.length} tệp`;
+            const newFiles = Array.from(e.target.files);
+            selectedFiles = [...selectedFiles, ...newFiles];
+            renderFileList();
         };
 
-        // Gửi báo cáo THẬT lên Firestore
+        function renderFileList() {
+            const container = document.getElementById('file-list-container');
+            container.innerHTML = selectedFiles.map((file, index) => `
+                <div class="file-item">
+                    <span><i class="fa fa-file-alt mr-2 text-blue-400"></i>${file.name}</span>
+                    <i class="fa fa-trash-alt text-red-400 cursor-pointer" onclick="removeFile(${index})"></i>
+                </div>
+            `).join('');
+        }
+
+        window.removeFile = (index) => {
+            selectedFiles.splice(index, 1);
+            renderFileList();
+        };
+
+        // 4. GỬI BÁO CÁO THỰC TẾ 
         window.submitReport = async () => {
             const user = auth.currentUser;
             const content = document.getElementById('job-content').value;
@@ -106,32 +132,34 @@
                     date: new Date().toLocaleDateString('vi-VN'),
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                alert("Đã lưu báo cáo thành công!");
+                alert("Đã gửi thành công!");
+                selectedFiles = []; renderFileList();
                 document.getElementById('job-content').value = "";
                 loadHistory(user.email);
             } catch (e) { alert("Lỗi: " + e.message); }
-            finally { btn.disabled = false; btn.innerText = "GỬI DỮ LIỆU THỰC TẾ"; }
+            finally { btn.disabled = false; btn.innerText = "GỬI BÁO CÁO THỰC TẾ"; }
         };
 
-        // Tải nhật ký THẬT
+        // 5. TẢI NHẬT KÝ (KHÔNG THỜI GIAN ĐỂ TRÁNH SAI LỆCH) 
         async function loadHistory(email) {
             const list = document.getElementById('history-list');
-            try {
-                const snap = await db.collection("daily_reports")
-                    .where("email", "==", email)
-                    .where("date", "==", new Date().toLocaleDateString('vi-VN'))
-                    .orderBy("timestamp", "desc").get();
+            const today = new Date().toLocaleDateString('vi-VN');
+            const snap = await db.collection("daily_reports")
+                .where("email", "==", email)
+                .where("date", "==", today)
+                .orderBy("timestamp", "desc").get();
 
-                list.innerHTML = snap.empty ? `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Chưa có dữ liệu hôm nay</p>` :
-                    snap.docs.map(doc => {
-                        const d = doc.data();
-                        return `<div class="card-history">
-                            <p class="text-[9px] font-black text-[#1A479A] mb-1 uppercase tracking-tighter">PHIẾU: ${d.jobId || '---'}</p>
-                            <p class="text-xs font-bold text-slate-700">${d.content}</p>
-                        </div>`;
-                    }).join('');
-            } catch (e) { list.innerHTML = `<p class="text-center text-[9px] text-red-400">Lỗi đồng bộ dữ liệu.</p>`; }
+            list.innerHTML = snap.empty ? `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase italic">Chưa có báo cáo hôm nay</p>` :
+                snap.docs.map(doc => {
+                    const d = doc.data();
+                    return `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <p class="text-[9px] font-black text-blue-600 mb-1 uppercase tracking-tighter">Phiếu: ${d.jobId || '---'}</p>
+                        <p class="text-xs font-bold text-slate-700 leading-relaxed">${d.content}</p>
+                    </div>`;
+                }).join('');
         }
+
+        window.handleLogout = () => auth.signOut().then(() => location.reload());
     </script>
 </body>
 </html>
