@@ -1,81 +1,195 @@
-<div class="flex gap-4 mb-6">
-    <button onclick="showSection('form-update')" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase">Cập nhật cá nhân</button>
-    <button onclick="fetchAllWorkers()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-bold text-xs uppercase">Xem toàn bộ nhân sự</button>
-</div>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Quản lý Nhân sự - v21.13</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <style>
+        :root { --primary: #0068ff; }
+        body { background: #f1f5f9; font-family: system-ui, sans-serif; }
+        .card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; }
+        .input-field { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 14px; outline: none; transition: 0.2s; }
+        .input-field:focus { border-color: var(--primary); background: #f8faff; }
+        .btn-tab { flex: 1; padding: 12px; font-weight: 800; font-size: 12px; text-transform: uppercase; border-radius: 12px; transition: 0.3s; }
+        .active-tab { background: white; color: var(--primary); shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .loader { border: 2px solid #f3f3f3; border-top: 2px solid var(--primary); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
 
-<section id="worker-list-section" class="hidden mt-8">
-    <div class="bg-white rounded-3xl shadow-sm border p-6">
-        <h3 class="text-lg font-black text-slate-800 uppercase italic mb-4 border-b pb-2">Danh sách cán bộ công nhân viên</h3>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="text-[10px] text-slate-400 uppercase tracking-widest border-b">
-                        <th class="py-3 px-2">Nhân viên</th>
-                        <th class="py-3 px-2">Cấp bậc</th>
-                        <th class="py-3 px-2">Số điện thoại</th>
-                        <th class="py-3 px-2 text-center">Trạng thái</th>
-                    </tr>
-                </thead>
-                <tbody id="worker-table-body" class="text-xs">
-                    </tbody>
-            </table>
-        </div>
-    </div>
-</section>
-
-<script>
-    // Hàm lấy toàn bộ danh sách từ Firebase
-    async function fetchAllWorkers() {
-        // Hiển thị section danh sách, ẩn form cập nhật
-        document.getElementById('worker-list-section').classList.remove('hidden');
-        document.getElementById('form-update-section').classList.add('hidden'); // Giả sử id form của anh là đây
-
-        const tbody = document.getElementById('worker-table-body');
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 italic">Đang tải dữ liệu...</td></tr>';
-
-        try {
-            const snapshot = await db.collection("users").get();
-            tbody.innerHTML = "";
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8">
+            <h1 class="text-2xl font-black text-slate-800 uppercase italic">Hệ thống Nhân sự</h1>
+            <p id="status-fb" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Đang kết nối dữ liệu...</p>
             
-            if (snapshot.empty) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10">Chưa có công nhân nào đăng ký.</td></tr>';
-                return;
+            <nav class="flex bg-slate-200/50 p-1 rounded-2xl mt-6">
+                <button onclick="switchTab('profile')" id="tab-profile" class="btn-tab active-tab">Cập nhật cá nhân</button>
+                <button onclick="switchTab('list')" id="tab-list" class="btn-tab text-slate-500">Danh sách nhân sự</button>
+            </nav>
+        </header>
+
+        <section id="profile-section" class="space-y-6">
+            <div class="card p-6 md:p-8">
+                <h2 class="text-lg font-black text-slate-700 uppercase italic mb-6">Thông tin công nhân</h2>
+                <form id="user-form" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Họ và Tên</label>
+                        <input type="text" id="user-name" class="input-field font-bold" placeholder="Nhập họ tên đầy đủ">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Số điện thoại</label>
+                        <input type="tel" id="user-phone" class="input-field" placeholder="090xxxxxxx">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Cấp bậc thợ</label>
+                        <select id="user-rank" class="input-field font-bold">
+                            <option value="Bậc 1/5">Bậc 1/5</option>
+                            <option value="Bậc 2/5">Bậc 2/5</option>
+                            <option value="Bậc 3/5">Bậc 3/5</option>
+                            <option value="Bậc 4/5">Bậc 4/5</option>
+                            <option value="Bậc 5/5">Bậc 5/5 (Bậc cao)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Vai trò chính</label>
+                        <select id="user-role" class="input-field">
+                            <option value="Công nhân">Công nhân</option>
+                            <option value="Trưởng nhóm">Trưởng nhóm/Chỉ huy</option>
+                            <option value="Kỹ thuật">Kỹ thuật viên</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2 pt-4">
+                        <button type="button" onclick="saveUser()" id="btn-save" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition uppercase tracking-widest">
+                            Cập nhật thông tin lên hệ thống
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section id="list-section" class="hidden space-y-6">
+            <div class="card overflow-hidden">
+                <div class="p-6 border-b flex justify-between items-center bg-slate-50">
+                    <h3 class="font-black text-slate-800 text-sm uppercase italic italic">Danh sách cán bộ đội QLLĐ 2</h3>
+                    <button onclick="fetchAllWorkers()" class="text-blue-600 font-bold text-[10px] uppercase">Làm mới ↻</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50/50 text-[10px] text-slate-400 uppercase">
+                            <tr>
+                                <th class="py-4 px-6">Nhân sự</th>
+                                <th class="py-4 px-6 text-center">Bậc thợ</th>
+                                <th class="py-4 px-6 text-right">Liên hệ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="worker-table" class="text-xs divide-y divide-slate-100">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Cấu hình Firebase của anh
+        const firebaseConfig = {
+            apiKey: "AIzaSyCzWjfcD5Dgq7V-i2izb9tKLR6QM6qWPQo",
+            authDomain: "tavietnam-78ae8.firebaseapp.com",
+            projectId: "tavietnam-78ae8",
+            storageBucket: "tavietnam-78ae8.firebasestorage.app",
+            messagingSenderId: "670121705534",
+            appId: "1:670121705534:web:1027ad98550573ad37116f"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 1. CHUYỂN TAB
+        function switchTab(tab) {
+            document.getElementById('profile-section').classList.toggle('hidden', tab !== 'profile');
+            document.getElementById('list-section').classList.toggle('hidden', tab !== 'list');
+            document.getElementById('tab-profile').classList.toggle('active-tab', tab === 'profile');
+            document.getElementById('tab-list').classList.toggle('active-tab', tab === 'list');
+            if(tab === 'list') fetchAllWorkers();
+        }
+
+        // 2. LƯU THÔNG TIN CÔNG NHÂN (Cập nhật hoặc tạo mới dựa trên SĐT làm khóa)
+        async function saveUser() {
+            const name = document.getElementById('user-name').value;
+            const phone = document.getElementById('user-phone').value;
+            const rank = document.getElementById('user-rank').value;
+            const role = document.getElementById('user-role').value;
+
+            if (!name || !phone) return alert("Vui lòng nhập đầy đủ Tên và Số điện thoại!");
+
+            const btn = document.getElementById('btn-save');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="loader"></span> ĐANG LƯU...`;
+
+            try {
+                // Sử dụng phone làm Document ID để tránh trùng lặp công nhân
+                await db.collection("users").doc(phone).set({
+                    name: name,
+                    phone: phone,
+                    rank: rank,
+                    role: role,
+                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                alert("Chúc mừng! Thông tin của anh đã được cập nhật vào hệ thống điều hành.");
+                switchTab('list');
+            } catch (e) {
+                alert("Lỗi: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = "Cập nhật thông tin lên hệ thống";
             }
+        }
 
-            snapshot.forEach(doc => {
-                const user = doc.data();
-                tbody.innerHTML += `
-                    <tr class="border-b hover:bg-slate-50 transition">
-                        <td class="py-4 px-2">
-                            <div class="flex items-center gap-2">
-                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600">${(user.name || "N").charAt(0)}</div>
-                                <div>
-                                    <p class="font-black text-slate-800 uppercase">${user.name || 'N/A'}</p>
-                                    <p class="text-[9px] text-slate-400 font-bold">${user.role || 'Công nhân'}</p>
+        // 3. XEM TOÀN BỘ DANH SÁCH
+        async function fetchAllWorkers() {
+            const tbody = document.getElementById('worker-table');
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center py-10 italic text-slate-400">Đang tải danh sách...</td></tr>';
+            
+            try {
+                const snapshot = await db.collection("users").orderBy("name").get();
+                tbody.innerHTML = "";
+                if (snapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-10 italic text-slate-400">Chưa có dữ liệu nhân sự.</td></tr>';
+                    return;
+                }
+                snapshot.forEach(doc => {
+                    const u = doc.data();
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-4 px-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 uppercase text-[10px]">${u.name.charAt(0)}</div>
+                                    <div>
+                                        <p class="font-black text-slate-800 uppercase tracking-tight">${u.name}</p>
+                                        <p class="text-[9px] text-slate-400 font-bold uppercase">${u.role}</p>
+                                    </div>
                                 </div>
-                            </div>
-                        </td>
-                        <td class="py-4 px-2 font-bold text-slate-600">${user.rank || 'Chưa cập nhật'}</td>
-                        <td class="py-4 px-2 font-mono text-slate-500">${user.phone || 'N/A'}</td>
-                        <td class="py-4 px-2 text-center">
-                            <span class="px-2 py-1 rounded-full text-[9px] font-black ${user.status === 'online' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'} uppercase">
-                                ${user.status || 'Offline'}
-                            </span>
-                        </td>
-                    </tr>
-                `;
-            });
-        } catch (error) {
-            console.error("Lỗi:", error);
-            alert("Không thể tải danh sách nhân sự.");
+                            </td>
+                            <td class="py-4 px-6 text-center">
+                                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded-md font-bold text-[10px]">${u.rank}</span>
+                            </td>
+                            <td class="py-4 px-6 text-right font-mono text-slate-500 font-bold">${u.phone}</td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('status-fb').innerText = `✅ Đã kết nối: ${snapshot.size} nhân sự`;
+            } catch (e) {
+                console.error(e);
+                document.getElementById('status-fb').innerText = "❌ Lỗi kết nối Firebase";
+            }
         }
-    }
 
-    // Hàm chuyển đổi giao diện đơn giản
-    function showSection(sectionId) {
-        if(sectionId === 'form-update') {
-            document.getElementById('worker-list-section').classList.add('hidden');
-            document.getElementById('form-update-section').classList.remove('hidden');
-        }
-    }
-</script>
+        // Khởi tạo
+        fetchAllWorkers();
+    </script>
+</body>
+</html>
