@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản Lý Tổ Đường Dây - Admin v1.3</title>
+    <title>Admin - v1.4 Fix</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -11,39 +11,50 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
-        :root { --primary: #0068ff; --header-height: 60px; }
-        body { background: #f0f2f5; font-family: -apple-system, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        
-        .header { height: var(--header-height); background: white; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .main-container { flex: 1; display: flex; overflow: hidden; }
-        .sidebar { width: 300px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; transition: 0.3s; }
-        .content { flex: 1; display: flex; flex-direction: column; position: relative; }
-        .map-view { height: 50%; width: 100%; border-bottom: 1px solid #ddd; z-index: 1; }
-        .list-view { flex: 1; overflow-y: auto; background: #f8f9fa; padding: 15px; }
+        :root { --primary: #0068ff; }
+        body { background: #f0f2f5; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        .hidden { display: none !important; }
 
-        .stat-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px; border-left: 4px solid var(--primary); }
-        .report-card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #eee; transition: 0.2s; }
-        .badge-gps { background: #e6fffa; color: #047857; border: 1px solid #b2f5ea; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+        /* Debug Box */
+        #debugLog { position: fixed; bottom: 0; left: 0; width: 100%; height: 100px; background: #333; color: #0f0; font-family: monospace; font-size: 10px; padding: 5px; overflow-y: scroll; z-index: 99999; display: none; }
 
-        @media (max-width: 768px) {
-            .sidebar { position: absolute; left: -300px; height: 100%; z-index: 2000; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
-            .sidebar.open { left: 0; }
-            .map-view { height: 40%; }
-        }
-
-        #loadingScreen { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        /* Loading */
+        #loadingScreen { position: fixed; inset: 0; background: #fff; z-index: 5000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Layout */
+        .header { height: 60px; background: white; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 1000; }
+        .main-container { flex: 1; display: flex; overflow: hidden; }
+        .sidebar { width: 300px; background: white; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
+        .content { flex: 1; display: flex; flex-direction: column; position: relative; }
+        #map { height: 50%; width: 100%; border-bottom: 1px solid #ddd; }
+        .list-view { flex: 1; overflow-y: auto; padding: 15px; }
+
+        .report-card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eee; }
+        
+        @media (max-width: 768px) {
+            .sidebar { position: absolute; left: -300px; height: 100%; z-index: 2000; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+            .sidebar.open { left: 0; }
+            #map { height: 40%; }
+        }
     </style>
 
     <script type="module">
+        // --- HÀM LOG LỖI RA MÀN HÌNH ---
+        function log(msg) { 
+            console.log(msg);
+            const box = document.getElementById('debugLog');
+            if(box) { box.style.display = 'block'; box.innerHTML += `> ${msg}<br>`; box.scrollTop = box.scrollHeight; }
+        }
+        window.onerror = function(msg, url, line) { log(`ERROR: ${msg} (Line ${line})`); return false; };
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, getDocs, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // --- CẤU HÌNH SUPER ADMIN ---
         const SUPER_ADMIN_EMAIL = "deptc.qldd2025@gmail.com"; 
-
+        
         const firebaseConfig = {
             apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
             authDomain: "baocaongay-e73a2.firebaseapp.com",
@@ -54,6 +65,7 @@
             measurementId: "G-TEGTD9KFCW"
         };
 
+        log("Khởi tạo Firebase...");
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
@@ -62,73 +74,58 @@
         let map, markers = [];
         let allReports = [];
 
-        // --- CƠ CHẾ CHỐNG TREO (Safety Timeout) ---
-        // Sau 7 giây mà chưa tải xong thì tự động tắt Loading và hiện nút đăng xuất
+        // --- CƠ CHẾ TỰ ĐỘNG MỞ KHÓA (Sau 3 giây tự tắt loading) ---
         setTimeout(() => {
             const screen = document.getElementById('loadingScreen');
             if (!screen.classList.contains('hidden')) {
-                document.getElementById('statusText').innerHTML = `<span style='color:red;font-weight:bold'>⚠️ Quá thời gian tải!</span><br>Có thể do mạng chậm hoặc lỗi cấu hình.<br><button onclick="window.logout()" style="margin-top:10px;text-decoration:underline;color:blue">Bấm vào đây để Đăng xuất / Thử lại</button>`;
+                log("⚠️ Quá thời gian tải -> Bắt buộc mở màn hình Đăng nhập.");
+                screen.classList.add('hidden');
+                document.getElementById('loginArea').classList.remove('hidden');
             }
-        }, 7000);
+        }, 3000);
 
-        window.login = () => signInWithPopup(auth, provider).catch(e => alert(e.message));
+        window.login = () => {
+            log("Đang mở popup đăng nhập...");
+            signInWithPopup(auth, provider).catch(e => { alert(e.message); log("Login Error: " + e.message); });
+        };
+
         window.logout = () => signOut(auth).then(() => location.reload());
 
         onAuthStateChanged(auth, async (user) => {
-            const screen = document.getElementById('loadingScreen');
-            const statusText = document.getElementById('statusText');
-
             if(user) {
-                console.log("User detected:", user.email);
-                statusText.innerText = "Đang kiểm tra hồ sơ...";
+                log("Đã đăng nhập: " + user.email);
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('loginArea').classList.add('hidden');
                 
+                // Kiểm tra Super Admin
+                if (user.email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase().trim()) {
+                    grantAccess(user.displayName || "Super Admin");
+                    return;
+                }
+
+                // Kiểm tra DB
                 try {
-                    // Chuẩn hóa email để so sánh (chữ thường, bỏ khoảng trắng thừa)
-                    const cleanEmail = user.email.toLowerCase().trim();
-                    const cleanAdminEmail = SUPER_ADMIN_EMAIL.toLowerCase().trim();
-
-                    // 1. Kiểm tra Email ưu tiên
-                    if (cleanEmail === cleanAdminEmail) {
-                         console.log("Super Admin Login Success");
-                         grantAccess(user.displayName || "SUPER ADMIN");
-                         return;
-                    }
-
-                    // 2. Kiểm tra DB
                     const snap = await getDoc(doc(db, "users", user.uid));
                     if(snap.exists()) {
-                        const profile = snap.data();
-                        console.log("Profile Role:", profile.role);
-                        const allowedRoles = ['Tổ trưởng', 'Tổ phó', 'Kỹ thuật viên', 'Lãnh đạo', 'Admin', 'Lãnh đạo Đội'];
-                        
-                        if(allowedRoles.includes(profile.role)) {
-                            grantAccess(profile.name);
-                        } else {
-                            alert(`⛔ Từ chối truy cập!\nChức vụ hiện tại: '${profile.role}'\nEmail: ${user.email}\nTrang này chỉ dành cho Lãnh đạo.`);
-                            await signOut(auth);
-                        }
+                        const p = snap.data();
+                        const roles = ['Tổ trưởng', 'Tổ phó', 'Kỹ thuật viên', 'Lãnh đạo', 'Admin', 'Lãnh đạo Đội'];
+                        if(roles.includes(p.role)) grantAccess(p.name);
+                        else { alert("Không có quyền truy cập!"); signOut(auth); }
                     } else {
-                        alert(`⚠️ Tài khoản ${user.email} chưa có hồ sơ.\nVui lòng qua trang Báo cáo để cập nhật thông tin trước.`);
-                        await signOut(auth);
+                        alert("Chưa có hồ sơ nhân sự!"); signOut(auth);
                     }
-                } catch(e) { 
-                    console.error(e);
-                    alert("Lỗi: " + e.message); 
-                    // Nếu lỗi thì tắt loading để user biết
-                    screen.classList.add('hidden');
-                    document.getElementById('loginArea').classList.remove('hidden');
-                }
+                } catch(e) { log("Lỗi DB: " + e.message); alert("Lỗi tải dữ liệu. Xem log bên dưới."); }
             } else {
-                screen.classList.add('hidden');
+                log("Chưa đăng nhập.");
+                document.getElementById('loadingScreen').classList.add('hidden');
                 document.getElementById('loginArea').classList.remove('hidden');
             }
         });
 
         function grantAccess(name) {
+            log("Cấp quyền truy cập cho: " + name);
             document.getElementById('adminName').innerText = name;
-            document.getElementById('loginArea').classList.add('hidden');
             document.getElementById('mainArea').classList.remove('hidden');
-            document.getElementById('loadingScreen').classList.add('hidden'); // TẮT LOADING NGAY
             initMap();
             loadData('today');
         }
@@ -145,125 +142,122 @@
             markers = [];
             const bounds = [];
             reports.forEach(r => {
-                if(r.locationCoords && r.locationCoords.lat != 0) {
-                    const lat = r.locationCoords.lat;
-                    const lng = r.locationCoords.lng;
-                    const marker = L.marker([lat, lng]).addTo(map)
-                        .bindPopup(`<b>${r.workerName}</b><br>${new Date(r.timestamp.seconds*1000).toLocaleTimeString()}<br>${r.content.substring(0,30)}...`);
-                    markers.push(marker);
+                if(r.locationCoords?.lat) {
+                    const {lat, lng} = r.locationCoords;
+                    const m = L.marker([lat, lng]).addTo(map).bindPopup(`<b>${r.workerName}</b><br>${r.content}`);
+                    markers.push(m);
                     bounds.push([lat, lng]);
                 }
             });
-            if(bounds.length > 0) map.fitBounds(bounds, {padding: [50,50]});
+            if(bounds.length) map.fitBounds(bounds, {padding:[50,50]});
         }
 
         // --- DATA ---
         window.loadData = async (mode) => {
+            log("Đang tải dữ liệu: " + mode);
             document.getElementById('loaderText').classList.remove('hidden');
-            let start = new Date(); start.setHours(0,0,0,0);
-            let end = new Date(); end.setHours(23,59,59,999);
+            
+            let s = new Date(), e = new Date();
+            s.setHours(0,0,0,0); e.setHours(23,59,59,999);
 
-            if(mode === 'yesterday') { start.setDate(start.getDate()-1); end.setDate(end.getDate()-1); }
-            else if (mode === 'month') { start.setDate(1); }
+            if(mode === 'yesterday') { s.setDate(s.getDate()-1); e.setDate(e.getDate()-1); }
+            else if (mode === 'month') s.setDate(1);
             else if (mode === 'custom') {
-                const sVal = document.getElementById('dateStart').value;
-                const eVal = document.getElementById('dateEnd').value;
-                if(!sVal || !eVal) { alert("Vui lòng chọn ngày bắt đầu và kết thúc"); return; }
-                start = new Date(sVal);
-                end = new Date(eVal);
-                end.setHours(23,59,59,999);
+                s = new Date(document.getElementById('dStart').value);
+                e = new Date(document.getElementById('dEnd').value);
+                e.setHours(23,59,59,999);
             }
 
             try {
-                const q = query(collection(db, "daily_reports"), where("timestamp", ">=", Timestamp.fromDate(start)), where("timestamp", "<=", Timestamp.fromDate(end)), orderBy("timestamp", "desc"));
+                const q = query(collection(db, "daily_reports"), where("timestamp", ">=", Timestamp.fromDate(s)), where("timestamp", "<=", Timestamp.fromDate(e)), orderBy("timestamp", "desc"));
                 const snap = await getDocs(q);
                 allReports = [];
                 snap.forEach(d => allReports.push(d.data()));
                 renderUI(allReports);
-            } catch (error) {
-                console.error(error);
-                if (error.message.includes("requires an index")) alert("⚠️ Cần tạo Index: Mở Console (F12) để lấy link tạo Index.");
-                else alert("Lỗi tải dữ liệu: " + error.message);
+                log(`Tải xong: ${allReports.length} báo cáo.`);
+            } catch (err) {
+                log("Lỗi Query: " + err.message);
+                if(err.message.includes("requires an index")) alert("Cần tạo Index! Xem Log bên dưới (chữ xanh lá cây) để lấy link.");
             } finally { document.getElementById('loaderText').classList.add('hidden'); }
         }
 
-        function renderUI(reports) {
-            document.getElementById('statTotal').innerText = reports.length;
-            document.getElementById('statPeople').innerText = new Set(reports.map(r => r.workerId)).size;
-            const list = document.getElementById('reportList');
-            list.innerHTML = "";
+        function renderUI(list) {
+            document.getElementById('sTotal').innerText = list.length;
+            document.getElementById('sPeople').innerText = new Set(list.map(i=>i.workerId)).size;
+            const div = document.getElementById('list');
+            div.innerHTML = "";
+            if(!list.length) { div.innerHTML = "<p class='text-center text-gray-400'>Không có dữ liệu</p>"; updateMap([]); return; }
             
-            if(reports.length === 0) { list.innerHTML = `<p class="text-center text-gray-400 mt-4">Không có dữ liệu.</p>`; updateMap([]); return; }
-
-            reports.forEach(r => {
-                const time = new Date(r.timestamp.seconds*1000).toLocaleString('vi-VN');
-                const hasGPS = (r.locationCoords && r.locationCoords.lat != 0);
-                let files = r.attachments ? `<div class="mt-2 flex flex-wrap gap-2">${r.attachments.map((u,i) => `<a href="${u}" target="_blank" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">File ${i+1}</a>`).join('')}</div>` : "";
-
-                list.innerHTML += `
+            list.forEach(r => {
+                let files = r.attachments ? r.attachments.map((u,i)=>`<a href="${u}" target="_blank" class="text-blue-600 text-xs mr-2">File ${i+1}</a>`).join("") : "";
+                div.innerHTML += `
                     <div class="report-card">
-                        <div class="flex justify-between items-start border-b pb-2 mb-2">
-                            <div><div class="font-bold text-blue-700">${r.workerName}</div><div class="text-xs text-gray-500">${r.role}</div></div>
-                            <div class="text-right"><div class="text-xs font-bold text-gray-700">${time}</div>${hasGPS ? '<span class="badge-gps">📍 GPS</span>' : ''}</div>
+                        <div class="flex justify-between border-b pb-1 mb-1">
+                            <b class="text-blue-700">${r.workerName}</b>
+                            <span class="text-xs font-bold">${new Date(r.timestamp.seconds*1000).toLocaleString('vi-VN')}</span>
                         </div>
-                        ${r.pct ? `<div class="text-sm text-red-600 font-bold mb-1">🎫 PCT: ${r.pct}</div>` : ''}
-                        <div class="text-sm text-gray-800 whitespace-pre-line">${r.content}</div>
-                        ${files}
+                        <div class="text-sm">${r.content}</div>
+                        <div class="mt-1">${files}</div>
                     </div>`;
             });
-            updateMap(reports);
+            updateMap(list);
         }
 
         window.exportExcel = () => {
-            if(allReports.length === 0) { alert("Không có dữ liệu!"); return; }
-            const data = allReports.map(r => ({ "Thời gian": new Date(r.timestamp.seconds*1000).toLocaleString('vi-VN'), "Họ tên": r.workerName, "Nội dung": r.content, "PCT": r.pct || "", "Vị trí": r.locationCoords?.lat ? `${r.locationCoords.lat}, ${r.locationCoords.lng}` : "", "File": (r.attachments||[]).join(" , ") }));
-            XLSX.writeFile(XLSX.utils.book_new(XLSX.utils.json_to_sheet(data)), "BaoCao.xlsx");
-        }
+            if(!allReports.length) return alert("Trống!");
+            const d = allReports.map(r => ({ "Ngày": new Date(r.timestamp.seconds*1000).toLocaleString(), "Tên": r.workerName, "Nội dung": r.content, "Link": (r.attachments||[]).join(" ") }));
+            XLSX.writeFile(XLSX.utils.book_new(XLSX.utils.json_to_sheet(d)), "BaoCao.xlsx");
+        };
+
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('open');
     </script>
 </head>
 <body>
+
+    <div id="debugLog">LOG HỆ THỐNG:<br></div>
+
     <div id="loadingScreen">
         <div class="loader mb-2"></div>
-        <p id="statusText" class="text-gray-500">Đang khởi động...</p>
+        <p>Đang khởi động...</p>
+        <p style="font-size:11px;color:#888;margin-top:5px">(Tự động bỏ qua sau 3s)</p>
     </div>
 
     <div id="loginArea" class="hidden fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
-        <div class="bg-white p-8 rounded-lg shadow-lg text-center max-w-sm">
-            <h1 class="text-2xl font-bold text-blue-700 mb-2">QUẢN TRỊ VIÊN</h1>
-            <p class="text-gray-500 mb-6 text-sm">Dành cho Lãnh đạo & Tổ trưởng</p>
-            <button onclick="window.login()" class="bg-white border border-gray-300 text-gray-700 font-bold py-2 px-6 rounded-full shadow hover:bg-gray-50 flex items-center justify-center w-full">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 mr-3"> Đăng nhập Admin
-            </button>
+        <div class="bg-white p-8 rounded text-center shadow-lg">
+            <h1 class="text-xl font-bold text-blue-700 mb-4">ADMIN ĐĂNG NHẬP</h1>
+            <button onclick="window.login()" class="bg-white border p-3 rounded shadow font-bold text-gray-700">Đăng nhập Gmail</button>
         </div>
     </div>
 
     <div id="mainArea" class="hidden flex flex-col h-full">
         <div class="header">
-            <div class="flex items-center"><button onclick="toggleSidebar()" class="md:hidden mr-3 text-2xl text-gray-600">☰</button><h1 class="text-lg font-bold text-blue-700">DASHBOARD</h1></div>
-            <div class="flex items-center gap-4"><span class="text-sm hidden md:inline">Hi, <b id="adminName">...</b></span><button onclick="window.logout()" class="text-red-500 text-xs font-bold border border-red-100 px-3 py-1 rounded-full hover:bg-red-50">Thoát</button></div>
+            <div class="flex items-center"><button onclick="toggleSidebar()" class="md:hidden mr-3 text-2xl">☰</button><h1 class="font-bold text-blue-700">ADMIN</h1></div>
+            <div class="flex gap-3"><span id="adminName" class="text-sm hidden md:block">...</span><button onclick="window.logout()" class="text-red-500 text-xs border border-red-200 px-2 py-1 rounded">Thoát</button></div>
         </div>
         <div class="main-container">
             <div id="sidebar" class="sidebar">
-                <div class="stat-card"><div class="text-sm text-gray-500">Số báo cáo</div><div class="text-2xl font-bold text-blue-700" id="statTotal">0</div></div>
-                <div class="stat-card border-l-green-500"><div class="text-sm text-gray-500">Nhân sự</div><div class="text-2xl font-bold text-green-700" id="statPeople">0</div></div>
-                <hr class="my-4 border-gray-200">
-                <div class="space-y-2">
-                    <button onclick="loadData('today')" class="w-full text-left px-3 py-2 rounded hover:bg-blue-50 text-sm font-medium border border-transparent hover:border-blue-200">📅 Hôm nay</button>
-                    <button onclick="loadData('yesterday')" class="w-full text-left px-3 py-2 rounded hover:bg-blue-50 text-sm font-medium border border-transparent hover:border-blue-200">⏪ Hôm qua</button>
-                    <button onclick="loadData('month')" class="w-full text-left px-3 py-2 rounded hover:bg-blue-50 text-sm font-medium border border-transparent hover:border-blue-200">🗓️ Tháng này</button>
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <div class="bg-blue-50 p-2 rounded text-center"><div class="text-xs">Báo cáo</div><b id="sTotal" class="text-blue-700 text-xl">0</b></div>
+                    <div class="bg-green-50 p-2 rounded text-center"><div class="text-xs">Nhân sự</div><b id="sPeople" class="text-green-700 text-xl">0</b></div>
                 </div>
-                <div class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
-                    <p class="text-xs font-bold text-gray-500 mb-2">Tùy chọn ngày</p>
-                    <input type="date" id="dateStart" class="w-full mb-2 text-sm border p-1 rounded">
-                    <input type="date" id="dateEnd" class="w-full mb-2 text-sm border p-1 rounded">
-                    <button onclick="loadData('custom')" class="w-full bg-blue-600 text-white text-xs font-bold py-2 rounded">Lọc</button>
+                <div class="space-y-2 text-sm">
+                    <button onclick="loadData('today')" class="w-full text-left p-2 hover:bg-gray-100 rounded">📅 Hôm nay</button>
+                    <button onclick="loadData('yesterday')" class="w-full text-left p-2 hover:bg-gray-100 rounded">⏪ Hôm qua</button>
+                    <button onclick="loadData('month')" class="w-full text-left p-2 hover:bg-gray-100 rounded">🗓️ Tháng này</button>
                 </div>
-                <button onclick="exportExcel()" class="mt-auto w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded flex items-center justify-center transition">📥 Xuất Excel</button>
+                <div class="mt-4 border-t pt-2">
+                    <input type="date" id="dStart" class="w-full mb-1 border rounded p-1 text-sm">
+                    <input type="date" id="dEnd" class="w-full mb-1 border rounded p-1 text-sm">
+                    <button onclick="loadData('custom')" class="w-full bg-blue-600 text-white text-xs py-2 rounded">Lọc ngày</button>
+                </div>
+                <button onclick="exportExcel()" class="mt-auto w-full bg-green-600 text-white font-bold py-2 rounded mt-2">Xuất Excel</button>
             </div>
             <div class="content">
-                <div id="map" class="map-view relative"><div class="absolute bottom-2 left-2 z-[999] bg-white px-2 py-1 rounded text-xs shadow">Bản đồ Check-in</div></div>
-                <div class="list-view"><div class="flex justify-between items-center mb-2"><h2 class="font-bold text-gray-700">Chi tiết</h2><span id="loaderText" class="text-xs text-blue-500 hidden">Đang tải...</span></div><div id="reportList"></div></div>
+                <div id="map"></div>
+                <div class="list-view">
+                    <div class="flex justify-between mb-2"><b class="text-sm">Danh sách</b><span id="loaderText" class="text-xs text-blue-500 hidden">Tải...</span></div>
+                    <div id="list"></div>
+                </div>
             </div>
         </div>
     </div>
