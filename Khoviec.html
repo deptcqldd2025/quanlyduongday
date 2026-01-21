@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Kho việc QLLĐ 2 - v1.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #0068ff; }
+        body { background: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; }
+        .card { background: white; border-radius: 1.5rem; transition: all 0.2s; border: 2px solid transparent; }
+        .card:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .btn-tab { padding: 8px 16px; border-radius: 12px; font-weight: 700; font-size: 12px; transition: all 0.2s; }
+        .active-tab { background: var(--primary); color: white; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-blue-800 uppercase italic">Điều hành Kho việc</h1>
+                <p class="text-gray-500 text-sm">Quản lý & Phân công công tác Đội QLLĐ 2</p>
+            </div>
+            <div class="flex bg-white p-1 rounded-2xl shadow-sm border">
+                <button onclick="filterTasks('new')" id="tab-new" class="btn-tab active-tab uppercase">Chờ phân công</button>
+                <button onclick="filterTasks('assigned')" id="tab-assigned" class="btn-tab text-gray-400 uppercase">Đã giao việc</button>
+            </div>
+        </header>
+
+        <div id="taskGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+    </div>
+
+    <div id="assignModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl scale-in">
+            <h3 class="text-lg font-black text-gray-800 uppercase mb-4 italic">Phân công nhân sự</h3>
+            <p id="modalTaskName" class="text-sm text-blue-600 font-bold mb-6 leading-tight"></p>
+            
+            <form id="assignForm" class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase ml-1">Người chịu trách nhiệm chính</label>
+                    <select id="mainWorker" class="w-full p-3 border rounded-xl font-bold bg-gray-50 outline-none focus:border-blue-500">
+                        <option value="">-- Chọn công nhân --</option>
+                        <option value="CN001">Nguyễn Văn A (Bậc 5/5)</option>
+                        <option value="CN002">Trần Văn B (Bậc 4/5)</option>
+                        <option value="CN003">Lê Văn C (Bậc 3/5)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase ml-1">Công nhân hỗ trợ</label>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <label class="flex items-center p-2 border rounded-lg text-xs font-bold bg-gray-50">
+                            <input type="checkbox" class="mr-2"> Anh Tuấn
+                        </label>
+                        <label class="flex items-center p-2 border rounded-lg text-xs font-bold bg-gray-50">
+                            <input type="checkbox" class="mr-2"> Anh Hùng
+                        </label>
+                        <label class="flex items-center p-2 border rounded-lg text-xs font-bold bg-gray-50">
+                            <input type="checkbox" class="mr-2"> Anh Dũng
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="closeModal()" class="flex-1 py-3 text-sm font-bold text-gray-400">HỦY</button>
+                    <button type="button" onclick="confirmAssign()" class="flex-2 bg-blue-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-200">GIAO VIỆC</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Dữ liệu mẫu mô phỏng từ Kho việc HLAT
+        const tasks = [
+            { id: 1, org: "Công ty TNHH XNK Thiết bị CN Trung Việt", addr: "194D/4 đường TMT 17, Quận 12", real: 24.1, plan: 178.5, status: "new", deadline: "2026-02-03" },
+            { id: 2, org: "Ông Vũ Hoài Nam", addr: "92/8/11 Đường Nguyễn Sơn, Tân Phú", real: 0.0, plan: 0.0, status: "new", deadline: "2026-02-03" }
+        ];
+
+        function filterTasks(status) {
+            // Cập nhật giao diện Tab
+            document.querySelectorAll('.btn-tab').forEach(btn => btn.classList.remove('active-tab', 'text-gray-400'));
+            document.getElementById(`tab-${status}`).classList.add('active-tab');
+
+            const grid = document.getElementById('taskGrid');
+            const filtered = tasks.filter(t => t.status === status);
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-400 italic">Không có công việc nào trong mục này.</div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(t => `
+                <div class="card p-6 shadow-sm flex flex-col justify-between h-full">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-lg uppercase tracking-wider">Hồ sơ HLAT</span>
+                            <span class="text-[9px] font-bold text-red-500 italic">Hạn: ${t.deadline}</span>
+                        </div>
+                        <h4 class="font-black text-gray-800 text-sm mb-1 uppercase leading-tight">${t.org}</h4>
+                        <p class="text-[11px] text-gray-500 flex items-start mb-4">
+                            <span class="mr-1">📍</span> ${t.addr}
+                        </p>
+                        
+                        <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border mb-4">
+                            <div class="text-center">
+                                <p class="text-[8px] font-bold text-gray-400 uppercase">Thực tế</p>
+                                <p class="text-xs font-black text-red-600">${t.real} m²</p>
+                            </div>
+                            <div class="text-center border-l">
+                                <p class="text-[8px] font-bold text-gray-400 uppercase">Quy hoạch</p>
+                                <p class="text-xs font-black text-red-600">${t.plan} m²</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${t.status === 'new' ? 
+                        `<button onclick="openAssignModal('${t.org}')" class="w-full bg-blue-600 text-white font-black py-3 rounded-xl text-xs shadow-lg shadow-blue-100 uppercase transition active:scale-95">Phân công ngay</button>` :
+                        `<div class="flex items-center gap-2 text-[10px] font-bold text-green-600 bg-green-50 p-2 rounded-lg">
+                            <span>✅ Đã giao: Nguyễn Văn A + 2 cộng sự</span>
+                        </div>`
+                    }
+                </div>
+            `).join('');
+        }
+
+        function openAssignModal(name) {
+            document.getElementById('modalTaskName').innerText = name;
+            document.getElementById('assignModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('assignModal').classList.add('hidden');
+        }
+
+        function confirmAssign() {
+            const worker = document.getElementById('mainWorker').value;
+            if(!worker) return alert("Vui lòng chọn người chịu trách nhiệm chính!");
+            
+            alert("Đã gửi thông báo giao việc đến điện thoại công nhân!");
+            closeModal();
+            // Trong thực tế, hàm này sẽ cập nhật database và chuyển status sang 'assigned'
+        }
+
+        // Khởi tạo
+        filterTasks('new');
+    </script>
+</body>
+</html>
