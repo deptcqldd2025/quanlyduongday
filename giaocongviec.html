@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giao việc</title>
+    <title>Giao việc v1.60</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -14,6 +14,7 @@
 <body class="pb-16 bg-[#F4F7FA]">
     <div id="sidebar-container"></div>
     <div class="evn-header"><div class="max-w-md mx-auto flex items-center"><i class="fa fa-bars text-2xl cursor-pointer mr-4" onclick="toggleSidebar()"></i><h1 class="font-black text-lg italic uppercase leading-none">Giao công việc</h1></div></div>
+    
     <div class="max-w-md mx-auto px-6 -mt-8 space-y-6">
         <section class="bg-white p-6 rounded-[30px] shadow-lg border border-slate-50 space-y-4">
             <div class="border-l-4 border-green-500 pl-3 mb-2"><h2 class="text-[11px] font-black text-slate-800 uppercase tracking-widest">Phiếu giao việc</h2></div>
@@ -21,22 +22,44 @@
             <div><label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Người thực hiện</label><select id="task-assignee" class="input-evn select-evn font-bold text-slate-700"><option value="">Đang tải...</option></select></div>
             <div><label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Mô tả</label><textarea id="task-desc" rows="4" class="input-evn" placeholder="Yêu cầu..."></textarea></div>
             <div><label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Hạn chót</label><input type="date" id="task-deadline" class="input-evn font-bold text-slate-700"></div>
+
+            <div id="file-list-container" class="space-y-2"></div>
+            <div class="border-2 border-dashed border-slate-100 rounded-[20px] p-4 text-center bg-slate-50/50 cursor-pointer" onclick="document.getElementById('file-in').click()">
+                <input type="file" id="file-in" class="hidden" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
+                <div class="text-[10px] font-black text-blue-700 uppercase italic">+ Đính kèm tài liệu/ảnh</div>
+            </div>
+
             <button onclick="assignTask()" id="btn-assign" class="w-full bg-green-600 text-white font-black py-4 rounded-[18px] shadow-lg shadow-green-100 uppercase text-[11px] tracking-widest active:scale-95 transition">Giao việc</button>
         </section>
     </div>
-    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.50</p></div>
+
+    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.60</p></div>
+
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
+        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore(); const auth = firebase.auth(); let currentUser = null;
+        const db = firebase.firestore(); const auth = firebase.auth(); 
+        const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
+        let currentUser = null, selectedFiles = [];
 
         fetch('sidebar.html').then(r=>r.text()).then(d=>{ document.getElementById('sidebar-container').innerHTML=d; if(currentUser) updateSidebarInfo(currentUser); });
-        auth.onAuthStateChanged(user => { if (user) { currentUser=user; updateSidebarInfo(user); checkManager(user); } else { window.location.href = "index.html"; } });
+        auth.onAuthStateChanged(user => { if(user){ currentUser=user; updateSidebarInfo(user); checkManager(user); } else window.location.href="index.html"; });
+
+        // Xử lý File
+        document.getElementById('file-in').onchange = (e) => {
+            Array.from(e.target.files).forEach(f => {
+                const r = new FileReader();
+                r.onload = (v) => { selectedFiles.push({name:f.name, type:f.type, data:v.target.result.split(',')[1]}); renderFiles(); };
+                r.readAsDataURL(f);
+            });
+        };
+        function renderFiles() { document.getElementById('file-list-container').innerHTML = selectedFiles.map((f,i) => `<div class="file-item"><span class="truncate"><i class="fa fa-paperclip mr-2 text-blue-500"></i>${f.name}</span><i class="fa fa-trash-alt text-red-500 cursor-pointer" onclick="removeFile(${i})"></i></div>`).join(''); }
+        window.removeFile = (i) => { selectedFiles.splice(i,1); renderFiles(); };
 
         async function checkManager(user) {
-            const d = await db.collection("users").doc(user.email).get();
+            try { const d = await db.collection("users").doc(user.email).get();
             if(!d.exists || !["Tổ trưởng","Tổ phó","Đội trưởng","Đội phó"].includes(d.data().position)) { alert("Không có quyền!"); window.location.href="index.html"; }
-            else { setTimeout(()=>document.querySelectorAll('.manager-only').forEach(e=>e.classList.remove('hidden')),500); loadStaff(); }
+            else { setTimeout(()=>document.querySelectorAll('.manager-only').forEach(e=>e.classList.remove('hidden')),500); loadStaff(); } } catch(e){}
         }
         async function loadStaff() {
             const s=document.getElementById('task-assignee'); s.innerHTML="";
@@ -47,7 +70,20 @@
         window.assignTask = async () => {
             const n=document.getElementById('task-name').value, a=document.getElementById('task-assignee').value; if(!n||!a) return alert("Thiếu thông tin!");
             const btn=document.getElementById('btn-assign'); btn.innerText="ĐANG XỬ LÝ..."; btn.disabled=true;
-            try { await db.collection("tasks").add({ don_vi_de_nghi:n, description:document.getElementById('task-desc').value, assigned_leader:a, deadline:document.getElementById('task-deadline').value, status:"assigned", sender:currentUser.displayName, created_at:firebase.firestore.FieldValue.serverTimestamp() }); alert("Giao việc thành công!"); window.location.href="index.html"; } catch(e){ alert(e.message); btn.disabled=false; }
+            try {
+                if(selectedFiles.length > 0) {
+                    await fetch(APPSCRIPT_URL, {method:"POST", mode:"no-cors", body:JSON.stringify({files:selectedFiles, user:currentUser.email})});
+                }
+                await db.collection("tasks").add({ 
+                    don_vi_de_nghi:n, description:document.getElementById('task-desc').value, 
+                    assigned_leader:a, deadline:document.getElementById('task-deadline').value, 
+                    status:"assigned", sender:currentUser.displayName,
+                    files: selectedFiles.map(f => ({name: f.name})),
+                    accepted_at: null, // Trường để lưu thời gian tiếp nhận
+                    created_at:firebase.firestore.FieldValue.serverTimestamp() 
+                }); 
+                alert("Giao việc thành công!"); window.location.href="index.html";
+            } catch(e){ alert(e.message); btn.disabled=false; btn.innerText="GIAO VIỆC"; }
         }
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
         window.menuAction = (a) => { toggleSidebar(); if(a=='report') window.location.href="index.html"; else if(a=='assigned') window.location.href="congvieccuatoi.html"; else if(a=='notification') window.location.href="xemthongbao.html"; else if(a=='profile') window.location.href="thongtincanhan.html"; else if(a=='guide') window.location.href="huongdan.html"; else if(a=='send-notify') window.location.href="guithongbao.html"; else if(a=='assign-task') {}; };
