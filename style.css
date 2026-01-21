@@ -1,19 +1,11 @@
-/* style.css - v1.24 | Thiết kế phong cách EVN */
+/* style.css - v1.26 | Phong cách EVN tối ưu  */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-
-:root {
-    --evn-blue: #1A479A;
-    --bg-light: #F4F7FA;
-}
-
-body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: #1F2937; margin: 0; padding-bottom: 80px; }
-
-.evn-header { background-color: var(--evn-blue); color: white; padding: 32px 24px 60px 24px; border-bottom-left-radius: 40px; border-bottom-right-radius: 40px; shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-
-.input-evn { width: 100%; padding: 16px; border-radius: 20px; border: 1px solid #E5E7EB; background: #FFF; outline: none; font-size: 14px; transition: 0.3s; box-sizing: border-box; }
-
-.input-evn:focus { border-color: var(--evn-blue); box-shadow: 0 0 0 4px rgba(26, 71, 154, 0.1); }
-
-.card-history { background: white; border-radius: 24px; padding: 20px; border: 1px solid #F1F5F9; margin-bottom: 16px; }
-
-.footer-fixed { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px; text-align: center; border-top: 1px solid #EEE; font-size: 10px; font-weight: 800; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; }
+:root { --evn-blue: #1A479A; --bg-light: #F4F7FA; }
+body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); margin: 0; padding-bottom: 80px; }
+.evn-header { background-color: var(--evn-blue); color: white; padding: 25px 20px 50px 20px; border-bottom-left-radius: 35px; border-bottom-right-radius: 35px; }
+.input-evn { width: 100%; padding: 14px; border-radius: 18px; border: 1px solid #E5E7EB; outline: none; font-size: 14px; box-sizing: border-box; }
+.input-evn:focus { border-color: var(--evn-blue); box-shadow: 0 0 0 3px rgba(26, 71, 154, 0.1); }
+.file-item { display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 8px 12px; border-radius: 12px; margin-bottom: 6px; font-size: 11px; font-weight: 600; color: #475569; border: 1px solid #E2E8F0; }
+.sidebar { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: white; z-index: 100; transition: 0.3s; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
+.sidebar.active { left: 0; }
+.footer-fixed { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px; text-align: center; border-top: 1px solid #EEE; font-size: 10px; font-weight: 800; color: #94A3B8; text-transform: uppercase; }
