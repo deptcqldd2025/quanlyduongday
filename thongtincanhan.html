@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông tin cá nhân - EVN</title>
+    <title>Thông tin cá nhân - v1.39</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -65,8 +65,8 @@
             <h2 id="display-name" class="font-black text-xl text-[#1A479A] uppercase">Đang tải...</h2>
             <p id="display-email" class="text-xs text-slate-400 font-bold mb-4">...</p>
             <div class="flex gap-2">
-                <span id="role-badge" class="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">Nhân viên</span>
-                <span id="unit-badge" class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">Đội QLLĐ 2</span>
+                <span id="role-badge" class="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">---</span>
+                <span id="unit-badge" class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">---</span>
             </div>
         </div>
 
@@ -87,17 +87,25 @@
             </div>
 
             <div>
-                <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Chức vụ / Chức danh</label>
-                <input type="text" id="inp-position" class="input-evn font-bold" placeholder="Ví dụ: Công nhân bậc 4/7" disabled>
+                <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Chức vụ</label>
+                <select id="inp-position" class="input-evn select-evn font-bold" disabled>
+                    <option value="Công nhân">Công nhân</option>
+                    <option value="Kỹ thuật viên">Kỹ thuật viên</option>
+                    <option value="Tổ phó">Tổ phó</option>
+                    <option value="Tổ trưởng">Tổ trưởng</option>
+                    <option value="Đội phó">Đội phó</option>
+                    <option value="Đội trưởng">Đội trưởng</option>
+                </select>
             </div>
 
             <div>
                 <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Đơn vị công tác</label>
                 <select id="inp-unit" class="input-evn select-evn font-bold" disabled>
-                    <option value="Đội QLLĐ 2">Đội QLLĐ 2</option>
-                    <option value="Đội QLLĐ 1">Đội QLLĐ 1</option>
-                    <option value="Phòng Kỹ thuật">Phòng Kỹ thuật</option>
-                    <option value="Phòng Điều độ">Phòng Điều độ</option>
+                    <option value="Nhóm 1">Nhóm 1</option>
+                    <option value="Nhóm 2">Nhóm 2</option>
+                    <option value="Nhóm 3">Nhóm 3</option>
+                    <option value="Nhóm 4">Nhóm 4</option>
+                    <option value="Nhóm kỹ thuật">Nhóm kỹ thuật</option>
                 </select>
             </div>
 
@@ -108,11 +116,10 @@
     </div>
 
     <div class="footer-evn">
-        <p>Hệ thống quản lý nhân sự - Version 1.37</p>
+        <p>Hệ thống quản lý nhân sự - Version 1.39</p>
     </div>
 
     <script>
-        // CẤU HÌNH (Dùng chung với index)
         const firebaseConfig = {
             apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
             authDomain: "baocaongay-e73a2.firebaseapp.com",
@@ -126,66 +133,53 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
 
-        // 1. KIỂM TRA ĐĂNG NHẬP & TẢI DỮ LIỆU
         auth.onAuthStateChanged(async (user) => {
             if (user) {
-                // Hiển thị thông tin cơ bản từ Google Auth
                 document.getElementById('display-email').innerText = user.email;
                 document.getElementById('sidebar-user-name').innerText = user.displayName;
                 document.getElementById('sidebar-user-email').innerText = user.email;
-                
-                // Tải dữ liệu chi tiết từ Firestore Collection 'users'
                 loadUserProfile(user);
             } else {
-                window.location.href = "index.html"; // Chưa đăng nhập thì đá về trang chủ
+                window.location.href = "index.html";
             }
         });
 
-        // 2. TẢI PROFILE TỪ FIRESTORE
         async function loadUserProfile(user) {
             try {
-                // Dùng Email làm ID document để dễ quản lý (hoặc dùng user.uid)
                 const docRef = db.collection("users").doc(user.email);
                 const doc = await docRef.get();
 
                 if (doc.exists) {
                     const data = doc.data();
-                    // Điền dữ liệu vào Form
                     document.getElementById('display-name').innerText = data.name || user.displayName;
                     document.getElementById('inp-name').value = data.name || user.displayName;
                     document.getElementById('inp-phone').value = data.phone || "";
-                    document.getElementById('inp-position').value = data.position || "";
-                    document.getElementById('inp-unit').value = data.unit || "Đội QLLĐ 2";
+                    // Gán giá trị vào Select
+                    document.getElementById('inp-position').value = data.position || "Công nhân";
+                    document.getElementById('inp-unit').value = data.unit || "Nhóm 1";
                     
-                    // Cập nhật Badge
-                    document.getElementById('role-badge').innerText = data.position || "Nhân viên";
-                    document.getElementById('unit-badge').innerText = data.unit || "Đội QLLĐ 2";
+                    document.getElementById('role-badge').innerText = data.position || "Công nhân";
+                    document.getElementById('unit-badge').innerText = data.unit || "Nhóm 1";
                 } else {
-                    // Nếu chưa có dữ liệu trong 'users', điền mặc định từ Auth
                     document.getElementById('display-name').innerText = user.displayName;
                     document.getElementById('inp-name').value = user.displayName;
                 }
-            } catch (e) {
-                console.error("Lỗi tải profile:", e);
-            }
+            } catch (e) { console.error("Lỗi tải profile:", e); }
         }
 
-        // 3. CHỨC NĂNG SỬA & LƯU
         window.enableEdit = () => {
             const inputs = document.querySelectorAll('.input-evn');
             inputs.forEach(input => {
                 input.disabled = false;
-                input.classList.add('bg-blue-50'); // Highlight màu nền khi sửa
+                input.classList.add('bg-blue-50');
             });
             document.getElementById('btn-save').classList.remove('hidden');
-            document.getElementById('inp-name').focus();
         };
 
         window.saveProfile = async () => {
             const user = auth.currentUser;
             const btn = document.getElementById('btn-save');
-            btn.innerText = "ĐANG LƯU...";
-            btn.disabled = true;
+            btn.innerText = "ĐANG LƯU..."; btn.disabled = true;
 
             const updatedData = {
                 name: document.getElementById('inp-name').value,
@@ -197,24 +191,18 @@
             };
 
             try {
-                // Lưu vào Collection 'users', Key là Email
                 await db.collection("users").doc(user.email).set(updatedData, { merge: true });
-                
-                alert("Cập nhật hồ sơ thành công!");
-                location.reload(); // Tải lại trang để cập nhật giao diện
+                alert("Cập nhật thành công!");
+                location.reload();
             } catch (e) {
                 alert("Lỗi: " + e.message);
-                btn.innerText = "LƯU THAY ĐỔI";
-                btn.disabled = false;
+                btn.innerText = "LƯU THAY ĐỔI"; btn.disabled = false;
             }
         };
 
-        // Sidebar logic
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
         window.handleLogout = () => {
-            if(confirm("Đăng xuất?")) {
-                auth.signOut().then(() => window.location.href = "index.html");
-            }
+            if(confirm("Đăng xuất?")) auth.signOut().then(() => window.location.href = "index.html");
         };
     </script>
 </body>
