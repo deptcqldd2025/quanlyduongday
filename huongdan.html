@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hướng dẫn sử dụng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* CSS riêng cho trang hướng dẫn để tạo hiệu ứng đóng mở mượt mà */
+        details > summary { list-style: none; cursor: pointer; transition: 0.3s; }
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] > summary { color: #1A479A; border-bottom: 1px solid #E2E8F0; padding-bottom: 15px; margin-bottom: 15px; }
+        details > summary i { transition: transform 0.3s; }
+        details[open] > summary i { transform: rotate(180deg); }
+        .step-circle { min-width: 24px; height: 24px; background: #1A479A; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; margin-right: 10px; }
+    </style>
+</head>
+<body class="pb-16 bg-[#F4F7FA]">
+
+    <div id="sidebar-container"></div>
+
+    <div class="evn-header">
+        <div class="max-w-md mx-auto flex items-center">
+            <i class="fa fa-bars text-2xl cursor-pointer mr-4" onclick="toggleSidebar()"></i>
+            <h1 class="font-black text-lg italic uppercase leading-none">Hướng dẫn sử dụng</h1>
+        </div>
+    </div>
+
+    <div class="max-w-md mx-auto px-6 -mt-8 space-y-6">
+        
+        <div class="bg-white p-6 rounded-[30px] shadow-lg border border-slate-50">
+            <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 border-l-4 border-blue-700 pl-2">Nghiệp vụ Báo cáo</h2>
+            
+            <div class="space-y-4">
+                <details class="group bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <summary class="flex justify-between items-center font-bold text-sm text-slate-700">
+                        <span>Cách gửi báo cáo hàng ngày?</span>
+                        <i class="fa fa-chevron-down text-blue-400"></i>
+                    </summary>
+                    <div class="text-xs text-slate-600 leading-6 mt-2 space-y-2">
+                        <div class="flex items-start"><div class="step-circle">1</div><p>Tại trang chủ, chọn loại báo cáo là <b>"Báo cáo ngày"</b>.</p></div>
+                        <div class="flex items-start"><div class="step-circle">2</div><p>Nhập nội dung công việc và ghi chú (nếu có).</p></div>
+                        <div class="flex items-start"><div class="step-circle">3</div><p>Nhấn vào khung nét đứt để chụp ảnh hoặc chọn file PDF.</p></div>
+                        <div class="flex items-start"><div class="step-circle">4</div><p>Nhấn nút <b>"GỬI BÁO CÁO"</b> và chờ thông báo thành công.</p></div>
+                    </div>
+                </details>
+
+                <details class="group bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <summary class="flex justify-between items-center font-bold text-sm text-slate-700">
+                        <span>Báo cáo "Công việc được giao"?</span>
+                        <i class="fa fa-chevron-down text-blue-400"></i>
+                    </summary>
+                    <div class="text-xs text-slate-600 leading-6 mt-2 space-y-2">
+                        <p class="italic text-slate-400 mb-2">*Chỉ áp dụng khi Lãnh đạo đã giao việc trên hệ thống.</p>
+                        <div class="flex items-start"><div class="step-circle">1</div><p>Chọn loại báo cáo: <b>"Công việc được giao"</b>.</p></div>
+                        <div class="flex items-start"><div class="step-circle">2</div><p>Danh sách việc sẽ hiện ra ngay bên dưới. Chọn đúng tên công việc bạn đang thực hiện.</p></div>
+                        <div class="flex items-start"><div class="step-circle">3</div><p>Nhập nội dung và gửi như bình thường.</p></div>
+                    </div>
+                </details>
+
+                <details class="group bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <summary class="flex justify-between items-center font-bold text-sm text-slate-700">
+                        <span>Sửa báo cáo đã gửi?</span>
+                        <i class="fa fa-chevron-down text-blue-400"></i>
+                    </summary>
+                    <div class="text-xs text-slate-600 leading-6 mt-2">
+                        <p>Bạn chỉ có thể sửa khi Lãnh đạo <b>chưa duyệt</b> báo cáo (Trạng thái: <span class="text-orange-500 font-bold">CHỜ DUYỆT</span>).</p>
+                        <div class="mt-2 flex items-start"><div class="step-circle"><i class="fa fa-pen"></i></div><p>Nhấn vào biểu tượng cây bút ở phần Nhật ký để sửa lại nội dung.</p></div>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-[30px] shadow-lg border border-slate-50">
+            <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 border-l-4 border-orange-500 pl-2">Tài khoản & Hồ sơ</h2>
+            
+            <div class="space-y-4">
+                <details class="group bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <summary class="flex justify-between items-center font-bold text-sm text-slate-700">
+                        <span>Cập nhật thông tin cá nhân?</span>
+                        <i class="fa fa-chevron-down text-blue-400"></i>
+                    </summary>
+                    <div class="text-xs text-slate-600 leading-6 mt-2">
+                        <p>Vào <b>Menu (Sidebar) > Thông tin cá nhân</b>.</p>
+                        <p>Nhấn biểu tượng cây bút <i class="fa fa-pen text-blue-500"></i> để mở khóa chỉnh sửa. Cập nhật SĐT, Chức vụ, Đơn vị rồi bấm <b>Lưu</b>.</p>
+                    </div>
+                </details>
+
+                <details class="group bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <summary class="flex justify-between items-center font-bold text-sm text-slate-700">
+                        <span>Lỗi không đăng nhập được?</span>
+                        <i class="fa fa-chevron-down text-blue-400"></i>
+                    </summary>
+                    <div class="text-xs text-slate-600 leading-6 mt-2">
+                        <p>Vui lòng kiểm tra kết nối mạng. Nếu vẫn lỗi, hãy thử xóa cache trình duyệt hoặc liên hệ Admin qua Zalo/SĐT bên dưới.</p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="text-center py-4">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Cần hỗ trợ kỹ thuật?</p>
+            <a href="tel:0901234567" class="inline-block mt-2 bg-green-500 text-white px-6 py-3 rounded-full font-black text-xs shadow-lg shadow-green-200 active:scale-95 transition">
+                <i class="fa fa-phone mr-2"></i> GỌI HỖ TRỢ NGAY
+            </a>
+        </div>
+
+    </div>
+
+    <div class="footer-evn"><p>Hệ thống quản lý nhân sự - Version 1.42</p></div>
+
+    <script>
+        // CẤU HÌNH CƠ BẢN
+        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        let currentUser = null;
+
+        // 1. TẢI SIDEBAR
+        fetch('sidebar.html')
+            .then(res => res.text())
+            .then(data => {
+                document.getElementById('sidebar-container').innerHTML = data;
+                if(currentUser) updateSidebarInfo(currentUser);
+                highlightActiveMenu();
+            });
+
+        // 2. AUTH CHECK
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                updateSidebarInfo(user);
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        function updateSidebarInfo(user) {
+            const nameEl = document.getElementById('sidebar-user-name');
+            const emailEl = document.getElementById('sidebar-user-email');
+            if(nameEl && emailEl) {
+                nameEl.innerText = user.displayName;
+                emailEl.innerText = user.email;
+            }
+        }
+
+        // Highlight mục Hướng dẫn
+        function highlightActiveMenu() {
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(item => {
+                if(item.getAttribute('onclick').includes('guide')) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        // 3. NAVIGATION LOGIC
+        window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
+        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
+        
+        window.menuAction = (action) => {
+            toggleSidebar();
+            if (action === 'report' || action === 'assigned') window.location.href = "index.html";
+            else if (action === 'profile') window.location.href = "thongtincanhan.html";
+            else if (action === 'guide') {} // Đang ở trang này
+            else alert("Đang phát triển!");
+        };
+    </script>
+</body>
+</html>
