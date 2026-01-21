@@ -12,105 +12,40 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="pb-16 bg-[#F4F7FA]">
-
     <div id="sidebar-container"></div>
-
-    <div class="evn-header">
-        <div class="max-w-md mx-auto flex items-center">
-            <i class="fa fa-bars text-2xl cursor-pointer mr-4" onclick="toggleSidebar()"></i>
-            <h1 class="font-black text-lg italic uppercase leading-none">Soạn thông báo</h1>
-        </div>
-    </div>
-
+    <div class="evn-header"><div class="max-w-md mx-auto flex items-center"><i class="fa fa-bars text-2xl cursor-pointer mr-4" onclick="toggleSidebar()"></i><h1 class="font-black text-lg italic uppercase leading-none">Soạn thông báo</h1></div></div>
     <div class="max-w-md mx-auto px-6 -mt-8 space-y-6">
         <section class="bg-white p-6 rounded-[30px] shadow-lg border border-slate-50 space-y-4">
-            <div class="border-l-4 border-red-500 pl-3 mb-2">
-                <h2 class="text-[11px] font-black text-slate-800 uppercase tracking-widest">Nội dung thông báo</h2>
-            </div>
-            
-            <div>
-                <label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Tiêu đề</label>
-                <input type="text" id="nt-title" class="input-evn font-bold text-blue-900" placeholder="VD: Triển khai công tác tuần...">
-            </div>
-
-            <div>
-                <label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Mức độ</label>
-                <select id="nt-priority" class="input-evn select-evn font-bold text-slate-700">
-                    <option value="normal">Thông thường</option>
-                    <option value="urgent">Khẩn cấp</option>
-                    <option value="warning">An toàn</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Nội dung chi tiết</label>
-                <textarea id="nt-content" rows="6" class="input-evn" placeholder="Nhập nội dung..."></textarea>
-            </div>
-
-            <button onclick="sendNotification()" id="btn-send" class="w-full bg-red-600 text-white font-black py-4 rounded-[18px] shadow-lg shadow-red-100 uppercase text-[11px] tracking-widest active:scale-95 transition">
-                Gửi thông báo ngay
-            </button>
+            <div class="border-l-4 border-red-500 pl-3 mb-2"><h2 class="text-[11px] font-black text-slate-800 uppercase tracking-widest">Nội dung thông báo</h2></div>
+            <div><label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Tiêu đề</label><input type="text" id="nt-title" class="input-evn font-bold text-blue-900" placeholder="Tiêu đề..."></div>
+            <div><label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Mức độ</label><select id="nt-priority" class="input-evn select-evn font-bold text-slate-700"><option value="normal">Thông thường</option><option value="urgent">Khẩn cấp</option><option value="warning">An toàn</option></select></div>
+            <div><label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Nội dung</label><textarea id="nt-content" rows="6" class="input-evn" placeholder="Nhập nội dung..."></textarea></div>
+            <button onclick="sendNotification()" id="btn-send" class="w-full bg-red-600 text-white font-black py-4 rounded-[18px] shadow-lg shadow-red-100 uppercase text-[11px] tracking-widest active:scale-95 transition">Gửi ngay</button>
         </section>
     </div>
-
-    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.0</p></div>
-
-    <script src="common-logic.js"></script> <script>
-        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
+    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.50</p></div>
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
+        const db = firebase.firestore(); const auth = firebase.auth(); let currentUser = null;
 
-        // Load Sidebar & Check Role
-        fetch('sidebar.html').then(res=>res.text()).then(data=>document.getElementById('sidebar-container').innerHTML=data);
+        fetch('sidebar.html').then(r=>r.text()).then(d=>{ document.getElementById('sidebar-container').innerHTML=d; if(currentUser) updateSidebarInfo(currentUser); });
+        auth.onAuthStateChanged(user => { if (user) { currentUser=user; updateSidebarInfo(user); checkManager(user); } else { window.location.href = "index.html"; } });
 
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                document.getElementById('sidebar-user-name').innerText = user.displayName; // Cập nhật tạm
-                checkManagerRole(user);
-            } else { window.location.href = "index.html"; }
-        });
-
-        async function checkManagerRole(user) {
-            const doc = await db.collection("users").doc(user.email).get();
-            const role = doc.exists ? doc.data().position : "";
-            const allowed = ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó"];
-            if (!allowed.includes(role)) {
-                alert("Bạn không có quyền truy cập chức năng này!");
-                window.location.href = "index.html";
-            } else {
-                 // Nếu đúng quyền, hiện menu quản lý trong sidebar
-                 setTimeout(() => document.querySelectorAll('.manager-only').forEach(el => el.classList.remove('hidden')), 500);
-            }
+        async function checkManager(user) {
+            const d = await db.collection("users").doc(user.email).get();
+            if(!d.exists || !["Tổ trưởng","Tổ phó","Đội trưởng","Đội phó"].includes(d.data().position)) { alert("Không có quyền!"); window.location.href="index.html"; }
+            else setTimeout(()=>document.querySelectorAll('.manager-only').forEach(e=>e.classList.remove('hidden')),500);
         }
-
+        function updateSidebarInfo(u){ const n=document.getElementById('sidebar-user-name'),e=document.getElementById('sidebar-user-email'); if(n&&e){n.innerText=u.displayName;e.innerText=u.email;} }
+        
         window.sendNotification = async () => {
-            const title = document.getElementById('nt-title').value;
-            const content = document.getElementById('nt-content').value;
-            if(!title || !content) return alert("Thiếu thông tin!");
-            const btn = document.getElementById('btn-send'); btn.innerText = "ĐANG GỬI..."; btn.disabled = true;
-
-            try {
-                const user = auth.currentUser;
-                await db.collection("notifications").add({
-                    title, content, priority: document.getElementById('nt-priority').value,
-                    sender: user.displayName, date: new Date().toLocaleDateString('vi-VN'),
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                alert("Gửi thành công!"); window.location.href="index.html";
-            } catch(e) { alert(e.message); btn.innerText = "GỬI THÔNG BÁO NGAY"; btn.disabled = false; }
+            const t=document.getElementById('nt-title').value, c=document.getElementById('nt-content').value; if(!t||!c) return alert("Thiếu thông tin!");
+            const btn=document.getElementById('btn-send'); btn.innerText="ĐANG GỬI..."; btn.disabled=true;
+            try { await db.collection("notifications").add({ title:t, content:c, priority:document.getElementById('nt-priority').value, sender:currentUser.displayName, date:new Date().toLocaleDateString('vi-VN'), timestamp:firebase.firestore.FieldValue.serverTimestamp() }); alert("Gửi thành công!"); window.location.href="index.html"; } catch(e){ alert(e.message); btn.disabled=false; }
         }
-
-        // Sidebar Navigation Logic
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
-        window.menuAction = (action) => {
-            toggleSidebar();
-            if (action === 'report' || action === 'assigned') window.location.href = "index.html";
-            else if (action === 'profile') window.location.href = "thongtincanhan.html";
-            else if (action === 'guide') window.location.href = "huongdan.html";
-            else if (action === 'send-notify') {} // Trang hiện tại
-            else if (action === 'assign-task') window.location.href = "giaocongviec.html";
-        };
+        window.menuAction = (a) => { toggleSidebar(); if(a=='report') window.location.href="index.html"; else if(a=='assigned') window.location.href="congvieccuatoi.html"; else if(a=='notification') window.location.href="xemthongbao.html"; else if(a=='profile') window.location.href="thongtincanhan.html"; else if(a=='guide') window.location.href="huongdan.html"; else if(a=='send-notify') {}; else if(a=='assign-task') window.location.href="giaocongviec.html"; };
         window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(()=>window.location.href='index.html');
     </script>
 </body>
