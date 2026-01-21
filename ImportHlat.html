@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Auto HLAT - v1.4</title>
+    <title>Gemini HLAT Fix - v1.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --primary: #0068ff; }
@@ -19,43 +19,27 @@
         <header class="mb-8 flex justify-between items-end">
             <div>
                 <h1 class="text-3xl font-black text-blue-800 uppercase italic">Gemini Auto Import</h1>
-                <p class="text-gray-500 text-sm">Trích xuất hồ sơ HLAT tự động bằng AI</p>
-            </div>
-            <div class="text-right">
-                <span class="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-1 rounded">API KEY ACTIVE</span>
+                [span_0](start_span)<p class="text-gray-500 text-sm">Hỗ trợ trích xuất hồ sơ: <span class="font-bold">Công ty Trung Việt</span>[span_0](end_span)</p>
             </div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
             <div class="space-y-4">
-                <div class="card p-10 border-2 border-dashed border-blue-200 text-center hover:bg-blue-50 transition cursor-pointer" onclick="document.getElementById('fileInput').click()">
+                <div class="card p-10 border-2 border-dashed border-blue-200 text-center hover:bg-blue-50 transition cursor-pointer" id="uploadZone">
                     <input type="file" id="fileInput" class="hidden" multiple accept="image/*,application/pdf">
                     <div class="text-5xl mb-4">📤</div>
                     <p class="font-black text-gray-700 uppercase">Chọn hồ sơ HLAT</p>
-                    <p class="text-xs text-gray-400 mt-2">Có thể chọn nhiều file cùng lúc (PDF/Ảnh)</p>
+                    <p id="fileCount" class="text-xs text-gray-400 mt-2 italic">Chưa chọn file</p>
                 </div>
-
-                <div id="fileList" class="space-y-2"></div>
-
-                <button id="btnScan" onclick="startAutoScan()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 disabled:bg-gray-300 transition">
-                    BẮT ĐẦU QUÉT BẰNG AI
-                </button>
+                <div id="fileListPreview" class="flex flex-wrap gap-2"></div>
+                <button id="btnScan" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition">BẮT ĐẦU QUÉT BẰNG AI</button>
             </div>
 
             <div class="card p-6 min-h-[400px]">
-                <h3 class="font-bold text-gray-800 mb-6 uppercase italic border-b pb-2 flex justify-between">
-                    Kho công việc chờ lưu
-                    <span id="countBox" class="text-blue-600">0</span>
-                </h3>
-                
+                <h3 class="font-bold text-gray-800 mb-6 uppercase italic border-b pb-2">Dữ liệu trích xuất</h3>
                 <div id="resultArea" class="space-y-4">
-                    <p class="text-center text-gray-400 mt-20 italic text-sm">Chưa có dữ liệu. Vui lòng tải hồ sơ và bấm quét.</p>
+                    <p class="text-center text-gray-300 mt-20 text-sm">Kết quả sẽ hiển thị tại đây...</p>
                 </div>
-
-                <button id="btnSaveAll" onclick="saveAllToPool()" class="hidden w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-green-700 mt-6 transition">
-                    XÁC NHẬN LƯU TẤT CẢ VÀO KHO
-                </button>
             </div>
         </div>
     </div>
@@ -63,93 +47,75 @@
     <script type="module">
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-        // Cấu hình API của anh
         const API_KEY = "AIzaSyCyPQUxDvVBFpAClGoS8X9mvWX72y97XMA";
         const genAI = new GoogleGenerativeAI(API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        window.startAutoScan = async () => {
-            const files = document.getElementById('fileInput').files;
-            if (files.length === 0) return alert("Vui lòng chọn ít nhất 1 hồ sơ!");
+        const fileInput = document.getElementById('fileInput');
+        const uploadZone = document.getElementById('uploadZone');
+        const btnScan = document.getElementById('btnScan');
+        const resultArea = document.getElementById('resultArea');
 
-            const btn = document.getElementById('btnScan');
-            const resultArea = document.getElementById('resultArea');
-            
-            btn.disabled = true;
-            btn.innerHTML = `<span class="loader"></span> ĐANG PHÂN TÍCH...`;
-            resultArea.innerHTML = `<div class="text-center mt-20"><span class="loader"></span><p class="text-xs font-bold text-blue-500 mt-2">GEMINI ĐANG ĐỌC HỒ SƠ...</p></div>`;
+        uploadZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            const files = e.target.files;
+            document.getElementById('fileCount').innerText = `Đã chọn ${files.length} file`;
+            const preview = document.getElementById('fileListPreview');
+            preview.innerHTML = "";
+            [...files].forEach(f => {
+                preview.innerHTML += `<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-1 rounded-md font-bold">${f.name}</span>`;
+            });
+        };
+
+        btnScan.onclick = async () => {
+            const files = fileInput.files;
+            if (files.length === 0) return alert("Vui lòng chọn file trước!");
+
+            btnScan.disabled = true;
+            btnScan.innerHTML = `<span class="loader"></span> ĐANG QUÉT...`;
+            resultArea.innerHTML = `<div class="text-center mt-20"><span class="loader"></span><p class="text-xs font-bold text-blue-500 mt-2">AI ĐANG PHÂN TÍCH...</p></div>`;
 
             try {
-                // Chuyển đổi files sang định dạng Gemini hiểu
+                const prompt = "Trích xuất thông tin hồ sơ HLAT. Trả về mảng JSON gồm: don_vi_de_nghi, dia_chi_cong_trinh, dt_hlat_thuc_te, dt_hlat_quy_hoach. Chỉ trả về JSON.";
                 const imageParts = await Promise.all([...files].map(fileToGenerativePart));
-
-                const prompt = `Trích xuất thông tin hồ sơ HLAT từ các file này. Trả về một mảng JSON (Array). 
-                Mỗi đối tượng gồm: don_vi_de_nghi, nguoi_lien_he, so_dien_thoai, dia_chi_cong_trinh, dt_hlat_thuc_te, dt_hlat_quy_hoach. 
-                Chỉ trả về JSON, không giải thích.`;
-
+                
                 const result = await model.generateContent([prompt, ...imageParts]);
                 const response = await result.response;
-                const text = response.text().replace(/```json|```/g, "");
+                const text = response.text().replace(/```json|```/g, "").trim();
                 const data = JSON.parse(text);
 
-                displayResults(data);
+                renderResults(data);
             } catch (error) {
-                console.error(error);
-                alert("Lỗi khi gọi Gemini API. Anh hãy kiểm tra lại file hoặc hạn mức API.");
+                resultArea.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold">Lỗi: ${error.message}</div>`;
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = `BẮT ĐẦU QUÉT BẰNG AI`;
+                btnScan.disabled = false;
+                btnScan.innerHTML = `BẮT ĐẦU QUÉT BẰNG AI`;
             }
         };
 
         async function fileToGenerativePart(file) {
-            const base64EncodedDataPromise = new Promise((resolve) => {
+            const base64Data = await new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onloadend = () => resolve(reader.result.split(',')[1]);
                 reader.readAsDataURL(file);
             });
-            return {
-                inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
-            };
+            return { inlineData: { data: base64Data, mimeType: file.type } };
         }
 
-        function displayResults(items) {
-            const resultArea = document.getElementById('resultArea');
-            const countBox = document.getElementById('countBox');
-            const btnSave = document.getElementById('btnSaveAll');
-            
-            const dataArr = Array.isArray(items) ? items : [items];
-            countBox.innerText = dataArr.length;
-            resultArea.innerHTML = "";
-            btnSave.classList.remove('hidden');
-
-            dataArr.forEach((item, index) => {
-                resultArea.innerHTML += `
-                    <div class="border-2 border-blue-100 p-4 rounded-2xl bg-white shadow-sm hover:border-blue-500 transition">
-                        <p class="text-[10px] font-bold text-blue-500 mb-1 uppercase">Hồ sơ #${index + 1}</p>
-                        <h4 class="font-black text-gray-800 leading-tight">${item.don_vi_de_nghi}</h4>
-                        <p class="text-[11px] text-gray-500 mt-1">${item.dia_chi_cong_trinh}</p>
-                        <div class="flex gap-4 mt-3 pt-3 border-t border-dashed">
-                            <div class="text-[10px]"><b>Thực tế:</b> <span class="text-red-600 font-bold">${item.dt_hlat_thuc_te}m2</span></div>
-                            <div class="text-[10px]"><b>Quy hoạch:</b> <span class="text-red-600 font-bold">${item.dt_hlat_quy_hoach}m2</span></div>
-                        </div>
+        function renderResults(data) {
+            const items = Array.isArray(data) ? data : [data];
+            resultArea.innerHTML = items.map(item => `
+                <div class="border-2 border-blue-50 p-4 rounded-2xl bg-slate-50">
+                    <h4 class="font-black text-blue-800 text-sm mb-1">${item.don_vi_de_nghi || "N/A"}</h4>
+                    <p class="text-[11px] text-gray-500 mb-2">${item.dia_chi_cong_trinh || "N/A"}</p>
+                    <div class="flex gap-4 border-t pt-2 border-dashed">
+                        <div class="text-[10px]"><b>Thực tế:</b> <span class="text-red-500 font-bold">${item.dt_hlat_thuc_te} m2</span></div>
+                        <div class="text-[10px]"><b>Quy hoạch:</b> <span class="text-red-500 font-bold">${item.dt_hlat_quy_hoach} m2</span></div>
                     </div>
-                `;
-            });
+                </div>
+            `).join("");
         }
-
-        window.saveAllToPool = () => {
-            alert("Đã lưu tất cả hồ sơ vào kho công việc của QLLĐ 2!");
-            window.location.reload();
-        };
-
-        document.getElementById('fileInput').onchange = (e) => {
-            const list = document.getElementById('fileList');
-            list.innerHTML = "";
-            [...e.target.files].forEach(f => {
-                list.innerHTML += `<div class="text-[10px] bg-blue-100 text-blue-700 p-2 rounded-lg font-bold">📄 ${f.name}</div>`;
-            });
-        };
     </script>
 </body>
 </html>
