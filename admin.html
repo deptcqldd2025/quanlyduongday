@@ -3,198 +3,328 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Điều hành QLLĐ 2 - v21.12</title>
+    <title>Trang Quản Trị - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
     <style>
-        :root { --primary: #0068ff; }
-        body { background: #f1f5f9; font-family: system-ui, sans-serif; }
-        .tab-btn { padding: 12px 24px; font-weight: 800; font-size: 13px; text-transform: uppercase; color: #94a3b8; border-bottom: 3px solid transparent; }
-        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: #f8faff; }
-        .card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; }
-        .hidden { display: none; }
-        .loader { border: 2px solid #f3f3f3; border-top: 2px solid var(--primary); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .admin-tab { cursor: pointer; padding: 10px 20px; font-weight: bold; color: #64748B; border-bottom: 3px solid transparent; transition: 0.3s; white-space: nowrap; }
+        .admin-tab.active { color: #1A479A; border-bottom-color: #1A479A; }
+        .table-header { background: #F1F5F9; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 800; }
+        .table-row { border-bottom: 1px solid #E2E8F0; transition: 0.2s; }
+        .table-row:hover { background: #F8FAFC; }
+        .td-cell { padding: 12px; font-size: 12px; color: #334155; vertical-align: middle; }
+        /* Modal Style */
+        .modal { display: none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 600px; border-radius: 10px; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="bg-[#F4F7FA] pb-10">
 
-    <div class="max-w-7xl mx-auto">
-        <header class="bg-white rounded-3xl shadow-sm border mb-8 overflow-hidden">
-            <div class="p-6 border-b flex justify-between items-center">
-                <div>
-                    <h1 class="text-2xl font-black text-slate-800 uppercase italic">Điều hành QLLĐ 2</h1>
-                    <p id="connection-status" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">Đang kết nối Firebase...</p>
-                </div>
+    <div id="sidebar-container"></div>
+
+    <div class="evn-header">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center">
+                <i class="fa fa-bars text-2xl cursor-pointer mr-4 lg:hidden" onclick="toggleSidebar()"></i>
+                <h1 class="font-black text-xl italic uppercase leading-none">Hệ thống quản trị</h1>
             </div>
-            <nav class="flex bg-slate-50/50">
-                <button onclick="switchTab('khoviec')" id="btn-khoviec" class="tab-btn flex-1 active">Kho việc & Phân công</button>
-                <button onclick="switchTab('nhansu')" id="btn-nhansu" class="tab-btn flex-1">Nhân sự (từ Index)</button>
-            </nav>
-        </header>
-
-        <section id="tab-khoviec-content" class="space-y-6">
-            <div id="workGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 italic text-slate-400">
-                Đang tải danh sách công việc...
-            </div>
-        </section>
-
-        <section id="tab-nhansu-content" class="hidden space-y-6 text-center">
-            <div id="staffGrid" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                </div>
-        </section>
-    </div>
-
-    <div id="assignModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl">
-            <h3 class="text-lg font-black text-slate-800 uppercase italic mb-1">Giao việc cho tổ</h3>
-            <p id="modalTaskName" class="text-xs font-bold text-blue-600 mb-6 pb-4 border-b"></p>
-            
-            <form class="space-y-6">
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2 tracking-tighter">Nhóm trưởng chịu trách nhiệm</label>
-                    <select id="selectMain" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:border-blue-500">
-                        </select>
-                </div>
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2 tracking-tighter">Nhóm viên phối hợp</label>
-                    <div id="checkSupport" class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
-                        </div>
-                </div>
-                <div class="pt-4 flex gap-3">
-                    <button type="button" onclick="closeModal()" class="flex-1 py-4 font-bold text-slate-400 text-xs">HỦY</button>
-                    <button type="button" onclick="confirmAssign()" class="flex-[2] bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 uppercase text-xs">Xác nhận giao</button>
-                </div>
-            </form>
+            <div class="text-[10px] bg-white/20 px-3 py-1 rounded-full font-bold">SUPER ADMIN</div>
         </div>
     </div>
 
+    <div class="max-w-6xl mx-auto px-4 mt-6">
+        <div class="bg-white rounded-t-2xl shadow-sm border-b border-slate-200 flex overflow-x-auto no-scrollbar">
+            <div class="admin-tab active" onclick="switchTab('reports')"><i class="fa fa-file-alt mr-2"></i>Báo cáo</div>
+            <div class="admin-tab" onclick="switchTab('users')"><i class="fa fa-users mr-2"></i>Nhân sự</div>
+            <div class="admin-tab" onclick="switchTab('notifications')"><i class="fa fa-bullhorn mr-2"></i>Thông báo</div>
+            <div class="admin-tab" onclick="switchTab('tasks')"><i class="fa fa-tasks mr-2"></i>Công việc</div>
+        </div>
+
+        <div class="bg-white rounded-b-2xl shadow-lg min-h-[500px] p-4 overflow-x-auto">
+            
+            <div id="tab-reports" class="tab-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-black text-blue-900 text-sm uppercase">Dữ liệu báo cáo ngày</h3>
+                    <button onclick="loadReports()" class="text-xs bg-slate-100 p-2 rounded hover:bg-slate-200"><i class="fa fa-sync"></i> Làm mới</button>
+                </div>
+                <table class="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                        <tr class="table-header">
+                            <th class="p-3">Thời gian</th>
+                            <th class="p-3">Nhân viên</th>
+                            <th class="p-3">Loại báo cáo</th>
+                            <th class="p-3 w-1/3">Nội dung</th>
+                            <th class="p-3 text-center">File</th>
+                            <th class="p-3 text-center">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-reports"></tbody>
+                </table>
+            </div>
+
+            <div id="tab-users" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-black text-blue-900 text-sm uppercase">Quản lý nhân viên & Phân quyền</h3>
+                    <button onclick="loadUsers()" class="text-xs bg-slate-100 p-2 rounded hover:bg-slate-200"><i class="fa fa-sync"></i> Làm mới</button>
+                </div>
+                <p class="text-[10px] text-red-500 italic mb-2">* Lưu ý: Chỉ sửa Chức vụ/Đơn vị tại đây.</p>
+                <table class="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                        <tr class="table-header">
+                            <th class="p-3">Họ và tên</th>
+                            <th class="p-3">Email</th>
+                            <th class="p-3">Số điện thoại</th>
+                            <th class="p-3">Chức vụ (Sửa)</th>
+                            <th class="p-3">Đơn vị (Sửa)</th>
+                            <th class="p-3 text-center">Lưu</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-users"></tbody>
+                </table>
+            </div>
+
+            <div id="tab-notifications" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-black text-blue-900 text-sm uppercase">Lịch sử thông báo đã gửi</h3>
+                    <button onclick="loadNoti()" class="text-xs bg-slate-100 p-2 rounded hover:bg-slate-200"><i class="fa fa-sync"></i> Làm mới</button>
+                </div>
+                <table class="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                        <tr class="table-header">
+                            <th class="p-3">Ngày gửi</th>
+                            <th class="p-3">Tiêu đề</th>
+                            <th class="p-3">Người gửi</th>
+                            <th class="p-3 w-1/4">Nội dung</th>
+                            <th class="p-3 text-center">Đính kèm</th>
+                            <th class="p-3 text-center">Đã xem</th>
+                            <th class="p-3 text-center">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-notifications"></tbody>
+                </table>
+            </div>
+
+            <div id="tab-tasks" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-black text-blue-900 text-sm uppercase">Theo dõi giao việc</h3>
+                    <button onclick="loadTasks()" class="text-xs bg-slate-100 p-2 rounded hover:bg-slate-200"><i class="fa fa-sync"></i> Làm mới</button>
+                </div>
+                <table class="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                        <tr class="table-header">
+                            <th class="p-3">Ngày giao</th>
+                            <th class="p-3">Hạn chót</th>
+                            <th class="p-3">Tên việc</th>
+                            <th class="p-3">Người làm</th>
+                            <th class="p-3">Trạng thái</th>
+                            <th class="p-3 text-center">File</th>
+                            <th class="p-3 text-center">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-tasks"></tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="detailModal" class="modal">
+        <div class="modal-content relative">
+            <span class="absolute top-2 right-4 text-2xl font-bold cursor-pointer text-slate-400 hover:text-red-500" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title" class="font-black text-lg text-blue-900 mb-4 border-b pb-2">Chi tiết</h2>
+            <div id="modal-body" class="text-sm text-slate-700 leading-relaxed"></div>
+        </div>
+    </div>
+
+    <div class="text-center mt-10 text-[10px] text-slate-400 font-bold uppercase">Hệ thống quản lý EVN - Version 1.60</div>
+
     <script>
-        // Cấu hình Firebase của anh
-        const firebaseConfig = {
-            apiKey: "AIzaSyCzWjfcD5Dgq7V-i2izb9tKLR6QM6qWPQo",
-            authDomain: "tavietnam-78ae8.firebaseapp.com",
-            projectId: "tavietnam-78ae8",
-            storageBucket: "tavietnam-78ae8.firebasestorage.app",
-            messagingSenderId: "670121705534",
-            appId: "1:670121705534:web:1027ad98550573ad37116f"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(); const auth = firebase.auth();
+        let currentUser = null;
 
-        let staffList = []; // Chứa danh sách công nhân lấy từ Firebase
+        // LOAD SIDEBAR
+        fetch('sidebar.html').then(r=>r.text()).then(d=>{ document.getElementById('sidebar-container').innerHTML=d; });
 
-        // 1. LẤY DỮ LIỆU NHÂN SỰ TỪ COLLECTION 'users' (Giả định trang Index lưu vào đây)
-        async function fetchStaff() {
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                // Kiểm tra quyền Admin (Chỉ ví dụ, thực tế nên chặn bằng Rules)
+                loadReports(); // Mặc định load tab đầu
+            } else { window.location.href = "index.html"; }
+        });
+
+        // --- TAB SWITCHING ---
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.admin-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            event.currentTarget.classList.add('active');
+            
+            if(tabName === 'reports') loadReports();
+            if(tabName === 'users') loadUsers();
+            if(tabName === 'notifications') loadNoti();
+            if(tabName === 'tasks') loadTasks();
+        }
+
+        // --- 1. LOAD BÁO CÁO ---
+        async function loadReports() {
+            const tbody = document.getElementById('tbody-reports'); tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>';
             try {
-                const snapshot = await db.collection("users").get();
-                staffList = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    staffList.push({ id: doc.id, name: data.name || data.displayName, rank: data.rank || "Bậc thợ" });
-                });
-                document.getElementById('connection-status').innerText = `✅ Đã kết nối: ${staffList.length} nhân sự`;
-                updateStaffUI();
-            } catch (error) {
-                console.error("Lỗi lấy nhân sự:", error);
-                document.getElementById('connection-status').innerText = "❌ Lỗi kết nối Firebase";
+                const s = await db.collection("daily_reports").orderBy("timestamp", "desc").limit(50).get();
+                if(s.empty) { tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Không có dữ liệu</td></tr>'; return; }
+                
+                tbody.innerHTML = s.docs.map(doc => {
+                    const d = doc.data();
+                    const filesHtml = renderFileIcons(d.files); // Tự động nhận diện file từ AppScript hoặc mảng files
+                    return `<tr class="table-row">
+                        <td class="td-cell">${d.date}</td>
+                        <td class="td-cell font-bold text-blue-900">${d.worker}</td>
+                        <td class="td-cell"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[10px] font-bold uppercase">${d.reportType}</span></td>
+                        <td class="td-cell truncate max-w-xs" title="${d.content}">${d.content}</td>
+                        <td class="td-cell text-center">${filesHtml}</td>
+                        <td class="td-cell text-center">
+                            <i class="fa fa-eye text-green-500 cursor-pointer mx-1" onclick="showModal('Chi tiết báo cáo', '${d.content.replace(/\n/g, '<br>')}')"></i>
+                            <i class="fa fa-trash text-red-400 cursor-pointer mx-1" onclick="deleteItem('daily_reports','${doc.id}')"></i>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        // --- 2. LOAD NHÂN SỰ ---
+        async function loadUsers() {
+            const tbody = document.getElementById('tbody-users'); tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>';
+            try {
+                const s = await db.collection("users").orderBy("name").get();
+                tbody.innerHTML = s.docs.map(doc => {
+                    const d = doc.data();
+                    return `<tr class="table-row">
+                        <td class="td-cell font-bold">${d.name || '---'}</td>
+                        <td class="td-cell text-[10px]">${d.email}</td>
+                        <td class="td-cell">${d.phone || '---'}</td>
+                        <td class="td-cell">
+                            <select id="role-${doc.id}" class="border rounded p-1 text-[11px] font-bold bg-white">
+                                <option value="Công nhân" ${d.position=='Công nhân'?'selected':''}>Công nhân</option>
+                                <option value="Kỹ thuật viên" ${d.position=='Kỹ thuật viên'?'selected':''}>Kỹ thuật viên</option>
+                                <option value="Tổ phó" ${d.position=='Tổ phó'?'selected':''}>Tổ phó</option>
+                                <option value="Tổ trưởng" ${d.position=='Tổ trưởng'?'selected':''}>Tổ trưởng</option>
+                                <option value="Đội phó" ${d.position=='Đội phó'?'selected':''}>Đội phó</option>
+                                <option value="Đội trưởng" ${d.position=='Đội trưởng'?'selected':''}>Đội trưởng</option>
+                                <option value="Lãnh đạo" ${d.position=='Lãnh đạo'?'selected':''}>Lãnh đạo</option>
+                            </select>
+                        </td>
+                        <td class="td-cell">
+                            <select id="unit-${doc.id}" class="border rounded p-1 text-[11px] font-bold bg-white">
+                                <option value="Nhóm 1" ${d.unit=='Nhóm 1'?'selected':''}>Nhóm 1</option>
+                                <option value="Nhóm 2" ${d.unit=='Nhóm 2'?'selected':''}>Nhóm 2</option>
+                                <option value="Nhóm 3" ${d.unit=='Nhóm 3'?'selected':''}>Nhóm 3</option>
+                                <option value="Nhóm 4" ${d.unit=='Nhóm 4'?'selected':''}>Nhóm 4</option>
+                                <option value="Nhóm kỹ thuật" ${d.unit=='Nhóm kỹ thuật'?'selected':''}>Nhóm kỹ thuật</option>
+                                <option value="Văn phòng đội" ${d.unit=='Văn phòng đội'?'selected':''}>Văn phòng đội</option>
+                            </select>
+                        </td>
+                        <td class="td-cell text-center">
+                            <button onclick="updateUser('${doc.id}')" class="bg-blue-600 text-white px-3 py-1 rounded text-[10px] hover:bg-blue-700">Lưu</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function updateUser(emailKey) {
+            const role = document.getElementById(`role-${emailKey}`).value;
+            const unit = document.getElementById(`unit-${emailKey}`).value;
+            if(confirm(`Cập nhật cho ${emailKey}:\n- Chức vụ: ${role}\n- Đơn vị: ${unit}?`)) {
+                await db.collection("users").doc(emailKey).update({ position: role, unit: unit });
+                alert("Đã cập nhật!");
             }
         }
 
-        function updateStaffUI() {
-            const grid = document.getElementById('staffGrid');
-            grid.innerHTML = staffList.map(s => `
-                <div class="card p-4 flex items-center gap-3">
-                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center font-black text-blue-600 text-xs">${s.name.charAt(0)}</div>
-                    <div class="text-left">
-                        <h4 class="text-[10px] font-black text-slate-800 uppercase">${s.name}</h4>
-                        <p class="text-[8px] text-slate-400 font-bold">${s.rank}</p>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // 2. LẤY DỮ LIỆU CÔNG VIỆC TỪ COLLECTION 'tasks'
-        async function fetchTasks() {
-            const grid = document.getElementById('workGrid');
+        // --- 3. LOAD THÔNG BÁO ---
+        async function loadNoti() {
+            const tbody = document.getElementById('tbody-notifications'); tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>';
             try {
-                const snapshot = await db.collection("tasks").where("status", "==", "new").get();
-                if (snapshot.empty) {
-                    grid.innerHTML = '<p class="col-span-full text-center py-10">Kho việc trống.</p>';
-                    return;
-                }
-                grid.innerHTML = "";
-                snapshot.forEach(doc => {
-                    const w = doc.data();
-                    grid.innerHTML += `
-                        <div class="card p-5 flex flex-col h-full bg-white">
-                            <h4 class="font-black text-slate-800 text-[13px] mb-1 uppercase">${w.don_vi_de_nghi || 'Hồ sơ HLAT'}</h4>
-                            <p class="text-[10px] text-slate-500 mb-4 italic">📍 ${w.dia_chi_cong_trinh || 'N/A'}</p>
-                            <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border mb-5">
-                                <div class="text-center"><span class="block text-[8px] font-bold text-slate-400 uppercase italic">Thực tế</span><span class="text-[11px] font-black text-red-600">${w.dt_hlat_thuc_te} m²</span></div>
-                                <div class="text-center border-l"><span class="block text-[8px] font-bold text-slate-400 uppercase italic">Quy hoạch</span><span class="text-[11px] font-black text-red-600">${w.dt_hlat_quy_hoach} m²</span></div>
-                            </div>
-                            <button onclick="openAssignModal('${doc.id}', '${w.don_vi_de_nghi}')" class="w-full bg-blue-600 text-white font-black py-3 rounded-xl shadow-lg uppercase text-[10px] mt-auto">Phân công tổ</button>
-                        </div>
-                    `;
-                });
-            } catch (e) { console.error(e); }
+                const s = await db.collection("notifications").orderBy("timestamp", "desc").limit(30).get();
+                tbody.innerHTML = s.docs.map(doc => {
+                    const d = doc.data();
+                    const readCount = d.read_by ? d.read_by.length : 0;
+                    const filesHtml = renderFileIcons(d.files);
+                    return `<tr class="table-row">
+                        <td class="td-cell">${d.date}</td>
+                        <td class="td-cell font-bold">${d.title}</td>
+                        <td class="td-cell">${d.sender}</td>
+                        <td class="td-cell truncate max-w-xs">${d.content}</td>
+                        <td class="td-cell text-center">${filesHtml}</td>
+                        <td class="td-cell text-center"><span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-[10px] font-bold">${readCount} người</span></td>
+                        <td class="td-cell text-center"><i class="fa fa-trash text-red-400 cursor-pointer" onclick="deleteItem('notifications','${doc.id}')"></i></td>
+                    </tr>`;
+                }).join('');
+            } catch(e) { console.error(e); }
         }
 
-        // 3. ĐIỀU KHIỂN MODAL & PHÂN CÔNG
-        let currentTaskId = "";
-        function openAssignModal(id, name) {
-            currentTaskId = id;
-            document.getElementById('modalTaskName').innerText = name;
-            
-            // Nạp công nhân vào Modal
-            const mainSelect = document.getElementById('selectMain');
-            const supportCheck = document.getElementById('checkSupport');
-            
-            mainSelect.innerHTML = '<option value="">-- Chọn Trưởng nhóm --</option>' + 
-                staffList.map(s => `<option value="${s.name}">${s.name} (${s.rank})</option>`).join('');
-            
-            supportCheck.innerHTML = staffList.map(s => `
-                <label class="flex items-center p-2 bg-slate-50 border rounded-lg cursor-pointer">
-                    <input type="checkbox" name="support" value="${s.name}" class="mr-2"> <span class="text-[10px] font-bold text-slate-600">${s.name}</span>
-                </label>
-            `).join('');
-
-            document.getElementById('assignModal').classList.remove('hidden');
-        }
-
-        async function confirmAssign() {
-            const leader = document.getElementById('selectMain').value;
-            const supporters = Array.from(document.querySelectorAll('input[name="support"]:checked')).map(el => el.value);
-
-            if (!leader) return alert("Vui lòng chọn Nhóm trưởng!");
-
+        // --- 4. LOAD CÔNG VIỆC ---
+        async function loadTasks() {
+            const tbody = document.getElementById('tbody-tasks'); tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>';
             try {
-                await db.collection("tasks").doc(currentTaskId).update({
-                    status: "assigned",
-                    assigned_leader: leader,
-                    assigned_team: supporters,
-                    assigned_at: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                alert(`Đã giao hồ sơ cho ${leader} và nhóm phối hợp!`);
-                closeModal();
-                fetchTasks();
-            } catch (e) { alert("Lỗi phân công: " + e.message); }
+                const s = await db.collection("tasks").orderBy("created_at", "desc").limit(50).get();
+                tbody.innerHTML = s.docs.map(doc => {
+                    const d = doc.data();
+                    const statusHtml = d.accepted_at 
+                        ? `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[9px] font-bold"><i class="fa fa-check"></i> Đã nhận: ${new Date(d.accepted_at.seconds*1000).toLocaleString('vi-VN')}</span>`
+                        : `<span class="bg-orange-100 text-orange-600 px-2 py-1 rounded text-[9px] font-bold">Chưa nhận</span>`;
+                    const filesHtml = renderFileIcons(d.files);
+                    return `<tr class="table-row">
+                        <td class="td-cell">${new Date(d.created_at.seconds*1000).toLocaleDateString('vi-VN')}</td>
+                        <td class="td-cell text-red-500 font-bold">${d.deadline}</td>
+                        <td class="td-cell font-bold text-blue-900">${d.don_vi_de_nghi}</td>
+                        <td class="td-cell">${d.assigned_leader}</td>
+                        <td class="td-cell">${statusHtml}</td>
+                        <td class="td-cell text-center">${filesHtml}</td>
+                        <td class="td-cell text-center"><i class="fa fa-trash text-red-400 cursor-pointer" onclick="deleteItem('tasks','${doc.id}')"></i></td>
+                    </tr>`;
+                }).join('');
+            } catch(e) { console.error(e); }
         }
 
-        function switchTab(tab) {
-            document.getElementById('tab-nhansu-content').classList.toggle('hidden', tab !== 'nhansu');
-            document.getElementById('tab-khoviec-content').classList.toggle('hidden', tab !== 'khoviec');
-            document.getElementById('btn-nhansu').classList.toggle('active', tab === 'nhansu');
-            document.getElementById('btn-khoviec').classList.toggle('active', tab === 'khoviec');
+        // --- UTILS ---
+        function renderFileIcons(files) {
+            if (!files || files.length === 0) return '<span class="text-slate-300 text-[10px]">-</span>';
+            // Lưu ý: Trong hệ thống cũ, file gửi qua AppScript chưa lưu link trực tiếp vào Firestore mà gửi qua Email.
+            // Ở phiên bản mới (v1.60), nếu anh phát triển lưu link ảnh vào Firestore, đoạn này sẽ hiển thị.
+            // Hiện tại tôi sẽ hiển thị icon đại diện.
+            return `<i class="fa fa-paperclip text-blue-500 cursor-pointer" title="Có ${files.length} file đính kèm" onclick="alert('Tính năng xem file Admin đang cập nhật server lưu trữ')"></i> <span class="text-[10px]">(${files.length})</span>`;
         }
 
-        function closeModal() { document.getElementById('assignModal').classList.add('hidden'); }
+        async function deleteItem(col, id) {
+            if(confirm("Bạn chắc chắn muốn xóa dữ liệu này vĩnh viễn?")) {
+                await db.collection(col).doc(id).delete();
+                alert("Đã xóa!");
+                // Reload current tab
+                const activeTab = document.querySelector('.admin-tab.active').innerText;
+                if(activeTab.includes('Báo cáo')) loadReports();
+                if(activeTab.includes('Thông báo')) loadNoti();
+                if(activeTab.includes('Công việc')) loadTasks();
+            }
+        }
 
-        // Khởi chạy đồng bộ
-        fetchStaff();
-        fetchTasks();
+        // Modal Logic
+        function showModal(title, content) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerHTML = content;
+            document.getElementById('detailModal').style.display = "block";
+        }
+        function closeModal() { document.getElementById('detailModal').style.display = "none"; }
+        window.onclick = function(event) { if (event.target == document.getElementById('detailModal')) closeModal(); }
+
+        window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
+        window.menuAction = (a) => { window.location.href="index.html"; };
+        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(()=>window.location.href='index.html');
     </script>
 </body>
 </html>
