@@ -2,179 +2,21 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.21</title>
+    <title>Sổ tay công việc v1.22</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <style>
-        body { background: #f8faff; font-family: system-ui, sans-serif; }
-        .input-box { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; outline: none; transition: 0.3s; }
-        .input-box:focus { border-color: #0068ff; box-shadow: 0 0 0 3px rgba(0,104,255,0.1); }
-        .btn-primary { background: #0068ff; color: white; font-weight: 700; width: 100%; padding: 14px; border-radius: 12px; transition: 0.3s; }
-        .btn-primary:active { transform: scale(0.98); opacity: 0.9; }
-        .hidden { display: none; }
-    </style>
 </head>
 <body class="p-4">
-
-    <div class="max-w-md mx-auto bg-white min-h-screen shadow-xl rounded-[2rem] overflow-hidden">
-        <header class="p-6 flex justify-between items-center border-b">
-            <div>
-                <h1 class="text-blue-600 font-black text-lg uppercase tracking-tight">Sổ tay công việc</h1>
-                <p id="user-info" class="text-xs text-slate-500 font-bold italic">Chào, đang tải...</p>
-            </div>
-            <button onclick="logout()" class="text-[10px] font-black bg-red-50 text-red-500 px-3 py-1 rounded-full uppercase">Thoát</button>
-        </header>
-
-        <div class="p-6 space-y-8">
-            <section id="form-section">
-                <form id="reportForm" class="space-y-4">
-                    <input type="text" id="job-id" class="input-box" placeholder="Số Phiếu / Lệnh (Nếu có)">
-                    
-                    <div class="relative">
-                        <textarea id="job-content" rows="4" class="input-box" placeholder="Nội dung công việc hôm nay *" required></textarea>
-                        <span class="absolute bottom-2 right-2 text-[10px] text-red-500 font-bold">* Bắt buộc</span>
-                    </div>
-
-                    <div class="border-2 border-dashed border-blue-100 rounded-2xl p-6 text-center bg-blue-50/30">
-                        <input type="file" id="file-input" class="hidden" multiple>
-                        <div onclick="document.getElementById('file-input').click()" class="cursor-pointer">
-                            <p id="file-status" class="text-xs text-slate-400 mb-2 italic">Chưa có file</p>
-                            <div class="inline-flex items-center gap-2 bg-white border border-blue-200 px-4 py-2 rounded-xl text-[11px] font-black text-blue-600 shadow-sm">
-                                <span>➕ CHỌN THÊM ẢNH/FILE</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <input type="text" id="job-note" class="input-box" placeholder="Ghi chú / Kiến nghị">
-
-                    <button type="button" onclick="submitReport()" id="btn-submit" class="btn-primary shadow-lg shadow-blue-100 uppercase tracking-widest text-sm">
-                        Gửi báo cáo
-                    </button>
-                </form>
-            </section>
-
-            <section id="history-section" class="pt-6 border-t">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-black text-slate-800 text-sm uppercase italic">Nhật ký</h3>
-                    <select class="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded-lg outline-none">
-                        <option>Hôm nay</option>
-                    </select>
-                </div>
-
-                <div id="history-list" class="space-y-3">
-                    <p class="text-center py-10 text-slate-300 text-[10px] italic font-bold">Đang tải nhật ký...</p>
-                </div>
-            </section>
+    <div id="app-container">
         </div>
-    </div>
 
-    <script>
-        // Cấu hình Firebase & API từ thông tin anh cung cấp 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
-            authDomain: "baocaongay-e73a2.firebaseapp.com",
-            projectId: "baocaongay-e73a2",
-            storageBucket: "baocaongay-e73a2.firebasestorage.app",
-            messagingSenderId: "75165392007",
-            appId: "1:75165392007:web:4ec22bb1612108b096ac22",
-            measurementId: "G-TEGTD9KFCW"
-        };
-        const UPLOAD_API = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
+    <script type="module">
+        import { firebaseConfig } from './js/config.js';
+        import { submitReport, getTodayHistory } from './js/app.js';
 
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
-        // Giả lập thông tin người dùng đăng nhập (Thực tế sẽ lấy từ trang login)
-        const currentUser = { name: "Hồ Minh Tuấn", phone: "09xxxxxx" };
-        document.getElementById('user-info').innerText = `Chào, ${currentUser.name}`;
-
-        // Theo dõi chọn file
-        document.getElementById('file-input').onchange = (e) => {
-            const count = e.target.files.length;
-            document.getElementById('file-status').innerText = count > 0 ? `✅ Đã chọn ${count} file/ảnh` : "Chưa có file";
-        };
-
-        // Gửi báo cáo
-        async function submitReport() {
-            const content = document.getElementById('job-content').value;
-            if (!content) return alert("Vui lòng nhập nội dung công việc!");
-
-            const btn = document.getElementById('btn-submit');
-            btn.disabled = true;
-            btn.innerHTML = "ĐANG GỬI...";
-
-            const reportData = {
-                worker: currentUser.name,
-                jobId: document.getElementById('job-id').value,
-                content: content,
-                note: document.getElementById('job-note').value,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                date: new Date().toLocaleDateString('vi-VN')
-            };
-
-            try {
-                // 1. Lưu vào Firebase
-                await db.collection("daily_reports").add(reportData);
-                
-                // 2. Gửi thông báo qua App Script (Nếu cần)
-                fetch(UPLOAD_API, { method: 'POST', body: JSON.stringify(reportData) });
-
-                alert("Gửi báo cáo thành công!");
-                document.getElementById('reportForm').reset();
-                fetchTodayHistory();
-            } catch (e) {
-                alert("Lỗi: " + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = "GỬI BÁO CÁO";
-            }
-        }
-
-        // Tải nhật ký báo cáo trong ngày
-        async function fetchTodayHistory() {
-            const list = document.getElementById('history-list');
-            const today = new Date().toLocaleDateString('vi-VN');
-
-            try {
-                const snapshot = await db.collection("daily_reports")
-                    .where("worker", "==", currentUser.name)
-                    .where("date", "==", today)
-                    .orderBy("timestamp", "desc")
-                    .get();
-
-                if (snapshot.empty) {
-                    list.innerHTML = `<p class="text-center py-10 text-slate-300 text-[10px] italic uppercase font-bold">Hôm nay chưa có báo cáo nào</p>`;
-                    return;
-                }
-
-                list.innerHTML = "";
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const time = data.timestamp ? data.timestamp.toDate().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : "--:--";
-                    list.innerHTML += `
-                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-[9px] font-black text-blue-500 uppercase tracking-tighter">Phiếu: ${data.jobId || "---"}</span>
-                                <span class="text-[9px] font-bold text-slate-400 uppercase italic">${time}</span>
-                            </div>
-                            <p class="text-xs text-slate-700 font-bold leading-relaxed line-clamp-2">${data.content}</p>
-                            ${data.note ? `<p class="text-[10px] text-slate-400 mt-2 italic border-t pt-2">📝 ${data.note}</p>` : ""}
-                        </div>
-                    `;
-                });
-            } catch (e) {
-                list.innerHTML = `<p class="text-center text-red-400 text-[9px] font-bold uppercase">Lỗi tải dữ liệu</p>`;
-            }
-        }
-
-        function logout() {
-            if(confirm("Bạn có muốn thoát không?")) window.location.href = "login.html";
-        }
-
-        // Khởi tạo nhật ký khi vào trang
-        fetchTodayHistory();
+        // Khởi tạo ứng dụng tại đây...
     </script>
 </body>
 </html>
