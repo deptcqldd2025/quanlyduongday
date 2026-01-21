@@ -3,58 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sổ tay công việc - v1.14</title>
-    
+    <title>Sổ tay công việc - v1.15</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --primary: #0068ff; --bg: #f2f4f8; --white: #ffffff; --text: #333; --radius: 12px; }
-        body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; }
-        .hidden { display: none !important; }
-
-        .app-container { max-width: 500px; margin: 0 auto; background: var(--white); height: 100%; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
-        .header { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; z-index: 10; }
-        .header h1 { font-size: 16px; color: var(--primary); font-weight: 800; margin: 0; text-transform: uppercase; }
-        .btn-logout { font-size: 11px; color: #d32f2f; background: #ffebee; padding: 5px 12px; border-radius: 20px; border: none; cursor: pointer; font-weight: 600; }
+        :root { --primary: #0068ff; --bg: #f8fafc; }
+        body { background-color: var(--bg); font-family: -apple-system, sans-serif; overflow-x: hidden; }
         
-        .scroll-content { flex: 1; overflow-y: auto; padding: 15px; -webkit-overflow-scrolling: touch; }
+        /* Sidebar Styles */
+        #sidebar { transition: transform 0.3s ease-in-out; z-index: 1000; }
+        #sidebar.hidden-menu { transform: translateX(-100%); }
+        #overlay { transition: opacity 0.3s ease-in-out; z-index: 900; }
         
-        .form-group { margin-bottom: 15px; }
-        input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; outline: none; background: #fdfdfd; box-sizing: border-box; }
-        input:focus, textarea:focus, select:focus { border-color: var(--primary); background: #fff; }
+        /* Scroll hide */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* Upload Area */
-        .upload-section { background: #f0f7ff; border: 2px dashed #bdd6f5; border-radius: 10px; padding: 15px; text-align: center; }
-        .file-list-preview { margin-top: 10px; text-align: left; max-height: 150px; overflow-y: auto; }
-        .file-item { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 5px 10px; border-radius: 6px; margin-bottom: 5px; font-size: 12px; border: 1px solid #eef2f7; }
-        .btn-remove { color: #ff4d4d; font-weight: bold; cursor: pointer; padding: 0 5px; }
-
-        .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
-        .btn-primary { background: linear-gradient(to right, #0068ff, #004eC2); color: white; box-shadow: 0 4px 10px rgba(0,104,255,0.3); }
-        .btn-add-file { background: #fff; border: 1px solid var(--primary); color: var(--primary); padding: 8px; font-size: 13px; margin-top: 5px; }
-        .btn:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
-
-        .filter-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 25px; margin-bottom: 10px; }
-        .filter-select { width: auto; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid #ccc; }
+        .form-input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; outline: none; transition: 0.2s; }
+        .form-input:focus { border-color: var(--primary); ring: 2px; ring-color: #0068ff20; }
         
-        .report-item { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); border-left: 4px solid var(--primary); }
-        .r-top { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #666; border-bottom: 1px solid #f5f5f5; padding-bottom: 5px; align-items: center; }
-        .r-date { font-weight: bold; color: #333; }
-        .r-content { white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5; }
-        .r-files { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
-        .file-tag { font-size: 11px; background: #e3f2fd; color: #1565c0; padding: 4px 8px; border-radius: 4px; text-decoration: none; border: 1px solid #bbdefb; display: inline-block; }
-
-        #loginScreen { position: fixed; inset: 0; background: #fff; z-index: 100; display: flex; align-items: center; justify-content: center; }
-        .loader { width: 18px; height: 18px; border: 3px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rot 1s linear infinite; margin-right: 8px; }
+        .report-item { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 5px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .loader { width: 18px; height: 18px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rot 1s linear infinite; display: inline-block; }
         @keyframes rot { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
+</head>
+<body class="no-scrollbar">
+
+    <div id="loadingOverlay" class="fixed inset-0 bg-white z-[2000] flex flex-col items-center justify-center">
+        <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-gray-500 font-bold">Đang tải...</p>
+    </div>
+
+    <div id="loginScreen" class="hidden fixed inset-0 bg-white z-[1500] flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mb-6 shadow-sm">
+            <span class="text-4xl">⚡</span>
+        </div>
+        <h1 class="text-2xl font-black text-blue-800 mb-2 uppercase">Sổ tay công việc</h1>
+        <p class="text-gray-400 text-sm mb-8">Hệ thống quản lý nội bộ vận hành</p>
+        <button onclick="window.login()" class="w-full max-w-xs bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition">
+            Đăng nhập bằng Google
+        </button>
+    </div>
+
+    <div id="overlay" class="hidden fixed inset-0 bg-black/50 opacity-0 pointer-events-none"></div>
+
+    <div id="sidebar" class="hidden-menu fixed top-0 left-0 h-full w-72 bg-white shadow-2xl flex flex-col">
+        <div class="p-6 bg-blue-600 text-white">
+            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl mb-3">👤</div>
+            <div id="uNameSide" class="font-bold text-lg">Họ tên công nhân</div>
+            <div id="uRoleSide" class="text-xs text-blue-100">Chức vụ - ID</div>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="showPage('assignedTasks')" class="w-full flex items-center p-3 hover:bg-gray-100 rounded-xl font-bold text-gray-700">
+                <span class="mr-3">📋</span> Công việc mới (Giao)
+            </button>
+            <button onclick="showPage('reportForm')" class="w-full flex items-center p-3 hover:bg-gray-100 rounded-xl font-bold text-gray-700">
+                <span class="mr-3">✍️</span> Báo cáo công việc
+            </button>
+            <button onclick="showPage('history')" class="w-full flex items-center p-3 hover:bg-gray-100 rounded-xl font-bold text-gray-700">
+                <span class="mr-3">🕒</span> Nhật ký của tôi
+            </button>
+            <button onclick="document.getElementById('profileModal').classList.remove('hidden')" class="w-full flex items-center p-3 hover:bg-gray-100 rounded-xl font-bold text-gray-700">
+                <span class="mr-3">⚙️</span> Cập nhật thông tin
+            </button>
+            <button onclick="alert('Hướng dẫn: Chọn công việc được giao hoặc tự tạo báo cáo, đính kèm hình ảnh và gửi.')" class="w-full flex items-center p-3 hover:bg-gray-100 rounded-xl font-bold text-gray-700">
+                <span class="mr-3">📖</span> Hướng dẫn sử dụng
+            </button>
+        </nav>
+        <div class="p-4 border-t">
+            <button onclick="window.logout()" class="w-full p-3 text-red-500 font-bold text-center bg-red-50 rounded-xl">THOÁT TÀI KHOẢN</button>
+        </div>
+    </div>
+
+    <div id="appScreen" class="hidden flex flex-col h-screen">
+        <header class="bg-white border-b px-4 py-4 flex items-center justify-between sticky top-0 z-10">
+            <button onclick="toggleSidebar()" class="text-2xl p-1">☰</button>
+            <h1 class="font-black text-blue-600 text-sm md:text-lg uppercase tracking-wider">Sổ tay công việc</h1>
+            <div class="w-8"></div> </header>
+
+        <main class="flex-1 overflow-y-auto p-4 no-scrollbar">
+            <div id="page-reportForm" class="page-section">
+                <h2 class="text-xl font-black mb-4 text-gray-800">✍️ Gửi báo cáo</h2>
+                <form id="form" class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 ml-2">CHỌN VIỆC ĐƯỢC GIAO (NẾU CÓ)</label>
+                        <select id="taskSelect" class="form-input bg-blue-50 border-blue-100 font-bold text-blue-700">
+                            <option value="">-- Tự ghi nội dung mới --</option>
+                        </select>
+                    </div>
+                    <input id="pct" placeholder="Số Phiếu / Lệnh (Nếu có)" class="form-input">
+                    <textarea id="content" rows="4" placeholder="Mô tả nội dung công việc thực hiện *" required class="form-input"></textarea>
+                    
+                    <div class="p-4 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-center">
+                        <div id="fileListPreview" class="space-y-2 mb-3"></div>
+                        <input type="file" id="fileIn" multiple class="hidden">
+                        <button type="button" onclick="document.getElementById('fileIn').click()" class="text-blue-600 font-bold text-sm">
+                            📸 CHỤP ẢNH / CHỌN FILE
+                        </button>
+                    </div>
+
+                    <input id="notes" placeholder="Ghi chú / Kiến nghị" class="form-input">
+                    <button type="submit" id="sBtn" class="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition">GỬI BÁO CÁO NGAY</button>
+                </form>
+            </div>
+
+            <div id="page-assignedTasks" class="page-section hidden">
+                <h2 class="text-xl font-black mb-4 text-gray-800">📋 Công việc được giao</h2>
+                <div id="assignedList" class="space-y-3">
+                    <p class="text-center text-gray-400 py-10">Đang kiểm tra công việc từ lãnh đạo...</p>
+                </div>
+            </div>
+
+            <div id="page-history" class="page-section hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-black text-gray-800">🕒 Nhật ký</h2>
+                    <select id="timeFilter" onchange="loadReports(this.value)" class="text-xs border rounded-lg p-1">
+                        <option value="today">Hôm nay</option>
+                        <option value="week">Tuần này</option>
+                        <option value="month">Tháng này</option>
+                    </select>
+                </div>
+                <div id="list" class="space-y-3"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="profileModal" class="hidden fixed inset-0 bg-black/80 z-[2000] flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl">
+            <h3 class="text-lg font-black mb-4 text-center">Cập nhật hồ sơ</h3>
+            <form onsubmit="saveProfile(event)" class="space-y-3">
+                <input id="pEmail" disabled class="form-input bg-gray-100 text-gray-400">
+                <input id="pName" placeholder="Họ và tên" required class="form-input">
+                <input id="pId" placeholder="Mã nhân viên" required class="form-input">
+                <select id="pRole" class="form-input">
+                    <option value="Công nhân">Công nhân</option>
+                    <option value="Tổ trưởng">Tổ trưởng</option>
+                    <option value="Tổ phó">Tổ phó</option>
+                    <option value="Kỹ thuật viên">Kỹ thuật viên</option>
+                    <option value="Lãnh đạo Đội">Lãnh đạo Đội</option>
+                    <option value="Admin">Admin</option>
+                </select>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl mt-2">LƯU HỒ SƠ</button>
+                <button type="button" onclick="document.getElementById('profileModal').classList.add('hidden')" class="w-full text-gray-400 text-sm font-bold mt-2">ĐÓNG</button>
+            </form>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, setDoc, addDoc, query, where, getDocs, orderBy, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // Cấu hình Google Apps Script xử lý upload file
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
-
         const firebaseConfig = {
             apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
             authDomain: "baocaongay-e73a2.firebaseapp.com",
@@ -69,50 +167,68 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
-        
         let currentUser = null;
         let selectedFiles = [];
+
+        // --- SIDEBAR CONTROL ---
+        window.toggleSidebar = () => {
+            const side = document.getElementById('sidebar');
+            const over = document.getElementById('overlay');
+            if (side.classList.contains('hidden-menu')) {
+                side.classList.remove('hidden-menu');
+                over.classList.remove('hidden');
+                setTimeout(() => over.classList.add('opacity-100'), 10);
+            } else {
+                side.classList.add('hidden-menu');
+                over.classList.remove('opacity-100');
+                setTimeout(() => over.classList.add('hidden'), 300);
+            }
+        };
+        document.getElementById('overlay').onclick = window.toggleSidebar;
+
+        window.showPage = (pageId) => {
+            document.querySelectorAll('.page-section').forEach(p => p.classList.add('hidden'));
+            document.getElementById('page-' + pageId).classList.remove('hidden');
+            window.toggleSidebar();
+            if (pageId === 'history') loadReports('today');
+            if (pageId === 'assignedTasks') loadAssignedTasks();
+        };
 
         // --- AUTH ---
         window.login = () => signInWithPopup(auth, provider).catch(err => alert(err.message));
         window.logout = () => signOut(auth).then(() => location.reload());
 
         onAuthStateChanged(auth, async (user) => {
+            document.getElementById('loadingOverlay').classList.add('hidden');
             if (user) {
                 document.getElementById('loginScreen').classList.add('hidden');
-                try {
-                    const snap = await getDoc(doc(db, "users", user.uid));
-                    if (snap.exists()) {
-                        currentUser = snap.data();
-                        document.getElementById('appScreen').classList.remove('hidden');
-                        document.getElementById('uName').innerText = currentUser.name;
-                        loadReports('today');
-                    } else {
-                        document.getElementById('profileModal').classList.remove('hidden');
-                        document.getElementById('pEmail').value = user.email;
-                    }
-                } catch (e) { alert("Lỗi: " + e.message); }
+                const snap = await getDoc(doc(db, "users", user.uid));
+                if (snap.exists()) {
+                    currentUser = snap.data();
+                    document.getElementById('appScreen').classList.remove('hidden');
+                    document.getElementById('uNameSide').innerText = currentUser.name;
+                    document.getElementById('uRoleSide').innerText = `${currentUser.role} - ID: ${currentUser.empId}`;
+                    loadAssignedTasks(); // Load công việc giao sẵn cho select box
+                } else {
+                    document.getElementById('profileModal').classList.remove('hidden');
+                    document.getElementById('pEmail').value = user.email;
+                }
             } else {
                 document.getElementById('loginScreen').classList.remove('hidden');
             }
         });
 
         // --- FILE HANDLING ---
-        window.triggerFileInput = () => document.getElementById('fileIn').click();
-        document.getElementById('fileIn').onchange = function(e) {
+        document.getElementById('fileIn').onchange = (e) => {
             selectedFiles = selectedFiles.concat(Array.from(e.target.files));
-            renderFileList();
-            this.value = "";
+            const preview = document.getElementById('fileListPreview');
+            preview.innerHTML = selectedFiles.map((f, i) => `
+                <div class="flex justify-between items-center text-xs bg-gray-50 p-2 rounded-lg border">
+                    <span class="truncate w-4/5">${f.name}</span>
+                    <button type="button" onclick="removeFile(${i})" class="text-red-500 font-bold">✕</button>
+                </div>`).join('');
         };
-        window.removeFile = (idx) => { selectedFiles.splice(idx, 1); renderFileList(); };
-        function renderFileList() {
-            const container = document.getElementById('fileListPreview');
-            container.innerHTML = "";
-            selectedFiles.forEach((f, i) => {
-                container.innerHTML += `<div class="file-item"><span class="truncate">${f.name}</span><span class="btn-remove" onclick="removeFile(${i})">✕</span></div>`;
-            });
-            document.getElementById('fileTxt').innerText = selectedFiles.length > 0 ? `Đã chọn ${selectedFiles.length} file` : "Chưa có file";
-        }
+        window.removeFile = (i) => { selectedFiles.splice(i, 1); document.getElementById('fileIn').dispatchEvent(new Event('change')); };
 
         async function uploadFiles() {
             let urls = [];
@@ -128,7 +244,42 @@
             return urls;
         }
 
-        // --- ACTIONS ---
+        // --- LOAD ASSIGNED TASKS (CÔNG VIỆC ĐƯỢC GIAO) ---
+        async function loadAssignedTasks() {
+            const listDiv = document.getElementById('assignedList');
+            const select = document.getElementById('taskSelect');
+            try {
+                // Giả định công việc được giao nằm trong collection 'assigned_tasks'
+                const q = query(collection(db, "assigned_tasks"), where("targetId", "==", currentUser.empId), where("status", "==", "new"));
+                const snap = await getDocs(q);
+                
+                listDiv.innerHTML = "";
+                select.innerHTML = '<option value="">-- Tự ghi nội dung mới --</option>';
+                
+                if (snap.empty) {
+                    listDiv.innerHTML = '<p class="text-center text-gray-400 py-10">Bạn chưa có công việc mới nào được giao.</p>';
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const t = d.data();
+                    select.innerHTML += `<option value="${t.content}">${t.content.substring(0,30)}...</option>`;
+                    listDiv.innerHTML += `
+                        <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 shadow-sm">
+                            <div class="text-xs font-bold text-blue-600 mb-1">CÔNG VIỆC GIAO</div>
+                            <div class="text-sm font-bold text-gray-800">${t.content}</div>
+                            <button onclick="pickTask('${t.content}')" class="mt-3 bg-blue-600 text-white text-xs px-4 py-2 rounded-full font-bold">BÁO CÁO NGAY</button>
+                        </div>`;
+                });
+            } catch (e) { listDiv.innerHTML = "Lỗi tải dữ liệu công việc."; }
+        }
+
+        window.pickTask = (content) => {
+            document.getElementById('content').value = content;
+            showPage('reportForm');
+        };
+
+        // --- FORM SUBMIT ---
         document.getElementById('form').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('sBtn');
@@ -138,7 +289,6 @@
             try { let p = await new Promise((r,j)=>navigator.geolocation.getCurrentPosition(r,j,{timeout:3000})); lat=p.coords.latitude; lng=p.coords.longitude; } catch(e){}
 
             let att = await uploadFiles();
-
             try {
                 await addDoc(collection(db, "daily_reports"), {
                     uid: auth.currentUser.uid, workerName: currentUser.name, workerId: currentUser.empId,
@@ -148,14 +298,16 @@
                 });
                 alert("Đã gửi thành công!");
                 document.getElementById('form').reset();
-                selectedFiles = []; renderFileList(); loadReports('today');
+                selectedFiles = []; document.getElementById('fileListPreview').innerHTML = "";
+                showPage('history');
             } catch(e) { alert(e.message); }
-            btn.innerHTML = "GỬI BÁO CÁO"; btn.disabled = false;
+            btn.innerHTML = "GỬI BÁO CÁO NGAY"; btn.disabled = false;
         };
 
+        // --- LOAD HISTORY ---
         window.loadReports = async (mode) => {
             const list = document.getElementById('list');
-            list.innerHTML = `<p style="text-align:center">Đang tải...</p>`;
+            list.innerHTML = `<p class="text-center text-gray-400 py-10">Đang tải...</p>`;
             let start = new Date(); start.setHours(0,0,0,0);
             if(mode === 'week') start.setDate(start.getDate() - 7);
             if(mode === 'month') start.setDate(1);
@@ -168,16 +320,17 @@
                 const id = d.id;
                 const isLocked = r.status === "reviewed";
                 const date = r.timestamp.toDate();
-                let files = r.attachments ? r.attachments.map((u,i) => `<a href="${u}" target="_blank" class="file-tag">📎 File ${i+1}</a>`).join("") : "";
+                let files = r.attachments ? r.attachments.map((u,i) => `<a href="${u}" target="_blank" class="inline-block bg-blue-50 text-blue-600 px-2 py-1 rounded text-[10px] mr-1 mt-1 font-bold">📎 File ${i+1}</a>`).join("") : "";
                 
                 list.innerHTML += `
                     <div class="report-item">
                         <div class="r-top">
-                            <span class="r-date">${date.toLocaleDateString('vi-VN')} - ${date.toLocaleTimeString('vi-VN').slice(0,5)}</span>
-                            ${isLocked ? '<span style="color:green;font-weight:bold">✓ Đã duyệt</span>' : `<button onclick="editReport('${id}', '${r.content.replace(/'/g, "\\'")}')" style="color:var(--primary);font-weight:bold;font-size:11px">✏️ SỬA</button>`}
+                            <span class="r-date font-black text-gray-800">${date.toLocaleTimeString('vi-VN').slice(0,5)} | ${date.toLocaleDateString('vi-VN')}</span>
+                            ${isLocked ? '<span class="text-green-500 font-bold text-[10px]">✓ ĐÃ DUYỆT</span>' : `<button onclick="editReport('${id}', '${r.content.replace(/'/g, "\\'")}')" class="text-blue-600 font-bold text-[10px]">✏️ SỬA</button>`}
                         </div>
-                        <div class="r-content" id="c-${id}">${r.content}</div>
-                        <div class="r-files">${files}</div>
+                        <div class="text-sm text-gray-700 mt-2 font-medium">${r.content}</div>
+                        ${r.pct ? `<div class="text-[10px] text-red-500 font-bold mt-1 uppercase">🎫 Phiếu: ${r.pct}</div>` : ''}
+                        <div class="mt-2">${files}</div>
                     </div>`;
             });
         };
@@ -185,10 +338,8 @@
         window.editReport = async (id, oldContent) => {
             const newContent = prompt("Chỉnh sửa nội dung công việc:", oldContent);
             if (newContent && newContent.trim() !== "" && newContent !== oldContent) {
-                try {
-                    await updateDoc(doc(db, "daily_reports", id), { content: newContent, updatedAt: Timestamp.now() });
-                    alert("Đã cập nhật!"); loadReports(document.getElementById('timeFilter').value);
-                } catch (e) { alert("Lỗi: " + e.message); }
+                await updateDoc(doc(db, "daily_reports", id), { content: newContent, updatedAt: Timestamp.now() });
+                loadReports(document.getElementById('timeFilter').value);
             }
         };
 
@@ -197,66 +348,15 @@
             await setDoc(doc(db, "users", auth.currentUser.uid), {
                 name: document.getElementById('pName').value, empId: document.getElementById('pId').value,
                 role: document.getElementById('pRole').value, email: auth.currentUser.email, uid: auth.currentUser.uid
-            });
+            }, {merge: true});
             location.reload();
         };
+
+        window.onload = () => {
+            document.getElementById('taskSelect').onchange = (e) => {
+                if(e.target.value) document.getElementById('content').value = e.target.value;
+            };
+        };
     </script>
-</head>
-<body>
-
-    <div id="loginScreen">
-        <div style="text-align:center">
-            <h1 style="color:var(--primary);font-weight:900;font-size:24px;margin-bottom:5px">SỔ TAY CÔNG VIỆC</h1>
-            <p style="color:#888;font-size:12px">Hệ thống quản lý nội bộ</p>
-            <button onclick="window.login()" style="background:#fff;border:1px solid #ddd;padding:12px 25px;border-radius:30px;font-weight:bold;color:#444;margin-top:25px;cursor:pointer">Đăng nhập Google</button>
-        </div>
-    </div>
-
-    <div id="profileModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px">
-        <div style="background:#fff;padding:20px;border-radius:15px;width:100%;max-width:350px">
-            <h3 style="text-align:center;margin-top:0">Cập nhật hồ sơ</h3>
-            <form onsubmit="saveProfile(event)">
-                <input id="pEmail" disabled style="background:#eee;margin-bottom:10px">
-                <input id="pName" placeholder="Họ tên" required style="margin-bottom:10px">
-                <input id="pId" placeholder="Mã NV" required style="margin-bottom:10px">
-                <select id="pRole" style="margin-bottom:15px">
-                    <option>Công nhân</option><option>Tổ trưởng</option><option>Tổ phó</option><option>Kỹ thuật viên</option><option>Lãnh đạo Đội</option>
-                </select>
-                <button class="btn btn-primary">LƯU HỒ SƠ</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="appScreen" class="app-container hidden">
-        <div class="header">
-            <div><h1>SỔ TAY CÔNG VIỆC</h1><div style="font-size:11px">Chào, <span id="uName" style="font-weight:bold">...</span></div></div>
-            <button onclick="window.logout()" class="btn-logout">THOÁT</button>
-        </div>
-
-        <div class="scroll-content">
-            <form id="form">
-                <div class="form-group"><input id="pct" placeholder="Số Phiếu / Lệnh (Nếu có)"></div>
-                <div class="form-group"><textarea id="content" rows="4" placeholder="Nội dung công việc hôm nay *" required></textarea></div>
-                <div class="form-group">
-                    <div class="upload-section">
-                        <span id="fileTxt" style="font-size:12px;color:#666">Chưa có file</span>
-                        <div id="fileListPreview" class="file-list-preview"></div>
-                        <input type="file" id="fileIn" multiple class="hidden">
-                        <button type="button" class="btn btn-add-file" onclick="triggerFileInput()">➕ CHỌN THÊM ẢNH/FILE</button>
-                    </div>
-                </div>
-                <div class="form-group"><input id="notes" placeholder="Ghi chú / Kiến nghị"></div>
-                <button id="sBtn" class="btn btn-primary">GỬI BÁO CÁO</button>
-            </form>
-
-            <div class="filter-bar">
-                <b style="font-size:14px">NHẬT KÝ</b>
-                <select id="timeFilter" class="filter-select" onchange="loadReports(this.value)">
-                    <option value="today">Hôm nay</option><option value="week">Tuần này</option><option value="month">Tháng này</option>
-                </select>
-            </div>
-            <div id="list"></div>
-        </div>
-    </div>
 </body>
 </html>
