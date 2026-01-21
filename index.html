@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.36</title>
+    <title>Sổ tay công việc - v1.37</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -13,7 +13,7 @@
 </head>
 <body class="pb-16">
 
-    <div id="login-screen" class="login-overlay hidden">
+    <div id="login-screen" class="login-overlay">
         <div class="text-center mb-10">
             <h1 class="text-3xl font-black italic uppercase tracking-tighter mb-2">Sổ tay công việc</h1>
             <p class="text-xs font-bold text-blue-200 uppercase tracking-widest">Đội quản lý lưới điện 2</p>
@@ -22,6 +22,7 @@
             <img src="https://img.icons8.com/color/48/000000/google-logo.png" class="w-5 h-5"/>
             Đăng nhập Gmail
         </button>
+        <p id="loading-text" class="mt-4 text-[10px] text-white/50 hidden">Đang kết nối hệ thống...</p>
     </div>
 
     <div id="sidebar" class="sidebar">
@@ -71,7 +72,7 @@
                     <h1 class="font-black text-lg italic uppercase leading-none">Sổ tay công việc</h1>
                     <p id="header-user-name" class="text-[10px] font-bold text-blue-200 mt-1 uppercase italic">...</p>
                 </div>
-                </div>
+            </div>
         </div>
 
         <div class="max-w-md mx-auto px-6 -mt-6 space-y-6">
@@ -112,12 +113,22 @@
     </div>
 
     <div class="footer-evn">
-        <p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.36</p>
+        <p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.37</p>
     </div>
 
-    <script type="module">
-        import { CONFIG } from './config.js';
-        if (!firebase.apps.length) firebase.initializeApp(CONFIG.FIREBASE);
+    <script>
+        // CẤU HÌNH TRỰC TIẾP ĐỂ TRÁNH LỖI IMPORT FILE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
+            authDomain: "baocaongay-e73a2.firebaseapp.com",
+            projectId: "baocaongay-e73a2",
+            storageBucket: "baocaongay-e73a2.firebasestorage.app",
+            messagingSenderId: "75165392007",
+            appId: "1:75165392007:web:4ec22bb1612108b096ac22"
+        };
+        
+        // Khởi tạo Firebase
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
         const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
@@ -128,13 +139,17 @@
         const formattedDate = `${todayRaw.getDate().toString().padStart(2, '0')}/${(todayRaw.getMonth() + 1).toString().padStart(2, '0')}/${todayRaw.getFullYear().toString().slice(-2)}`;
         const reportNameDefault = `Báo cáo ngày ${formattedDate}`;
 
-        // 1. AUTH & UI UPDATE
+        // 1. XỬ LÝ ĐĂNG NHẬP / MÀN HÌNH
         auth.onAuthStateChanged(user => {
+            const loginScreen = document.getElementById('login-screen');
+            const mainApp = document.getElementById('main-app');
+            const loadingText = document.getElementById('loading-text');
+
             if (user) {
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
+                // Đã đăng nhập: Ẩn Login, Hiện Main
+                loginScreen.classList.add('hidden');
+                mainApp.classList.remove('hidden');
                 
-                // Cập nhật thông tin Header & Sidebar
                 document.getElementById('header-user-name').innerText = user.displayName;
                 document.getElementById('sidebar-user-name').innerText = user.displayName;
                 document.getElementById('sidebar-user-email').innerText = user.email;
@@ -142,16 +157,18 @@
                 checkAssignedTasks(user.displayName);
                 loadHistory(user.email);
             } else {
-                document.getElementById('login-screen').classList.remove('hidden');
-                document.getElementById('main-app').classList.add('hidden');
+                // Chưa đăng nhập: Hiện Login
+                loginScreen.classList.remove('hidden');
+                mainApp.classList.add('hidden');
+                loadingText.classList.add('hidden');
             }
         });
 
-        // 2. SIDEBAR LOGIC
+        // 2. SIDEBAR & MENU LOGIC
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
-        
+
         window.menuAction = (action) => {
-            toggleSidebar(); // Đóng menu sau khi chọn
+            toggleSidebar();
             if (action === 'report') {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 resetForm();
@@ -159,15 +176,22 @@
                 document.getElementById('report-type').value = "Công việc được giao";
                 handleTypeChange();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else if (action === 'notification' || action === 'guide' || action === 'profile') {
-                alert("Chức năng đang phát triển!");
+            } else {
+                alert("Tính năng " + action + " đang phát triển!");
             }
         };
 
-        window.handleLogin = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-        window.handleLogout = () => confirm("Bạn có chắc muốn đăng xuất?") && auth.signOut();
+        window.handleLogin = () => {
+            document.getElementById('loading-text').classList.remove('hidden');
+            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+                .catch(e => alert("Lỗi đăng nhập: " + e.message));
+        };
+        
+        window.handleLogout = () => {
+            if(confirm("Bạn muốn đăng xuất?")) auth.signOut();
+        };
 
-        // 3. LOGIC XỬ LÝ NHƯ CŨ
+        // 3. LOGIC APP CHÍNH
         async function checkAssignedTasks(workerName) {
             const taskOpt = document.getElementById('opt-assigned');
             const taskList = document.getElementById('assigned-task-list');
@@ -178,8 +202,10 @@
                 if (!snap.empty) {
                     taskOpt.classList.remove('hidden');
                     taskList.innerHTML = snap.docs.map(doc => `<option value="${doc.id}">${doc.data().don_vi_de_nghi || 'Việc chưa đặt tên'}</option>`).join('');
+                } else {
+                    taskOpt.classList.add('hidden');
                 }
-            } catch (e) {}
+            } catch (e) { console.log(e); }
         }
 
         window.handleTypeChange = () => {
@@ -251,8 +277,17 @@
             const list = document.getElementById('history-list');
             const today = new Date().toLocaleDateString('vi-VN');
             try {
-                const snap = await db.collection("daily_reports").where("email", "==", email).where("date", "==", today).orderBy("timestamp", "desc").get();
+                // FALLBACK MODE: Nếu lỗi index thì chỉ where, không orderBy
+                let snap;
+                try {
+                    snap = await db.collection("daily_reports").where("email", "==", email).where("date", "==", today).orderBy("timestamp", "desc").get();
+                } catch(err) {
+                    console.warn("Index missing, switching fallback");
+                    snap = await db.collection("daily_reports").where("email", "==", email).where("date", "==", today).get();
+                }
+
                 if (snap.empty) { list.innerHTML = `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Chưa có báo cáo</p>`; return; }
+                
                 list.innerHTML = snap.docs.map(doc => {
                     const d = doc.data();
                     const canEdit = d.status === "pending";
@@ -265,7 +300,7 @@
                         <p class="text-xs text-slate-600 font-bold mt-2">${d.content}</p>
                     </div>`;
                 }).join('');
-            } catch (e) { list.innerHTML = `<p class="text-center py-10 text-red-300 text-[9px]">Đang tải...</p>`; }
+            } catch (e) { list.innerHTML = `<p class="text-center py-10 text-red-300 text-[9px]">Lỗi: ${e.message}</p>`; }
         }
 
         window.editReport = async (id) => {
