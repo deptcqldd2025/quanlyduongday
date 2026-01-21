@@ -1,208 +1,32 @@
-/* style.css - Phiên bản hoàn thiện v1.36 | EVN Smart Line */
-
-/* 1. THIẾT LẬP CƠ BẢN & FONT CHỮ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
 
-:root {
-    --evn-blue: #1A479A;       /* Màu xanh thương hiệu EVN */
-    --evn-blue-light: #2563EB;
-    --bg-light: #F4F7FA;       /* Màu nền xám xanh nhạt */
-    --text-dark: #1F2937;
-    --white: #FFFFFF;
-    --danger: #EF4444;
-}
+:root { --evn-blue: #1A479A; --bg-light: #F4F7FA; --text-dark: #1F2937; --white: #FFFFFF; }
+body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-dark); margin: 0; padding-bottom: 70px; -webkit-tap-highlight-color: transparent; }
 
-body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: var(--bg-light);
-    color: var(--text-dark);
-    margin: 0;
-    padding-bottom: 60px; /* Chừa chỗ cho Footer */
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* 2. MÀN HÌNH ĐĂNG NHẬP (LOGIN OVERLAY) */
-.login-overlay {
-    position: fixed;
-    inset: 0;
-    background: var(--evn-blue);
-    z-index: 200; /* Luôn nằm trên cùng */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--white);
-    padding: 20px;
-}
-
-.btn-google {
-    background: var(--white);
-    color: #374151;
-    padding: 16px 32px;
-    border-radius: 16px;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    border: none;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.btn-google:active {
-    transform: scale(0.95);
-}
-
-/* 3. HEADER & NAV (THANH TIÊU ĐỀ) */
-.evn-header {
-    background-color: var(--evn-blue);
-    color: var(--white);
-    padding: 25px 20px 55px 20px; /* Padding dưới lớn để card đè lên */
-    border-bottom-left-radius: 35px;
-    border-bottom-right-radius: 35px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-/* 4. SIDEBAR (MENU TRƯỢT TRÁI) */
-.sidebar {
-    position: fixed;
-    top: 0;
-    left: -300px; /* Ẩn mặc định */
-    width: 300px;
-    height: 100%;
-    background: var(--white);
-    z-index: 100;
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-}
-
-.sidebar.active {
-    left: 0; /* Hiện ra */
-}
-
-.sidebar-header {
-    background: var(--evn-blue);
-    padding: 40px 25px;
-    color: var(--white);
-    border-bottom-right-radius: 40px;
-    position: relative;
-}
-
-/* Mục lục trong Sidebar */
-.menu-item {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px 24px;
-    color: #475569;
-    font-weight: 700;
-    font-size: 13px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.2s;
-    border-radius: 0 24px 24px 0;
-    margin-right: 15px;
-    margin-bottom: 4px;
-}
-
-.menu-item:hover, .menu-item.active {
-    background: #EFF6FF;
-    color: var(--evn-blue);
-}
-
-.menu-item i {
-    width: 24px;
-    text-align: center;
-    font-size: 16px;
-}
-
-/* 5. INPUT & FORM ELEMENTS */
-.input-evn {
-    width: 100%;
-    padding: 15px;
-    border-radius: 18px;
-    border: 1px solid #E5E7EB;
-    background: #FFF;
-    outline: none;
-    font-size: 14px;
-    color: #1F2937;
-    box-sizing: border-box;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.input-evn:focus {
-    border-color: var(--evn-blue);
-    box-shadow: 0 0 0 4px rgba(26, 71, 154, 0.1);
-}
-
-/* Custom Select Arrow */
-.select-evn {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231A479A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 1rem center;
-    background-size: 1.2em;
-    padding-right: 2.5rem;
-}
-
-/* 6. QUẢN LÝ FILE ĐÍNH KÈM */
-.file-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #F8FAFC;
-    padding: 10px 14px;
-    border-radius: 14px;
-    margin-bottom: 8px;
-    font-size: 11px;
-    font-weight: 600;
-    color: #475569;
-    border: 1px solid #E2E8F0;
-}
-
-.file-item i.fa-trash-alt {
-    color: var(--danger);
-    cursor: pointer;
-    padding: 4px;
-    transition: opacity 0.2s;
-}
-.file-item i.fa-trash-alt:hover { opacity: 0.7; }
-
-/* 7. NHẬT KÝ BÁO CÁO (CARDS) */
-.card-history {
-    background: var(--white);
-    padding: 18px;
-    border-radius: 24px;
-    border: 1px solid #E2E8F0;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-}
-
-/* 8. FOOTER CỐ ĐỊNH */
-.footer-evn {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(244, 247, 250, 0.95);
-    backdrop-filter: blur(8px);
-    padding: 10px;
-    text-align: center;
-    border-top: 1px solid #E2E8F0;
-    z-index: 50;
-}
-
-.footer-evn p {
-    color: var(--evn-blue);
-    font-size: 9px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: 0;
-}
-
-/* 9. UTILITIES */
+/* LOGIN & UTILS */
+.login-overlay { position: fixed; inset: 0; background: var(--evn-blue); z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
+.btn-google { background: white; color: #374151; padding: 14px 28px; border-radius: 16px; font-weight: 800; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+.btn-google:active { transform: scale(0.95); }
 .hidden { display: none !important; }
+
+/* HEADER */
+.evn-header { background-color: var(--evn-blue); color: white; padding: 20px 20px 50px 20px; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; box-shadow: 0 4px 10px rgba(26, 71, 154, 0.2); }
+
+/* SIDEBAR */
+.sidebar { position: fixed; top: 0; left: -300px; width: 300px; height: 100%; background: white; z-index: 100; transition: left 0.3s ease; box-shadow: 10px 0 30px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+.sidebar.active { left: 0; }
+.sidebar-header { background: var(--evn-blue); padding: 30px 20px; color: white; border-bottom-right-radius: 40px; }
+.menu-item { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: #475569; font-weight: 700; font-size: 13px; text-transform: uppercase; cursor: pointer; border-radius: 0 20px 20px 0; margin-right: 15px; transition: 0.2s; }
+.menu-item:hover, .menu-item.active { background: #EFF6FF; color: var(--evn-blue); }
+.menu-item i { width: 24px; text-align: center; font-size: 16px; }
+
+/* FORMS & CARDS */
+.input-evn { width: 100%; padding: 14px; border-radius: 16px; border: 1px solid #E2E8F0; background: #FFF; outline: none; font-size: 13px; box-sizing: border-box; transition: 0.3s; }
+.input-evn:focus { border-color: var(--evn-blue); box-shadow: 0 0 0 3px rgba(26, 71, 154, 0.1); }
+.select-evn { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231A479A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
+.file-item { display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 10px 14px; border-radius: 12px; margin-bottom: 8px; font-size: 11px; font-weight: 700; color: #475569; border: 1px solid #E2E8F0; }
+.card-history { background: white; padding: 16px; border-radius: 20px; border: 1px solid #E2E8F0; margin-bottom: 12px; }
+
+/* FOOTER */
+.footer-evn { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(5px); padding: 10px; text-align: center; border-top: 1px solid #E2E8F0; z-index: 50; }
+.footer-evn p { color: var(--evn-blue); font-size: 9px; font-weight: 600; text-transform: uppercase; margin: 0; }
