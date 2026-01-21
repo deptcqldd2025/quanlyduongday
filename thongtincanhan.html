@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông tin cá nhân - v1.46</title>
+    <title>Thông tin cá nhân - v1.47</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -27,15 +27,12 @@
         <div class="bg-white p-6 rounded-[30px] shadow-xl border border-slate-50 flex flex-col items-center relative">
             <div class="w-24 h-24 bg-blue-50 rounded-full p-1 mb-3 relative">
                 <img id="profile-img" src="https://img.icons8.com/fluency/96/user-male-circle.png" class="w-full h-full rounded-full object-cover shadow-sm">
-                <div class="absolute bottom-0 right-0 bg-[#1A479A] text-white w-8 h-8 rounded-full flex items-center justify-center border-2 border-white cursor-pointer shadow-md">
-                    <i class="fa fa-camera text-xs"></i>
-                </div>
             </div>
-            <h2 id="display-name" class="font-black text-xl text-[#1A479A] uppercase">Đang tải...</h2>
+            <h2 id="display-name" class="font-black text-xl text-[#1A479A] uppercase text-center">Đang tải...</h2>
             <p id="display-email" class="text-xs text-slate-400 font-bold mb-4">...</p>
             <div class="flex gap-2">
-                <span id="role-badge" class="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">---</span>
-                <span id="unit-badge" class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">---</span>
+                <span id="role-badge" class="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">...</span>
+                <span id="unit-badge" class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">...</span>
             </div>
         </div>
 
@@ -58,7 +55,7 @@
             <div>
                 <div class="flex justify-between ml-2">
                     <label class="text-[9px] font-black text-slate-400 uppercase">Chức vụ</label>
-                    <i class="fa fa-lock text-[10px] text-slate-300" title="Chỉ Admin được sửa"></i>
+                    <i class="fa fa-lock text-[10px] text-slate-300"></i>
                 </div>
                 <select id="inp-position" class="input-evn select-evn font-bold bg-slate-100 text-slate-500 cursor-not-allowed" disabled>
                     <option value="Công nhân">Công nhân</option>
@@ -74,7 +71,7 @@
             <div>
                 <div class="flex justify-between ml-2">
                     <label class="text-[9px] font-black text-slate-400 uppercase">Đơn vị công tác</label>
-                    <i class="fa fa-lock text-[10px] text-slate-300" title="Chỉ Admin được sửa"></i>
+                    <i class="fa fa-lock text-[10px] text-slate-300"></i>
                 </div>
                 <select id="inp-unit" class="input-evn select-evn font-bold bg-slate-100 text-slate-500 cursor-not-allowed" disabled>
                     <option value="Nhóm 1">Nhóm 1</option>
@@ -85,7 +82,7 @@
                     <option value="Văn phòng đội">Văn phòng đội</option>
                 </select>
             </div>
-            
+
             <p class="text-[9px] text-red-400 italic text-center mt-2 hidden" id="admin-note">* Liên hệ Admin để thay đổi Chức vụ/Đơn vị</p>
 
             <button onclick="saveProfile()" id="btn-save" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-[11px] tracking-widest hidden active:scale-95 transition">
@@ -94,7 +91,7 @@
         </section>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý nhân sự - Version 1.46</p></div>
+    <div class="footer-evn"><p>Hệ thống quản lý nhân sự - Version 1.47</p></div>
 
     <script>
         const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
@@ -103,7 +100,7 @@
         const auth = firebase.auth();
         let currentUser = null;
 
-        // Tải Sidebar
+        // TẢI SIDEBAR
         fetch('sidebar.html').then(r=>r.text()).then(d=>{
             document.getElementById('sidebar-container').innerHTML=d;
             if(currentUser) updateSidebarInfo(currentUser);
@@ -113,14 +110,61 @@
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
+                // Hiển thị ngay thông tin từ Google Auth trước (để không bị trống)
                 document.getElementById('display-email').innerText = user.email;
+                if(user.photoURL) document.getElementById('profile-img').src = user.photoURL;
+                
                 updateSidebarInfo(user);
                 checkManagerRoleForSidebar(user.email);
+                
+                // Sau đó mới tải từ Database
                 loadUserProfile(user);
             } else { window.location.href = "index.html"; }
         });
 
-        // Hàm kiểm tra quyền để hiện menu (nếu là lãnh đạo)
+        // HÀM QUAN TRỌNG: TẢI DỮ LIỆU
+        async function loadUserProfile(user) {
+            try {
+                console.log("Đang đọc dữ liệu cho:", user.email);
+                const doc = await db.collection("users").doc(user.email).get();
+                
+                if (doc.exists) {
+                    console.log("Tìm thấy dữ liệu:", doc.data());
+                    const data = doc.data();
+                    
+                    // Cập nhật UI từ Database
+                    document.getElementById('display-name').innerText = data.name || user.displayName;
+                    document.getElementById('inp-name').value = data.name || user.displayName;
+                    document.getElementById('inp-phone').value = data.phone || "";
+                    
+                    // Set giá trị Select Box (nếu data lỗi thì về mặc định)
+                    document.getElementById('inp-position').value = data.position || "Công nhân";
+                    document.getElementById('inp-unit').value = data.unit || "Nhóm 1";
+                    
+                    // Set Badge
+                    document.getElementById('role-badge').innerText = data.position || "Công nhân";
+                    document.getElementById('unit-badge').innerText = data.unit || "Nhóm 1";
+                } else {
+                    console.log("Chưa có dữ liệu, dùng mặc định.");
+                    // Nếu chưa có trong DB, dùng thông tin Google và mặc định
+                    document.getElementById('display-name').innerText = user.displayName;
+                    document.getElementById('inp-name').value = user.displayName;
+                    
+                    // Mặc định là Công nhân - Nhóm 1
+                    document.getElementById('role-badge').innerText = "Công nhân";
+                    document.getElementById('unit-badge').innerText = "Nhóm 1";
+                }
+            } catch (e) {
+                console.error("Lỗi đọc DB:", e);
+                // Nếu lỗi permission, thông báo cho người dùng
+                if(e.code === 'permission-denied') {
+                    alert("Lỗi: Bạn không có quyền đọc dữ liệu. Vui lòng báo Admin kiểm tra Firestore Rules.");
+                } else {
+                    alert("Lỗi tải hồ sơ: " + e.message);
+                }
+            }
+        }
+
         async function checkManagerRoleForSidebar(email) {
             try {
                 const doc = await db.collection("users").doc(email).get();
@@ -142,85 +186,44 @@
             document.querySelectorAll('.menu-item').forEach(item => { if(item.getAttribute('onclick').includes('profile')) item.classList.add('active'); });
         }
 
-        // TẢI DỮ LIỆU USER
-        async function loadUserProfile(user) {
-            try {
-                const doc = await db.collection("users").doc(user.email).get();
-                if (doc.exists) {
-                    const data = doc.data();
-                    document.getElementById('display-name').innerText = data.name || user.displayName;
-                    
-                    document.getElementById('inp-name').value = data.name || user.displayName;
-                    document.getElementById('inp-phone').value = data.phone || "";
-                    
-                    // Gán giá trị (Dù bị disable vẫn gán để hiển thị đúng)
-                    document.getElementById('inp-position').value = data.position || "Công nhân";
-                    document.getElementById('inp-unit').value = data.unit || "Nhóm 1";
-                    
-                    document.getElementById('role-badge').innerText = data.position || "Công nhân";
-                    document.getElementById('unit-badge').innerText = data.unit || "Nhóm 1";
-                } else {
-                    // Mặc định cho User mới
-                    document.getElementById('display-name').innerText = user.displayName;
-                    document.getElementById('inp-name').value = user.displayName;
-                    document.getElementById('role-badge').innerText = "Công nhân";
-                    document.getElementById('unit-badge').innerText = "Nhóm 1";
-                    // Các select box đã mặc định sẵn value "Công nhân" và "Nhóm 1" trong HTML
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        // CHỈ MỞ KHÓA TÊN VÀ SĐT
+        // EDIT & SAVE
         window.enableEdit = () => {
-            // Mở khóa Tên
-            const nameInp = document.getElementById('inp-name');
-            nameInp.disabled = false;
-            nameInp.classList.add('bg-blue-50');
-            
-            // Mở khóa SĐT
-            const phoneInp = document.getElementById('inp-phone');
-            phoneInp.disabled = false;
-            phoneInp.classList.add('bg-blue-50');
-
-            // KHÔNG MỞ KHÓA inp-position và inp-unit
-            
+            document.getElementById('inp-name').disabled = false;
+            document.getElementById('inp-name').classList.add('bg-blue-50');
+            document.getElementById('inp-phone').disabled = false;
+            document.getElementById('inp-phone').classList.add('bg-blue-50');
             document.getElementById('btn-save').classList.remove('hidden');
-            document.getElementById('admin-note').classList.remove('hidden'); // Hiện chú thích
+            document.getElementById('admin-note').classList.remove('hidden');
         };
 
         window.saveProfile = async () => {
             const btn = document.getElementById('btn-save'); btn.innerText = "ĐANG LƯU..."; btn.disabled = true;
             
-            // Lấy giá trị hiện tại (bao gồm cả giá trị mặc định trong ô bị khóa)
-            const positionVal = document.getElementById('inp-position').value;
-            const unitVal = document.getElementById('inp-unit').value;
+            // Lấy giá trị hiện tại của form (kể cả ô bị khóa)
+            const currentPosition = document.getElementById('inp-position').value;
+            const currentUnit = document.getElementById('inp-unit').value;
 
             try {
                 await db.collection("users").doc(currentUser.email).set({
                     name: document.getElementById('inp-name').value,
                     phone: document.getElementById('inp-phone').value,
-                    // Vẫn gửi chức vụ/đơn vị lên để đảm bảo DB có dữ liệu, nhưng là dữ liệu cũ/mặc định
-                    position: positionVal, 
-                    unit: unitVal,
+                    position: currentPosition, // Gửi giá trị hiện tại lên
+                    unit: currentUnit,         // Gửi giá trị hiện tại lên
                     email: currentUser.email,
                     lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
-                alert("Cập nhật thành công!"); location.reload();
-            } catch (e) { alert("Lỗi: " + e.message); btn.innerText = "LƯU THAY ĐỔI"; btn.disabled = false; }
+                alert("Đã lưu thông tin!"); location.reload();
+            } catch (e) { alert("Lỗi lưu: " + e.message); btn.innerText = "LƯU THAY ĐỔI"; btn.disabled = false; }
         };
 
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
-
-        window.menuAction = (action) => {
+        window.menuAction = (a) => {
             toggleSidebar();
-            if (action === 'report' || action === 'assigned') window.location.href = "index.html";
-            else if (action === 'profile') {}; 
-            else if (action === 'guide') window.location.href = "huongdan.html";
-            else if (action === 'send-notify') window.location.href = "guithongbao.html";
-            else if (action === 'assign-task') window.location.href = "giaocongviec.html";
-            else alert("Đang phát triển!");
+            if(a==='report'||a==='assigned') window.location.href="index.html";
+            else if(a==='guide') window.location.href="huongdan.html";
+            else if(a==='send-notify') window.location.href="guithongbao.html";
+            else if(a==='assign-task') window.location.href="giaocongviec.html";
         };
-
         window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
     </script>
 </body>
