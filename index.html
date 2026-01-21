@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.43</title>
+    <title>Sổ tay công việc - v1.45</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -77,10 +77,9 @@
         </div>
     </div>
 
-    <div class="footer-evn"><p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.43</p></div>
+    <div class="footer-evn"><p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.45</p></div>
 
     <script>
-        // CẤU HÌNH
         const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -94,16 +93,12 @@
         const formattedDate = `${todayRaw.getDate().toString().padStart(2, '0')}/${(todayRaw.getMonth() + 1).toString().padStart(2, '0')}/${todayRaw.getFullYear().toString().slice(-2)}`;
         const reportNameDefault = `Báo cáo ngày ${formattedDate}`;
 
-        // --- 1. TẢI SIDEBAR ---
-        fetch('sidebar.html')
-            .then(res => res.text())
-            .then(data => {
-                document.getElementById('sidebar-container').innerHTML = data;
-                if(currentUser) updateSidebarInfo(currentUser);
-            })
-            .catch(err => console.error("Lỗi tải sidebar:", err));
+        // 1. TẢI SIDEBAR & INIT
+        fetch('sidebar.html').then(r=>r.text()).then(d=>{
+            document.getElementById('sidebar-container').innerHTML=d;
+            if(currentUser) updateSidebarInfo(currentUser);
+        });
 
-        // --- 2. XỬ LÝ AUTH ---
         auth.onAuthStateChanged(user => {
             if (user) {
                 currentUser = user;
@@ -111,56 +106,55 @@
                 document.getElementById('main-app').classList.remove('hidden');
                 document.getElementById('header-user-name').innerText = user.displayName;
                 
-                updateSidebarInfo(user); // Cập nhật sidebar nếu đã load xong
+                updateSidebarInfo(user);
+                checkManagerRoleForSidebar(user.email); // Kiểm tra quyền Lãnh đạo
                 checkAssignedTasks(user.displayName);
                 loadHistory(user.email);
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('main-app').classList.add('hidden');
-                document.getElementById('loading-text').classList.add('hidden');
             }
         });
+
+        // 2. LOGIC PHÂN QUYỀN (HIỆN NÚT QUẢN LÝ)
+        async function checkManagerRoleForSidebar(email) {
+            try {
+                const doc = await db.collection("users").doc(email).get();
+                if(doc.exists) {
+                    const role = doc.data().position || "";
+                    const allowed = ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó"];
+                    if(allowed.includes(role)) {
+                        // Chờ 0.5s để sidebar render xong rồi hiện nút
+                        setTimeout(() => document.querySelectorAll('.manager-only').forEach(el => el.classList.remove('hidden')), 500);
+                    }
+                }
+            } catch(e) {}
+        }
 
         function updateSidebarInfo(user) {
             const nameEl = document.getElementById('sidebar-user-name');
             const emailEl = document.getElementById('sidebar-user-email');
-            if(nameEl && emailEl) {
-                nameEl.innerText = user.displayName;
-                emailEl.innerText = user.email;
-            }
+            if(nameEl && emailEl) { nameEl.innerText = user.displayName; emailEl.innerText = user.email; }
         }
 
-        // --- 3. ĐIỀU HƯỚNG MENU ---
-        window.toggleSidebar = () => {
-            const sb = document.getElementById('sidebar');
-            if(sb) sb.classList.toggle('active');
-        };
+        // 3. ĐIỀU HƯỚNG CHUNG
+        window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
 
         window.menuAction = (action) => {
             toggleSidebar();
-            if (action === 'report') {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                resetForm();
-            } else if (action === 'assigned') {
-                document.getElementById('report-type').value = "Công việc được giao";
-                handleTypeChange();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else if (action === 'profile') {
-                window.location.href = "thongtincanhan.html";
-            } else if (action === 'guide') {
-                window.location.href = "huongdan.html";
-            } else {
-                alert("Tính năng đang phát triển!");
-            }
+            if (action === 'report') { window.scrollTo({top:0,behavior:'smooth'}); resetForm(); }
+            else if (action === 'assigned') { document.getElementById('report-type').value = "Công việc được giao"; handleTypeChange(); window.scrollTo({top:0,behavior:'smooth'}); }
+            else if (action === 'profile') window.location.href = "thongtincanhan.html";
+            else if (action === 'guide') window.location.href = "huongdan.html";
+            else if (action === 'send-notify') window.location.href = "guithongbao.html";
+            else if (action === 'assign-task') window.location.href = "giaocongviec.html";
+            else alert("Tính năng đang phát triển!");
         };
 
-        window.handleLogin = () => {
-            document.getElementById('loading-text').classList.remove('hidden');
-            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => alert(e.message));
-        };
+        window.handleLogin = () => { document.getElementById('loading-text').classList.remove('hidden'); auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>alert(e.message)); };
         window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut();
 
-        // --- 4. LOGIC NGHIỆP VỤ ---
+        // 4. LOGIC BÁO CÁO
         async function checkAssignedTasks(workerName) {
             const taskOpt = document.getElementById('opt-assigned');
             const taskList = document.getElementById('assigned-task-list');
@@ -168,7 +162,7 @@
                 const snap = await db.collection("tasks").where("assigned_leader", "==", workerName).where("status", "==", "assigned").get();
                 if (!snap.empty) {
                     taskOpt.classList.remove('hidden');
-                    taskList.innerHTML = snap.docs.map(doc => `<option value="${doc.id}">${doc.data().don_vi_de_nghi || 'Công việc chưa tên'}</option>`).join('');
+                    taskList.innerHTML = snap.docs.map(doc => `<option value="${doc.id}">${doc.data().don_vi_de_nghi || 'Việc chưa tên'}</option>`).join('');
                 } else { taskOpt.classList.add('hidden'); }
             } catch (e) {}
         }
@@ -182,26 +176,19 @@
             const files = Array.from(e.target.files);
             files.forEach(file => {
                 const reader = new FileReader();
-                reader.onload = (ev) => {
-                    selectedFiles.push({ name: file.name, type: file.type, data: ev.target.result.split(',')[1] });
-                    renderFileList();
-                };
+                reader.onload = (ev) => { selectedFiles.push({ name: file.name, type: file.type, data: ev.target.result.split(',')[1] }); renderFileList(); };
                 reader.readAsDataURL(file);
             });
         };
 
-        function renderFileList() {
-            document.getElementById('file-list-container').innerHTML = selectedFiles.map((f, i) => `
-                <div class="file-item"><span class="truncate"><i class="fa fa-file-image mr-2 text-blue-500"></i>${f.name}</span><i class="fa fa-trash-alt text-red-500 cursor-pointer" onclick="removeFile(${i})"></i></div>`).join('');
-        }
+        function renderFileList() { document.getElementById('file-list-container').innerHTML = selectedFiles.map((f, i) => `<div class="file-item"><span class="truncate"><i class="fa fa-file-image mr-2 text-blue-500"></i>${f.name}</span><i class="fa fa-trash-alt text-red-500 cursor-pointer" onclick="removeFile(${i})"></i></div>`).join(''); }
         window.removeFile = (i) => { selectedFiles.splice(i, 1); renderFileList(); };
 
         window.submitReport = async () => {
             const user = auth.currentUser;
             const content = document.getElementById('job-content').value;
             if (!content) return alert("Chưa nhập nội dung!");
-            const btn = document.getElementById('btn-submit');
-            btn.disabled = true; btn.innerText = "ĐANG GỬI...";
+            const btn = document.getElementById('btn-submit'); btn.disabled = true; btn.innerText = "ĐANG GỬI...";
 
             try {
                 const type = document.getElementById('report-type').value;
@@ -228,15 +215,12 @@
                 let snap;
                 try { snap = await db.collection("daily_reports").where("email", "==", email).where("date", "==", today).orderBy("timestamp", "desc").get(); }
                 catch(e) { snap = await db.collection("daily_reports").where("email", "==", email).where("date", "==", today).get(); }
-
                 if (snap.empty) { list.innerHTML = `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Chưa có báo cáo</p>`; return; }
                 list.innerHTML = snap.docs.map(doc => {
                     const d = doc.data(); const canEdit = d.status === "pending";
-                    return `<div class="card-history p-4 bg-white border border-slate-100 rounded-3xl shadow-sm">
-                        <div class="flex justify-between mb-2"><span class="text-[8px] font-black px-2 py-0.5 rounded ${canEdit ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'} uppercase">${d.reportType}</span>${canEdit ? `<i class="fa fa-edit text-blue-600 cursor-pointer" onclick="editReport('${doc.id}')"></i>` : ''}</div>
-                        <p class="text-[9px] font-black text-blue-800 uppercase">${d.reportTitle}</p><p class="text-xs text-slate-600 font-bold mt-2">${d.content}</p></div>`;
+                    return `<div class="card-history p-4 bg-white border border-slate-100 rounded-3xl shadow-sm"><div class="flex justify-between mb-2"><span class="text-[8px] font-black px-2 py-0.5 rounded ${canEdit ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'} uppercase">${d.reportType}</span>${canEdit ? `<i class="fa fa-edit text-blue-600 cursor-pointer" onclick="editReport('${doc.id}')"></i>` : ''}</div><p class="text-[9px] font-black text-blue-800 uppercase">${d.reportTitle}</p><p class="text-xs text-slate-600 font-bold mt-2">${d.content}</p></div>`;
                 }).join('');
-            } catch (e) { list.innerHTML = `<p class="text-center py-10 text-red-300 text-[9px]">Lỗi: ${e.message}</p>`; }
+            } catch (e) { list.innerHTML = `<p class="text-center py-10 text-red-300 text-[9px]">Đang tải...</p>`; }
         }
 
         window.editReport = async (id) => {
@@ -247,13 +231,7 @@
             document.getElementById('form-title').innerText = "Sửa báo cáo"; document.getElementById('btn-cancel-edit').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
-
-        window.resetForm = () => {
-            editingId = null; document.getElementById('job-content').value = ""; document.getElementById('job-note').value = "";
-            document.getElementById('report-type').value = "Báo cáo ngày"; document.getElementById('assigned-tasks-container').classList.add('hidden');
-            document.getElementById('form-title').innerText = "Gửi báo cáo"; document.getElementById('btn-cancel-edit').classList.add('hidden');
-            selectedFiles = []; renderFileList();
-        };
+        window.resetForm = () => { editingId = null; document.getElementById('job-content').value = ""; document.getElementById('job-note').value = ""; document.getElementById('report-type').value = "Báo cáo ngày"; document.getElementById('assigned-tasks-container').classList.add('hidden'); document.getElementById('form-title').innerText = "Gửi báo cáo"; document.getElementById('btn-cancel-edit').classList.add('hidden'); selectedFiles = []; renderFileList(); };
     </script>
 </body>
 </html>
