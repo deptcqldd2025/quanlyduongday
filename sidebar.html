@@ -1,0 +1,38 @@
+<div id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center border-2 border-white/30 text-white font-black text-xl">
+                <i class="fa fa-user"></i>
+            </div>
+            <div>
+                <p id="sidebar-user-name" class="font-black text-sm uppercase">Đang tải...</p>
+                <p id="sidebar-user-email" class="text-[10px] opacity-70">...</p>
+            </div>
+        </div>
+        <i class="fa fa-times absolute top-6 right-6 text-white/70 text-xl cursor-pointer" onclick="toggleSidebar()"></i>
+    </div>
+
+    <div class="flex-1 py-4 space-y-1 overflow-y-auto">
+        <div class="menu-item" onclick="menuAction('report')">
+            <i class="fa fa-pen-to-square"></i> Gửi báo cáo
+        </div>
+        <div class="menu-item" onclick="menuAction('assigned')">
+            <i class="fa fa-clipboard-list"></i> Công việc được giao
+        </div>
+        <div class="menu-item" onclick="menuAction('notification')">
+            <i class="fa fa-bell"></i> Thông báo <span class="ml-auto bg-red-500 text-white text-[9px] px-2 rounded-full">3</span>
+        </div>
+        <div class="menu-item" onclick="menuAction('guide')">
+            <i class="fa fa-book-open"></i> Hướng dẫn
+        </div>
+        <div class="menu-item" onclick="menuAction('profile')">
+            <i class="fa fa-id-card"></i> Thông tin cá nhân
+        </div>
+    </div>
+
+    <div class="p-4 border-t">
+        <div class="menu-item text-red-500 hover:bg-red-50" onclick="handleLogout()">
+            <i class="fa fa-sign-out-alt"></i> Đăng xuất
+        </div>
+    </div>
+</div>
