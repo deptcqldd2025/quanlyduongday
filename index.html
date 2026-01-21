@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.24</title>
+    <title>Sổ tay công việc - v1.25</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,123 +17,121 @@
             <div>
                 <h1 class="font-black text-2xl italic uppercase tracking-tighter">Sổ tay công việc</h1>
                 <div class="mt-1">
-                    <p id="user-name" class="text-xs font-black uppercase tracking-widest text-blue-200">Đang kiểm tra...</p>
-                    <p id="user-email" class="text-[9px] font-bold opacity-60 italic">vui lòng chờ...</p>
+                    <p id="user-name" class="text-xs font-black uppercase tracking-widest text-blue-200 italic">Đang xác thực...</p>
+                    <p id="user-email" class="text-[9px] font-bold opacity-60 italic">...</p>
                 </div>
             </div>
-            <div class="bg-white/10 p-2 rounded-2xl border border-white/20">
-                <img src="https://img.icons8.com/fluency/48/000000/google-logo.png" class="w-5 h-5"/>
-            </div>
+            <button onclick="firebase.auth().signOut()" class="bg-white/10 p-2 rounded-2xl border border-white/20">
+                <i class="fa fa-sign-out"></i>
+            </button>
         </div>
     </div>
 
     <div class="max-w-md mx-auto px-6 -mt-8 space-y-8">
         <section class="bg-white p-6 rounded-[32px] shadow-2xl border border-slate-50 space-y-4">
-            <div class="flex items-center gap-2 mb-2">
-                <div class="w-1 h-4 bg-[#1A479A] rounded-full"></div>
-                <h2 class="text-[11px] font-black text-slate-800 uppercase tracking-widest">Báo cáo công việc</h2>
-            </div>
+            <h2 class="text-[11px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <span class="w-1 h-3 bg-blue-700 rounded-full"></span> BÁO CÁO CÔNG VIỆC
+            </h2>
             
             <input type="text" id="job-id" class="input-evn" placeholder="Số Phiếu / Lệnh (Nếu có)">
             <textarea id="job-content" rows="4" class="input-evn" placeholder="Nội dung công việc hôm nay *"></textarea>
 
             <div class="border-2 border-dashed border-slate-100 rounded-[24px] p-6 text-center bg-slate-50/50 cursor-pointer" onclick="document.getElementById('file-in').click()">
                 <input type="file" id="file-in" class="hidden" multiple accept="image/*,.pdf">
-                <p id="file-status" class="text-[10px] font-black text-slate-400 uppercase italic">Chọn Ảnh hoặc file PDF</p>
-                <div class="mt-2 inline-flex items-center gap-2 bg-white border px-5 py-2 rounded-xl shadow-sm">
-                    <span class="text-[10px] font-black text-[#1A479A]">+ ĐÍNH KÈM FILE</span>
+                <p id="file-status" class="text-[10px] font-black text-slate-400 uppercase italic">Đính kèm Ảnh hoặc PDF</p>
+                <div class="mt-2 inline-flex items-center gap-2 bg-white border px-5 py-2 rounded-xl shadow-sm text-[10px] font-black text-[#1A479A]">
+                    + CHỌN TỆP
                 </div>
             </div>
 
             <input type="text" id="job-note" class="input-evn" placeholder="Ghi chú / Kiến nghị">
 
-            <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-5 rounded-[24px] shadow-lg shadow-blue-100 uppercase text-xs tracking-widest active:scale-95 transition">
-                Gửi dữ liệu về hệ thống
+            <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-5 rounded-[24px] shadow-lg uppercase text-xs tracking-widest active:scale-95 transition">
+                Gửi dữ liệu thực tế
             </button>
         </section>
 
         <section class="space-y-4">
-            <h3 class="font-black text-slate-800 text-sm uppercase italic px-2">Nhật ký hôm nay</h3>
-            <div id="history-list" class="space-y-4">
-                <p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase italic">Đang tải dữ liệu...</p>
+            <h3 class="font-black text-slate-800 text-sm uppercase italic px-2">Nhật ký báo cáo</h3>
+            <div id="history-list" class="space-y-4 pb-10">
+                <p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Đang tải...</p>
             </div>
         </section>
     </div>
 
     <footer class="footer-fixed">
-        <span id="footer-info">TÁC GIẢ: --- | PHIÊN BẢN: ---</span>
+        <span>TÁC GIẢ: TRẦN CÔNG ĐẸP | PHIÊN BẢN: 1.25</span>
     </footer>
 
     <script type="module">
         import { CONFIG } from './config.js';
 
-        // 1. Khởi tạo và Hiển thị thông tin
+        // Khởi tạo Firebase từ dữ liệu thật của anh 
         firebase.initializeApp(CONFIG.FIREBASE);
         const db = firebase.firestore();
-        
-        document.getElementById('footer-info').innerText = `TÁC GIẢ: ${CONFIG.AUTHOR} | PHIÊN BẢN: ${CONFIG.VERSION}`;
-        
-        // Giả lập lấy thông tin (Trong thực tế anh sẽ gọi từ Google Auth)
-        const mockUser = { name: "Trần Công Đẹp", email: "congdep.vdc@gmail.com" };
-        document.getElementById('user-name').innerText = mockUser.name;
-        document.getElementById('user-email').innerText = mockUser.email;
+        const auth = firebase.auth();
 
-        // 2. Xử lý file đính kèm
+        // Kiểm tra trạng thái đăng nhập THẬT 
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('user-name').innerText = user.displayName || "Cán bộ QLLĐ 2";
+                document.getElementById('user-email').innerText = user.email;
+                loadHistory(user.email);
+            } else {
+                window.location.href = "login.html"; // Chuyển về login nếu chưa đăng nhập
+            }
+        });
+
+        // Xử lý đính kèm
         document.getElementById('file-in').onchange = (e) => {
-            const files = e.target.files;
-            document.getElementById('file-status').innerText = files.length > 0 ? `✅ Đã chọn ${files.length} file` : "Chọn Ảnh hoặc file PDF";
+            document.getElementById('file-status').innerText = `✅ Đã chọn ${e.target.files.length} tệp`;
         };
 
-        // 3. Gửi báo cáo
+        // Gửi báo cáo THẬT lên Firestore
         window.submitReport = async () => {
+            const user = auth.currentUser;
             const content = document.getElementById('job-content').value;
             if (!content) return alert("Vui lòng nhập nội dung!");
 
             const btn = document.getElementById('btn-submit');
-            btn.disabled = true; btn.innerText = "ĐANG ĐẨY DỮ LIỆU...";
-
-            const report = {
-                worker: mockUser.name,
-                email: mockUser.email,
-                jobId: document.getElementById('job-id').value,
-                content: content,
-                note: document.getElementById('job-note').value,
-                date: new Date().toLocaleDateString('vi-VN'),
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            };
+            btn.disabled = true; btn.innerText = "ĐANG TRUYỀN DỮ LIỆU...";
 
             try {
-                await db.collection("daily_reports").add(report);
-                alert("Báo cáo thành công!");
+                await db.collection("daily_reports").add({
+                    worker: user.displayName,
+                    email: user.email,
+                    jobId: document.getElementById('job-id').value,
+                    content: content,
+                    note: document.getElementById('job-note').value,
+                    date: new Date().toLocaleDateString('vi-VN'),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert("Đã lưu báo cáo thành công!");
                 document.getElementById('job-content').value = "";
-                loadHistory();
+                loadHistory(user.email);
             } catch (e) { alert("Lỗi: " + e.message); }
-            finally { btn.disabled = false; btn.innerText = "GỬI DỮ LIỆU VỀ HỆ THỐNG"; }
+            finally { btn.disabled = false; btn.innerText = "GỬI DỮ LIỆU THỰC TẾ"; }
         };
 
-        // 4. Tải nhật ký
-        async function loadHistory() {
+        // Tải nhật ký THẬT
+        async function loadHistory(email) {
             const list = document.getElementById('history-list');
             try {
                 const snap = await db.collection("daily_reports")
-                    .where("email", "==", mockUser.email)
+                    .where("email", "==", email)
                     .where("date", "==", new Date().toLocaleDateString('vi-VN'))
                     .orderBy("timestamp", "desc").get();
 
-                list.innerHTML = snap.empty ? `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase italic">Chưa có báo cáo</p>` :
+                list.innerHTML = snap.empty ? `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Chưa có dữ liệu hôm nay</p>` :
                     snap.docs.map(doc => {
                         const d = doc.data();
                         return `<div class="card-history">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-[9px] font-black text-[#1A479A] uppercase">Phiếu: ${d.jobId || '---'}</span>
-                                <span class="bg-green-50 text-green-600 px-2 py-0.5 rounded text-[8px] font-black uppercase">Đã lưu</span>
-                            </div>
-                            <p class="text-xs font-bold text-slate-700 leading-relaxed">${d.content}</p>
+                            <p class="text-[9px] font-black text-[#1A479A] mb-1 uppercase tracking-tighter">PHIẾU: ${d.jobId || '---'}</p>
+                            <p class="text-xs font-bold text-slate-700">${d.content}</p>
                         </div>`;
                     }).join('');
-            } catch (e) { list.innerHTML = `<p class="text-red-400 text-center text-[9px]">Lỗi đồng bộ.</p>`; }
+            } catch (e) { list.innerHTML = `<p class="text-center text-[9px] text-red-400">Lỗi đồng bộ dữ liệu.</p>`; }
         }
-        loadHistory();
     </script>
 </body>
 </html>
