@@ -3,15 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản trị QLLĐ 2 - v21.11</title>
+    <title>Hệ thống Điều hành QLLĐ 2 - v21.12</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <style>
         :root { --primary: #0068ff; }
         body { background: #f1f5f9; font-family: system-ui, sans-serif; }
-        .tab-btn { padding: 12px 24px; font-weight: 800; font-size: 13px; text-transform: uppercase; color: #94a3b8; border-bottom: 3px solid transparent; transition: all 0.3s; }
+        .tab-btn { padding: 12px 24px; font-weight: 800; font-size: 13px; text-transform: uppercase; color: #94a3b8; border-bottom: 3px solid transparent; }
         .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: #f8faff; }
-        .card { background: white; border-radius: 1.5rem; transition: all 0.2s; border: 1px solid #e2e8f0; }
+        .card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; }
         .hidden { display: none; }
+        .loader { border: 2px solid #f3f3f3; border-top: 2px solid var(--primary); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -20,37 +24,24 @@
         <header class="bg-white rounded-3xl shadow-sm border mb-8 overflow-hidden">
             <div class="p-6 border-b flex justify-between items-center">
                 <div>
-                    <h1 class="text-2xl font-black text-slate-800 uppercase italic">Hệ thống Điều hành</h1>
-                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Đội Quản lý Lưới điện 2</p>
-                </div>
-                <div class="text-right">
-                    <span class="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full font-black">ADMIN MODE</span>
+                    <h1 class="text-2xl font-black text-slate-800 uppercase italic">Điều hành QLLĐ 2</h1>
+                    <p id="connection-status" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">Đang kết nối Firebase...</p>
                 </div>
             </div>
-            <nav class="flex">
-                <button onclick="switchTab('nhansu')" id="btn-nhansu" class="tab-btn flex-1 active">Quản lý Nhân sự</button>
-                <button onclick="switchTab('khoviec')" id="btn-khoviec" class="tab-btn flex-1">Kho việc & Phân công</button>
+            <nav class="flex bg-slate-50/50">
+                <button onclick="switchTab('khoviec')" id="btn-khoviec" class="tab-btn flex-1 active">Kho việc & Phân công</button>
+                <button onclick="switchTab('nhansu')" id="btn-nhansu" class="tab-btn flex-1">Nhân sự (từ Index)</button>
             </nav>
         </header>
 
-        <section id="tab-nhansu-content" class="space-y-6">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-black text-slate-700 uppercase italic">Danh sách cán bộ công nhân viên</h2>
-                <button class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase shadow-lg shadow-blue-100">+ Thêm nhân sự</button>
+        <section id="tab-khoviec-content" class="space-y-6">
+            <div id="workGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 italic text-slate-400">
+                Đang tải danh sách công việc...
             </div>
-            <div id="staffGrid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                </div>
         </section>
 
-        <section id="tab-khoviec-content" class="hidden space-y-6">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-black text-slate-700 uppercase italic italic">Hồ sơ công việc chờ phân công</h2>
-                <div class="flex bg-slate-200 p-1 rounded-xl text-[10px]">
-                    <button onclick="filterWork('new')" id="work-new" class="bg-white px-3 py-1 rounded-lg font-black text-blue-600 shadow-sm">CHỜ GIAO</button>
-                    <button onclick="filterWork('assigned')" id="work-done" class="px-3 py-1 rounded-lg font-black text-slate-500">ĐÃ GIAO</button>
-                </div>
-            </div>
-            <div id="workGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <section id="tab-nhansu-content" class="hidden space-y-6 text-center">
+            <div id="staffGrid" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 </div>
         </section>
     </div>
@@ -62,108 +53,148 @@
             
             <form class="space-y-6">
                 <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Nhóm trưởng chịu trách nhiệm</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2 tracking-tighter">Nhóm trưởng chịu trách nhiệm</label>
                     <select id="selectMain" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:border-blue-500">
                         </select>
                 </div>
                 <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2">Nhóm viên phối hợp</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 block mb-2 tracking-tighter">Nhóm viên phối hợp</label>
                     <div id="checkSupport" class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
                         </div>
                 </div>
                 <div class="pt-4 flex gap-3">
                     <button type="button" onclick="closeModal()" class="flex-1 py-4 font-bold text-slate-400 text-xs">HỦY</button>
-                    <button type="button" onclick="confirmAssign()" class="flex-[2] bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 uppercase text-xs tracking-widest">Xác nhận giao</button>
+                    <button type="button" onclick="confirmAssign()" class="flex-[2] bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 uppercase text-xs">Xác nhận giao</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
-        // DỮ LIỆU NHÂN SỰ GỐC (Dùng chung cho cả 2 tab)
-        const staffData = [
-            { id: "CN01", name: "Trần Công Đẹp", rank: "Bậc 5/5", role: "Chỉ huy" },
-            { id: "CN02", name: "Nguyễn Văn An", rank: "Bậc 4/5", role: "Công nhân" },
-            { id: "CN03", name: "Lê Thị Bình", rank: "Bậc 3/5", role: "Công nhân" },
-            { id: "CN04", name: "Vũ Hoài Nam", rank: "Bậc 5/5", role: "Kỹ thuật" }
-        ];
+        // Cấu hình Firebase của anh
+        const firebaseConfig = {
+            apiKey: "AIzaSyCzWjfcD5Dgq7V-i2izb9tKLR6QM6qWPQo",
+            authDomain: "tavietnam-78ae8.firebaseapp.com",
+            projectId: "tavietnam-78ae8",
+            storageBucket: "tavietnam-78ae8.firebasestorage.app",
+            messagingSenderId: "670121705534",
+            appId: "1:670121705534:web:1027ad98550573ad37116f"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-        // DỮ LIỆU CÔNG VIỆC (Từ Kho việc HLAT)
-        const workData = [
-            { id: 101, org: "Công ty TNHH XNK Thiết bị CN Trung Việt", addr: "194D/4 đường TMT 17, Quận 12", real: 24.1, plan: 178.5, status: "new" },
-            { id: 102, org: "Ông Vũ Hoài Nam", addr: "92/8/11 Đường Nguyễn Sơn, Tân Phú", real: 0.0, plan: 0.0, status: "new" }
-        ];
+        let staffList = []; // Chứa danh sách công nhân lấy từ Firebase
 
-        // CHUYỂN TAB
-        function switchTab(tab) {
-            document.getElementById('tab-nhansu-content').classList.add('hidden');
-            document.getElementById('tab-khoviec-content').classList.add('hidden');
-            document.getElementById('btn-nhansu').classList.remove('active');
-            document.getElementById('btn-khoviec').classList.remove('active');
-
-            document.getElementById(`tab-${tab}-content`).classList.remove('hidden');
-            document.getElementById(`btn-${tab}`).classList.add('active');
-            
-            if(tab === 'nhansu') loadStaffGrid();
-            if(tab === 'khoviec') filterWork('new');
+        // 1. LẤY DỮ LIỆU NHÂN SỰ TỪ COLLECTION 'users' (Giả định trang Index lưu vào đây)
+        async function fetchStaff() {
+            try {
+                const snapshot = await db.collection("users").get();
+                staffList = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    staffList.push({ id: doc.id, name: data.name || data.displayName, rank: data.rank || "Bậc thợ" });
+                });
+                document.getElementById('connection-status').innerText = `✅ Đã kết nối: ${staffList.length} nhân sự`;
+                updateStaffUI();
+            } catch (error) {
+                console.error("Lỗi lấy nhân sự:", error);
+                document.getElementById('connection-status').innerText = "❌ Lỗi kết nối Firebase";
+            }
         }
 
-        // LOAD DANH SÁCH NHÂN SỰ (Tab 1)
-        function loadStaffGrid() {
+        function updateStaffUI() {
             const grid = document.getElementById('staffGrid');
-            grid.innerHTML = staffData.map(s => `
-                <div class="card p-4 flex items-center gap-4">
-                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center font-black text-blue-600">${s.name.charAt(0)}</div>
-                    <div>
-                        <h4 class="text-xs font-black text-slate-800 uppercase">${s.name}</h4>
-                        <p class="text-[10px] text-slate-400 font-bold">${s.rank} - ${s.role}</p>
+            grid.innerHTML = staffList.map(s => `
+                <div class="card p-4 flex items-center gap-3">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center font-black text-blue-600 text-xs">${s.name.charAt(0)}</div>
+                    <div class="text-left">
+                        <h4 class="text-[10px] font-black text-slate-800 uppercase">${s.name}</h4>
+                        <p class="text-[8px] text-slate-400 font-bold">${s.rank}</p>
                     </div>
                 </div>
             `).join('');
         }
 
-        // LOAD DANH SÁCH KHO VIỆC (Tab 2)
-        function filterWork(status) {
+        // 2. LẤY DỮ LIỆU CÔNG VIỆC TỪ COLLECTION 'tasks'
+        async function fetchTasks() {
             const grid = document.getElementById('workGrid');
-            const data = workData.filter(w => w.status === status);
-            
-            grid.innerHTML = data.map(w => `
-                <div class="card p-5 flex flex-col h-full bg-white">
-                    <div class="flex justify-between mb-3"><span class="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-lg uppercase">HLAT</span></div>
-                    <h4 class="font-black text-slate-800 text-[13px] mb-1 uppercase leading-tight">${w.org}</h4>
-                    <p class="text-[10px] text-slate-500 mb-4 italic">📍 ${w.addr}</p>
-                    <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border mb-5">
-                        <div class="text-center"><span class="block text-[8px] font-bold text-slate-400 uppercase italic uppercase">Thực tế</span><span class="text-[11px] font-black text-red-600">${w.real} m²</span></div>
-                        <div class="text-center border-l"><span class="block text-[8px] font-bold text-slate-400 uppercase italic">Quy hoạch</span><span class="text-[11px] font-black text-red-600">${w.plan} m²</span></div>
-                    </div>
-                    <button onclick="openAssignModal('${w.org}')" class="w-full bg-blue-600 text-white font-black py-3 rounded-xl shadow-lg shadow-blue-100 uppercase text-[10px] mt-auto">Phân công ngay</button>
-                </div>
-            `).join('');
+            try {
+                const snapshot = await db.collection("tasks").where("status", "==", "new").get();
+                if (snapshot.empty) {
+                    grid.innerHTML = '<p class="col-span-full text-center py-10">Kho việc trống.</p>';
+                    return;
+                }
+                grid.innerHTML = "";
+                snapshot.forEach(doc => {
+                    const w = doc.data();
+                    grid.innerHTML += `
+                        <div class="card p-5 flex flex-col h-full bg-white">
+                            <h4 class="font-black text-slate-800 text-[13px] mb-1 uppercase">${w.don_vi_de_nghi || 'Hồ sơ HLAT'}</h4>
+                            <p class="text-[10px] text-slate-500 mb-4 italic">📍 ${w.dia_chi_cong_trinh || 'N/A'}</p>
+                            <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border mb-5">
+                                <div class="text-center"><span class="block text-[8px] font-bold text-slate-400 uppercase italic">Thực tế</span><span class="text-[11px] font-black text-red-600">${w.dt_hlat_thuc_te} m²</span></div>
+                                <div class="text-center border-l"><span class="block text-[8px] font-bold text-slate-400 uppercase italic">Quy hoạch</span><span class="text-[11px] font-black text-red-600">${w.dt_hlat_quy_hoach} m²</span></div>
+                            </div>
+                            <button onclick="openAssignModal('${doc.id}', '${w.don_vi_de_nghi}')" class="w-full bg-blue-600 text-white font-black py-3 rounded-xl shadow-lg uppercase text-[10px] mt-auto">Phân công tổ</button>
+                        </div>
+                    `;
+                });
+            } catch (e) { console.error(e); }
         }
 
-        // MODAL PHÂN CÔNG
-        function openAssignModal(name) {
+        // 3. ĐIỀU KHIỂN MODAL & PHÂN CÔNG
+        let currentTaskId = "";
+        function openAssignModal(id, name) {
+            currentTaskId = id;
             document.getElementById('modalTaskName').innerText = name;
+            
+            // Nạp công nhân vào Modal
             const mainSelect = document.getElementById('selectMain');
             const supportCheck = document.getElementById('checkSupport');
             
-            mainSelect.innerHTML = '<option value="">-- Chọn trưởng nhóm --</option>' + 
-                staffData.map(s => `<option value="${s.id}">${s.name} (${s.rank})</option>`).join('');
+            mainSelect.innerHTML = '<option value="">-- Chọn Trưởng nhóm --</option>' + 
+                staffList.map(s => `<option value="${s.name}">${s.name} (${s.rank})</option>`).join('');
             
-            supportCheck.innerHTML = staffData.map(s => `
+            supportCheck.innerHTML = staffList.map(s => `
                 <label class="flex items-center p-2 bg-slate-50 border rounded-lg cursor-pointer">
-                    <input type="checkbox" class="mr-2"> <span class="text-[10px] font-bold">${s.name}</span>
+                    <input type="checkbox" name="support" value="${s.name}" class="mr-2"> <span class="text-[10px] font-bold text-slate-600">${s.name}</span>
                 </label>
             `).join('');
 
             document.getElementById('assignModal').classList.remove('hidden');
         }
 
-        function closeModal() { document.getElementById('assignModal').classList.add('hidden'); }
-        function confirmAssign() { alert("Phân công thành công!"); closeModal(); }
+        async function confirmAssign() {
+            const leader = document.getElementById('selectMain').value;
+            const supporters = Array.from(document.querySelectorAll('input[name="support"]:checked')).map(el => el.value);
 
-        // Khởi tạo mặc định
-        loadStaffGrid();
+            if (!leader) return alert("Vui lòng chọn Nhóm trưởng!");
+
+            try {
+                await db.collection("tasks").doc(currentTaskId).update({
+                    status: "assigned",
+                    assigned_leader: leader,
+                    assigned_team: supporters,
+                    assigned_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert(`Đã giao hồ sơ cho ${leader} và nhóm phối hợp!`);
+                closeModal();
+                fetchTasks();
+            } catch (e) { alert("Lỗi phân công: " + e.message); }
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tab-nhansu-content').classList.toggle('hidden', tab !== 'nhansu');
+            document.getElementById('tab-khoviec-content').classList.toggle('hidden', tab !== 'khoviec');
+            document.getElementById('btn-nhansu').classList.toggle('active', tab === 'nhansu');
+            document.getElementById('btn-khoviec').classList.toggle('active', tab === 'khoviec');
+        }
+
+        function closeModal() { document.getElementById('assignModal').classList.add('hidden'); }
+
+        // Khởi chạy đồng bộ
+        fetchStaff();
+        fetchTasks();
     </script>
 </body>
 </html>
