@@ -19,6 +19,13 @@
         <div class="menu-item" onclick="menuAction('assigned')">
             <i class="fa fa-clipboard-list"></i> Công việc được giao
         </div>
+        
+        <div class="menu-item hidden manager-only" onclick="menuAction('send-notify')">
+            <i class="fa fa-bullhorn text-red-500"></i> Gửi thông báo
+        </div>
+        <div class="menu-item hidden manager-only" onclick="menuAction('assign-task')">
+            <i class="fa fa-tasks text-green-500"></i> Giao công việc
+        </div>
         <div class="menu-item" onclick="menuAction('notification')">
             <i class="fa fa-bell"></i> Thông báo <span class="ml-auto bg-red-500 text-white text-[9px] px-2 rounded-full">3</span>
         </div>
