@@ -12,34 +12,158 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="pb-16 bg-[#F4F7FA]">
+
     <div id="sidebar-container"></div>
-    <div class="evn-header"><div class="max-w-md mx-auto flex items-center"><i class="fa fa-bars text-2xl cursor-pointer mr-4" onclick="toggleSidebar()"></i><h1 class="font-black text-lg italic uppercase leading-none">Thông báo mới</h1></div></div>
-    <div class="max-w-md mx-auto px-6 -mt-8 space-y-4" id="notification-list"><p class="text-center text-xs text-slate-400 italic py-10">Đang tải...</p></div>
-    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.50</p></div>
+
+    <div class="evn-header">
+        <div class="max-w-md mx-auto flex items-center">
+            <i class="fa fa-bars text-2xl cursor-pointer mr-4" onclick="toggleSidebar()"></i>
+            <h1 class="font-black text-lg italic uppercase leading-none">Thông báo mới</h1>
+        </div>
+    </div>
+
+    <div class="max-w-md mx-auto px-6 -mt-8 space-y-4" id="notification-list">
+        <p class="text-center text-xs text-slate-400 italic py-10">Đang tải dữ liệu...</p>
+    </div>
+
+    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.51</p></div>
+
     <script>
+        // 1. CẤU HÌNH FIREBASE
         const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore(); const auth = firebase.auth(); let currentUser = null;
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        let currentUser = null;
 
-        fetch('sidebar.html').then(r=>r.text()).then(d=>{ document.getElementById('sidebar-container').innerHTML=d; if(currentUser) updateSidebarInfo(currentUser); });
-        auth.onAuthStateChanged(user => { if (user) { currentUser=user; updateSidebarInfo(user); checkManager(user); loadNoti(); } else { window.location.href = "index.html"; } });
+        // 2. TẢI SIDEBAR
+        fetch('sidebar.html')
+            .then(res => res.text())
+            .then(data => {
+                document.getElementById('sidebar-container').innerHTML = data;
+                if(currentUser) updateSidebarInfo(currentUser);
+                highlightActiveMenu();
+            })
+            .catch(err => console.error("Lỗi sidebar:", err));
 
-        async function loadNoti() {
-            const list=document.getElementById('notification-list');
+        // 3. XÁC THỰC NGƯỜI DÙNG
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                updateSidebarInfo(user);
+                checkManagerRole(user);
+                loadNotifications();
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        // 4. TẢI DANH SÁCH THÔNG BÁO
+        async function loadNotifications() {
+            const list = document.getElementById('notification-list');
             try {
-                const s = await db.collection("notifications").orderBy("timestamp", "desc").limit(20).get();
-                if (s.empty) { list.innerHTML=`<div class="text-center text-slate-400 mt-10"><p class="text-xs">Không có thông báo</p></div>`; return; }
-                list.innerHTML = s.docs.map(d => {
-                    const v=d.data(), icon=v.priority==='urgent'?"fa-bolt text-red-500 bg-red-100":v.priority==='warning'?"fa-triangle-exclamation text-orange-500 bg-orange-100":"fa-bell text-blue-500 bg-blue-100";
-                    return `<div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 relative"><div class="flex gap-3 mb-2"><div class="w-8 h-8 rounded-full ${icon} flex items-center justify-center shrink-0"><i class="fa ${icon.split(' ')[0]} text-xs"></i></div><div><h3 class="font-black text-sm text-slate-800 leading-tight">${v.title}</h3><p class="text-[10px] text-slate-400 mt-1">${v.date} • ${v.sender}</p></div></div><div class="text-xs text-slate-600 leading-relaxed pl-11">${v.content}</div></div>`;
+                const snap = await db.collection("notifications")
+                                     .orderBy("timestamp", "desc")
+                                     .limit(20)
+                                     .get();
+                
+                if (snap.empty) {
+                    list.innerHTML = `<div class="text-center text-slate-400 mt-10"><i class="fa fa-inbox text-4xl mb-2"></i><p class="text-xs">Không có thông báo nào</p></div>`;
+                    return;
+                }
+
+                list.innerHTML = snap.docs.map(doc => {
+                    const d = doc.data();
+                    let iconClass = "fa-bell text-blue-500 bg-blue-100";
+                    let borderClass = "border-slate-100";
+                    
+                    if(d.priority === 'urgent') {
+                        iconClass = "fa-bolt text-red-500 bg-red-100";
+                        borderClass = "border-red-200 bg-red-50/30";
+                    } else if (d.priority === 'warning') {
+                        iconClass = "fa-triangle-exclamation text-orange-500 bg-orange-100";
+                    }
+
+                    return `
+                    <div class="bg-white p-5 rounded-[24px] shadow-sm border ${borderClass} relative mb-3">
+                        <div class="flex gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-full ${iconClass} flex items-center justify-center shrink-0">
+                                <i class="fa ${iconClass.split(' ')[0]} text-xs"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-black text-sm text-slate-800 leading-tight">${d.title}</h3>
+                                <p class="text-[10px] text-slate-400 mt-1">${d.date} • Bởi: ${d.sender}</p>
+                            </div>
+                        </div>
+                        <div class="text-xs text-slate-600 leading-relaxed pl-11">
+                            ${d.content.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>`;
                 }).join('');
-            } catch(e) { list.innerHTML=`<p class="text-red-400 text-center text-xs">Lỗi: ${e.message}</p>`; }
+
+            } catch (e) {
+                console.error(e);
+                list.innerHTML = `<p class="text-red-400 text-center text-xs">Lỗi tải tin: ${e.message}</p>`;
+            }
         }
-        async function checkManager(user) { try{const d=await db.collection("users").doc(user.email).get(); if(d.exists && ["Tổ trưởng","Tổ phó","Đội trưởng","Đội phó"].includes(d.data().position)) setTimeout(()=>document.querySelectorAll('.manager-only').forEach(e=>e.classList.remove('hidden')),500);}catch(e){} }
-        function updateSidebarInfo(u){ const n=document.getElementById('sidebar-user-name'),e=document.getElementById('sidebar-user-email'); if(n&&e){n.innerText=u.displayName;e.innerText=u.email;} }
+
+        // 5. CÁC HÀM HỖ TRỢ SIDEBAR
+        async function checkManagerRole(user) {
+            try {
+                const doc = await db.collection("users").doc(user.email).get();
+                if(doc.exists) {
+                    const role = doc.data().position || "";
+                    const allowed = ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó"];
+                    if(allowed.includes(role)) {
+                        setTimeout(() => document.querySelectorAll('.manager-only').forEach(el => el.classList.remove('hidden')), 500);
+                    }
+                }
+            } catch(e) {}
+        }
+
+        function updateSidebarInfo(user) {
+            const nameEl = document.getElementById('sidebar-user-name');
+            const emailEl = document.getElementById('sidebar-user-email');
+            if(nameEl && emailEl) {
+                nameEl.innerText = user.displayName;
+                emailEl.innerText = user.email;
+            }
+        }
+
+        function highlightActiveMenu() {
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(item => {
+                if(item.getAttribute('onclick') && item.getAttribute('onclick').includes('notification')) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        // 6. ĐIỀU HƯỚNG MENU (Đã sửa lỗi cú pháp tại đây)
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
-        window.menuAction = (a) => { toggleSidebar(); if(a=='report') window.location.href="index.html"; else if(a=='assigned') window.location.href="congvieccuatoi.html"; else if(a=='notification') {}; else if(a=='profile') window.location.href="thongtincanhan.html"; else if(a=='guide') window.location.href="huongdan.html"; else if(a=='send-notify') window.location.href="guithongbao.html"; else if(a=='assign-task') window.location.href="giaocongviec.html"; };
-        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(()=>window.location.href='index.html');
+        
+        window.menuAction = (action) => {
+            toggleSidebar();
+            if (action === 'report') {
+                window.location.href = "index.html";
+            } else if (action === 'assigned') {
+                window.location.href = "congvieccuatoi.html";
+            } else if (action === 'notification') {
+                // Đang ở trang này, không làm gì cả
+            } else if (action === 'profile') {
+                window.location.href = "thongtincanhan.html";
+            } else if (action === 'guide') {
+                window.location.href = "huongdan.html";
+            } else if (action === 'send-notify') {
+                window.location.href = "guithongbao.html";
+            } else if (action === 'assign-task') {
+                window.location.href = "giaocongviec.html";
+            } else {
+                alert("Chức năng đang phát triển!");
+            }
+        };
+
+        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
     </script>
 </body>
 </html>
