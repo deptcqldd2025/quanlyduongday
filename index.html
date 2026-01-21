@@ -3,97 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.23</title>
+    <title>Sổ tay công việc - v1.24</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #F4F7FA; }
-        .evn-blue { background-color: #1A479A; }
-        .input-evn { width: 100%; padding: 16px; border-radius: 20px; border: 1px solid #E5E7EB; background: #FFF; outline: none; font-size: 14px; transition: 0.3s; }
-        .input-evn:focus { border-color: #1A479A; box-shadow: 0 0 0 4px rgba(26, 71, 154, 0.1); }
-        .card-history { background: white; border-radius: 24px; padding: 20px; border: 1px solid #F1F5F9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="pb-24">
+<body>
 
-    <div class="evn-blue text-white p-8 rounded-b-[40px] shadow-2xl">
-        <div class="flex justify-between items-center mb-6">
+    <div class="evn-header">
+        <div class="max-w-md mx-auto flex justify-between items-start">
             <div>
-                <h1 class="font-black text-xl italic uppercase tracking-tighter">Sổ tay công việc</h1>
-                <p id="display-name" class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Đang tải...</p>
+                <h1 class="font-black text-2xl italic uppercase tracking-tighter">Sổ tay công việc</h1>
+                <div class="mt-1">
+                    <p id="user-name" class="text-xs font-black uppercase tracking-widest text-blue-200">Đang kiểm tra...</p>
+                    <p id="user-email" class="text-[9px] font-bold opacity-60 italic">vui lòng chờ...</p>
+                </div>
             </div>
-            <button onclick="location.reload()" class="bg-white/20 p-2 rounded-full"><img src="https://img.icons8.com/ios-glyphs/24/ffffff/refresh.png" class="w-4"/></button>
+            <div class="bg-white/10 p-2 rounded-2xl border border-white/20">
+                <img src="https://img.icons8.com/fluency/48/000000/google-logo.png" class="w-5 h-5"/>
+            </div>
         </div>
     </div>
 
-    <div class="max-w-md mx-auto px-6 -mt-10 space-y-8">
-        <section class="bg-white p-6 rounded-[32px] shadow-xl border border-slate-50 space-y-4">
-            <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Gửi báo cáo hiện trường</h2>
+    <div class="max-w-md mx-auto px-6 -mt-8 space-y-8">
+        <section class="bg-white p-6 rounded-[32px] shadow-2xl border border-slate-50 space-y-4">
+            <div class="flex items-center gap-2 mb-2">
+                <div class="w-1 h-4 bg-[#1A479A] rounded-full"></div>
+                <h2 class="text-[11px] font-black text-slate-800 uppercase tracking-widest">Báo cáo công việc</h2>
+            </div>
             
             <input type="text" id="job-id" class="input-evn" placeholder="Số Phiếu / Lệnh (Nếu có)">
-            
             <textarea id="job-content" rows="4" class="input-evn" placeholder="Nội dung công việc hôm nay *"></textarea>
 
             <div class="border-2 border-dashed border-slate-100 rounded-[24px] p-6 text-center bg-slate-50/50 cursor-pointer" onclick="document.getElementById('file-in').click()">
-                <input type="file" id="file-in" class="hidden" multiple accept="image/*">
-                <p id="file-status" class="text-[10px] font-bold text-slate-400 uppercase italic">Chưa chọn ảnh</p>
-                <div class="mt-2 inline-flex items-center gap-2 bg-white border px-4 py-2 rounded-xl shadow-sm">
-                    <span class="text-[10px] font-black text-[#1A479A]">+ CHỌN ẢNH</span>
+                <input type="file" id="file-in" class="hidden" multiple accept="image/*,.pdf">
+                <p id="file-status" class="text-[10px] font-black text-slate-400 uppercase italic">Chọn Ảnh hoặc file PDF</p>
+                <div class="mt-2 inline-flex items-center gap-2 bg-white border px-5 py-2 rounded-xl shadow-sm">
+                    <span class="text-[10px] font-black text-[#1A479A]">+ ĐÍNH KÈM FILE</span>
                 </div>
             </div>
 
             <input type="text" id="job-note" class="input-evn" placeholder="Ghi chú / Kiến nghị">
 
-            <button onclick="submitReport()" id="btn-submit" class="w-full evn-blue text-white font-black py-5 rounded-[24px] shadow-lg shadow-blue-100 uppercase text-xs tracking-widest active:scale-95 transition">
-                Xác nhận gửi báo cáo
+            <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-5 rounded-[24px] shadow-lg shadow-blue-100 uppercase text-xs tracking-widest active:scale-95 transition">
+                Gửi dữ liệu về hệ thống
             </button>
         </section>
 
         <section class="space-y-4">
-            <div class="flex justify-between items-center px-2">
-                <h3 class="font-black text-slate-800 text-sm uppercase italic">Nhật ký hôm nay</h3>
-                <span class="text-[10px] font-bold text-slate-400" id="current-date">--/--/----</span>
-            </div>
-
+            <h3 class="font-black text-slate-800 text-sm uppercase italic px-2">Nhật ký hôm nay</h3>
             <div id="history-list" class="space-y-4">
-                <p class="text-center py-10 text-slate-300 text-[10px] font-bold uppercase italic">Đang tải...</p>
+                <p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase italic">Đang tải dữ liệu...</p>
             </div>
         </section>
     </div>
 
+    <footer class="footer-fixed">
+        <span id="footer-info">TÁC GIẢ: --- | PHIÊN BẢN: ---</span>
+    </footer>
+
     <script type="module">
         import { CONFIG } from './config.js';
 
-        // Khởi tạo Firebase
-        if (!firebase.apps.length) {
-            firebase.initializeApp(CONFIG.FIREBASE);
-        }
+        // 1. Khởi tạo và Hiển thị thông tin
+        firebase.initializeApp(CONFIG.FIREBASE);
         const db = firebase.firestore();
+        
+        document.getElementById('footer-info').innerText = `TÁC GIẢ: ${CONFIG.AUTHOR} | PHIÊN BẢN: ${CONFIG.VERSION}`;
+        
+        // Giả lập lấy thông tin (Trong thực tế anh sẽ gọi từ Google Auth)
+        const mockUser = { name: "Trần Công Đẹp", email: "congdep.vdc@gmail.com" };
+        document.getElementById('user-name').innerText = mockUser.name;
+        document.getElementById('user-email').innerText = mockUser.email;
 
-        // Giả định User (Anh có thể thay bằng logic login thực tế)
-        const user = { name: "Trần Công Đẹp", phone: "090xxxxxxx" };
-        document.getElementById('display-name').innerText = `Chào, ${user.name}`;
-        document.getElementById('current-date').innerText = new Date().toLocaleDateString('vi-VN');
-
-        // Theo dõi chọn file
+        // 2. Xử lý file đính kèm
         document.getElementById('file-in').onchange = (e) => {
-            const count = e.target.files.length;
-            document.getElementById('file-status').innerText = count > 0 ? `✅ Đã chọn ${count} file` : "Chưa chọn ảnh";
+            const files = e.target.files;
+            document.getElementById('file-status').innerText = files.length > 0 ? `✅ Đã chọn ${files.length} file` : "Chọn Ảnh hoặc file PDF";
         };
 
-        // Hàm Gửi báo cáo
+        // 3. Gửi báo cáo
         window.submitReport = async () => {
             const content = document.getElementById('job-content').value;
             if (!content) return alert("Vui lòng nhập nội dung!");
 
             const btn = document.getElementById('btn-submit');
-            btn.disabled = true;
-            btn.innerText = "ĐANG XỬ LÝ...";
+            btn.disabled = true; btn.innerText = "ĐANG ĐẨY DỮ LIỆU...";
 
-            const data = {
-                worker: user.name,
+            const report = {
+                worker: mockUser.name,
+                email: mockUser.email,
                 jobId: document.getElementById('job-id').value,
                 content: content,
                 note: document.getElementById('job-note').value,
@@ -102,52 +102,36 @@
             };
 
             try {
-                await db.collection("daily_reports").add(data);
-                alert("Đã gửi báo cáo thành công!");
+                await db.collection("daily_reports").add(report);
+                alert("Báo cáo thành công!");
                 document.getElementById('job-content').value = "";
                 loadHistory();
-            } catch (e) {
-                alert("Lỗi kết nối: " + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "XÁC NHẬN GỬI BÁO CÁO";
-            }
+            } catch (e) { alert("Lỗi: " + e.message); }
+            finally { btn.disabled = false; btn.innerText = "GỬI DỮ LIỆU VỀ HỆ THỐNG"; }
         };
 
-        // Hàm Tải nhật ký
+        // 4. Tải nhật ký
         async function loadHistory() {
             const list = document.getElementById('history-list');
-            const today = new Date().toLocaleDateString('vi-VN');
-
             try {
                 const snap = await db.collection("daily_reports")
-                    .where("worker", "==", user.name)
-                    .where("date", "==", today)
+                    .where("email", "==", mockUser.email)
+                    .where("date", "==", new Date().toLocaleDateString('vi-VN'))
                     .orderBy("timestamp", "desc").get();
 
-                if (snap.empty) {
-                    list.innerHTML = `<p class="text-center py-10 text-slate-300 text-[10px] font-bold uppercase italic">Chưa có báo cáo nào</p>`;
-                    return;
-                }
-
-                list.innerHTML = snap.docs.map(doc => {
-                    const d = doc.data();
-                    return `
-                        <div class="card-history">
-                            <div class="flex justify-between items-start mb-2">
+                list.innerHTML = snap.empty ? `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase italic">Chưa có báo cáo</p>` :
+                    snap.docs.map(doc => {
+                        const d = doc.data();
+                        return `<div class="card-history">
+                            <div class="flex justify-between items-center mb-2">
                                 <span class="text-[9px] font-black text-[#1A479A] uppercase">Phiếu: ${d.jobId || '---'}</span>
-                                <span class="text-[9px] font-bold text-slate-300 italic">Đã gửi</span>
+                                <span class="bg-green-50 text-green-600 px-2 py-0.5 rounded text-[8px] font-black uppercase">Đã lưu</span>
                             </div>
                             <p class="text-xs font-bold text-slate-700 leading-relaxed">${d.content}</p>
-                            ${d.note ? `<p class="mt-2 text-[10px] text-slate-400 italic border-t pt-2">Ghi chú: ${d.note}</p>` : ''}
-                        </div>
-                    `;
-                }).join('');
-            } catch (e) {
-                list.innerHTML = `<p class="text-center text-red-300 text-[9px]">Lỗi tải dữ liệu</p>`;
-            }
+                        </div>`;
+                    }).join('');
+            } catch (e) { list.innerHTML = `<p class="text-red-400 text-center text-[9px]">Lỗi đồng bộ.</p>`; }
         }
-
         loadHistory();
     </script>
 </body>
