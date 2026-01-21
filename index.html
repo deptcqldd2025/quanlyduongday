@@ -3,14 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Báo Cáo Tổ Đường Dây - v1.6</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Báo Cáo Tổ Đường Dây - v1.7</title>
     
     <style>
-        .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #2563eb; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Ẩn thanh cuộn trên mobile nhưng vẫn cuộn được */
-        body::-webkit-scrollbar { width: 0px; background: transparent; }
+        :root { --primary: #0056b3; --primary-hover: #004494; --bg: #f4f6f9; --white: #ffffff; --text: #333; --border: #ced4da; --radius: 12px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); line-height: 1.5; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Layout Mobile */
+        .app-container { max-width: 500px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; height: 100%; background: var(--white); box-shadow: 0 0 20px rgba(0,0,0,0.05); }
+        .scroll-content { flex: 1; overflow-y: auto; padding: 16px; }
+        .hidden { display: none !important; }
+
+        /* Header */
+        .header { background: var(--white); padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+        .header h1 { font-size: 18px; color: var(--primary); font-weight: 800; text-transform: uppercase; margin: 0; }
+        .user-info { font-size: 12px; color: #666; }
+        .btn-logout { font-size: 11px; color: #dc3545; background: #fff5f5; padding: 4px 10px; border-radius: 20px; border: 1px solid #ffecec; text-decoration: none; font-weight: bold; cursor: pointer; }
+
+        /* Form Elements */
+        .form-card { background: var(--white); border-radius: var(--radius); padding: 0; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 12px; font-weight: 700; color: #666; margin-bottom: 5px; text-transform: uppercase; }
+        
+        input[type="text"], textarea, select { width: 100%; padding: 12px 15px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 15px; transition: border 0.2s; outline: none; background: #fdfdfd; }
+        input:focus, textarea:focus, select:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
+        textarea { resize: none; }
+
+        /* File Upload */
+        .file-upload-wrapper { position: relative; border: 2px dashed #cbd5e0; border-radius: var(--radius); padding: 20px; text-align: center; background: #f8fafc; transition: 0.2s; cursor: pointer; }
+        .file-upload-wrapper:hover { background: #f1f5f9; border-color: var(--primary); }
+        .file-upload-wrapper input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        .file-text { font-size: 13px; color: #64748b; pointer-events: none; }
+        .file-icon { font-size: 24px; color: #94a3b8; display: block; margin-bottom: 5px; }
+
+        /* Buttons */
+        .btn { width: 100%; padding: 14px; border: none; border-radius: var(--radius); font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(0,86,179,0.2); }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        .btn-refresh { background: transparent; border: 1px solid #ddd; color: var(--primary); padding: 5px 10px; font-size: 12px; width: auto; border-radius: 6px; }
+
+        /* Report List */
+        .section-title { font-size: 14px; font-weight: 700; color: #333; border-left: 4px solid var(--primary); padding-left: 10px; margin: 20px 0 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        .report-item { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .report-header { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+        .worker-name { font-weight: bold; color: var(--primary); font-size: 15px; }
+        .worker-role { font-size: 11px; color: #888; font-weight: normal; }
+        .report-time { font-size: 12px; font-weight: bold; color: #555; }
+        .gps-badge { font-size: 10px; background: #e6fffa; color: #047857; padding: 2px 6px; border-radius: 4px; margin-left: 5px; }
+        .report-content { font-size: 14px; color: #333; white-space: pre-line; margin-bottom: 8px; }
+        .report-badge { display: inline-block; font-size: 11px; background: #fffbea; color: #92400e; padding: 2px 8px; border-radius: 4px; border: 1px solid #fcd34d; margin-bottom: 5px; }
+        .file-link { display: inline-block; font-size: 11px; color: var(--primary); background: #ebf8ff; padding: 4px 8px; border-radius: 4px; text-decoration: none; margin-right: 5px; margin-top: 5px; border: 1px solid #bee3f8; }
+
+        /* Login Screen */
+        #loginScreen { background: linear-gradient(135deg, #0056b3 0%, #00c6ff 100%); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-box { background: white; padding: 30px; border-radius: 20px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .login-logo { width: 60px; height: 60px; background: #e6f0ff; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .login-btn-google { background: white; border: 2px solid #eee; color: #444; margin-top: 20px; }
+        .login-btn-google:hover { background: #f9f9f9; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: white; width: 100%; max-width: 350px; padding: 25px; border-radius: 16px; }
+
+        /* Loading */
+        .loader { width: 16px; height: 16px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-screen { position: fixed; inset: 0; background: white; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .big-loader { width: 40px; height: 40px; border: 4px solid #eee; border-top-color: var(--primary); border-radius: 50%; animation: rotation 1s linear infinite; }
     </style>
 
     <script type="module">
@@ -18,8 +81,7 @@
         import { getFirestore, collection, doc, getDoc, setDoc, addDoc, query, where, getDocs, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // --- CẤU HÌNH (BẮT BUỘC PHẢI DÁN LINK) ---
-        // 👇 DÁN LINK GOOGLE APPS SCRIPT VÀO DƯỚI ĐÂY 👇
+        // --- CẤU HÌNH (QUAN TRỌNG: DÁN LINK VÀO ĐÂY) ---
         const APPS_SCRIPT_URL = "DÁN_LINK_WEB_APP_CỦA_BẠN_VÀO_ĐÂY"; 
         
         const firebaseConfig = {
@@ -32,7 +94,6 @@
             measurementId: "G-TEGTD9KFCW"
         };
 
-        // Khởi tạo
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
@@ -40,109 +101,80 @@
 
         let currentUserProfile = null;
 
-        // --- AUTH: ĐĂNG NHẬP & BẮT LỖI TÊN MIỀN ---
+        // --- AUTH ---
         window.loginGoogle = () => {
             const btn = document.getElementById('loginBtn');
             const originalText = btn.innerHTML;
-            btn.innerHTML = `<span class="loader" style="width:20px;height:20px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:5px;"></span> Đang kết nối Google...`;
+            btn.innerHTML = `<span class="loader" style="border-color:#333; border-bottom-color:transparent"></span> Đang kết nối...`;
             btn.disabled = true;
 
             signInWithPopup(auth, provider).catch(err => {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
-                console.error("Login Error:", err);
-
-                // Bắt lỗi Domain chưa cho phép trên Firebase (Lỗi phổ biến nhất trên GitHub Pages)
                 if (err.code === 'auth/unauthorized-domain') {
-                    const currentDomain = window.location.hostname;
-                    alert(`⛔ LỖI TÊN MIỀN CHƯA ĐƯỢC CẤP QUYỀN!\n\nFirebase đang chặn tên miền: ${currentDomain}\n\nCÁCH SỬA:\n1. Vào Firebase Console -> Authentication -> Settings -> Authorized Domains.\n2. Thêm dòng: ${currentDomain}`);
-                } else if (err.code === 'auth/popup-closed-by-user') {
-                    // Người dùng tự tắt popup, không làm gì cả
-                } else {
+                    alert(`⚠️ LỖI: Tên miền ${window.location.hostname} chưa được phép!\nVui lòng thêm vào Firebase Authorized Domains.`);
+                } else if (err.code !== 'auth/popup-closed-by-user') {
                     alert("Lỗi đăng nhập: " + err.message);
                 }
             });
         };
 
         window.logout = () => {
-            if(confirm("Bạn muốn đăng xuất?")) {
-                signOut(auth).then(() => location.reload());
-            }
+            if(confirm("Đăng xuất khỏi hệ thống?")) signOut(auth).then(() => location.reload());
         };
 
-        // --- LUỒNG TRẠNG THÁI ---
         onAuthStateChanged(auth, async (user) => {
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            
+            const loading = document.getElementById('mainLoading');
             if (user) {
-                // Đã login
                 document.getElementById('loginScreen').classList.add('hidden');
                 try {
-                    const userRef = doc(db, "users", user.uid);
-                    const userSnap = await getDoc(userRef);
-                    
-                    loadingOverlay.classList.add('hidden');
-
-                    if (userSnap.exists()) {
-                        currentUserProfile = userSnap.data();
-                        showAppScreen();
+                    const snap = await getDoc(doc(db, "users", user.uid));
+                    loading.classList.add('hidden');
+                    if (snap.exists()) {
+                        currentUserProfile = snap.data();
+                        document.getElementById('appScreen').classList.remove('hidden');
+                        document.getElementById('userName').innerText = currentUserProfile.name;
+                        document.getElementById('userRole').innerText = currentUserProfile.role + " (" + currentUserProfile.empId + ")";
+                        loadReports();
                     } else {
-                        // Chưa có hồ sơ -> Form cập nhật
                         document.getElementById('profileModal').classList.remove('hidden');
                         document.getElementById('profileEmail').value = user.email;
                     }
                 } catch (e) {
-                    loadingOverlay.classList.add('hidden');
-                    console.error(e);
-                    alert("Lỗi tải dữ liệu. Hãy kiểm tra lại Firestore Database.");
+                    loading.classList.add('hidden');
+                    alert("Lỗi kết nối CSDL: " + e.message);
                 }
             } else {
-                // Chưa login
-                loadingOverlay.classList.add('hidden');
+                loading.classList.add('hidden');
                 document.getElementById('loginScreen').classList.remove('hidden');
                 document.getElementById('appScreen').classList.add('hidden');
             }
         });
 
-        function showAppScreen() {
-            document.getElementById('appScreen').classList.remove('hidden');
-            document.getElementById('userNameDisplay').innerHTML = `Xin chào, <b>${currentUserProfile.name}</b>`;
-            document.getElementById('userRoleDisplay').innerText = currentUserProfile.role + " - ID: " + currentUserProfile.empId;
-            loadReports();
-        }
-
-        // --- CẬP NHẬT HỒ SƠ ---
         window.saveProfile = async (e) => {
             e.preventDefault();
-            const user = auth.currentUser;
-            const btn = document.getElementById('saveProfileBtn');
+            const btn = document.getElementById('btnSaveProfile');
             btn.innerText = "Đang lưu..."; btn.disabled = true;
-
             try {
-                const profileData = {
+                const user = auth.currentUser;
+                await setDoc(doc(db, "users", user.uid), {
                     name: document.getElementById('profileName').value.trim(),
                     empId: document.getElementById('profileId').value.trim(),
                     role: document.getElementById('profileRole').value,
                     email: user.email,
                     uid: user.uid,
                     updatedAt: Timestamp.now()
-                };
-                
-                await setDoc(doc(db, "users", user.uid), profileData);
-                document.getElementById('profileModal').classList.add('hidden');
+                });
                 location.reload();
-            } catch (error) {
-                alert("Lỗi lưu: " + error.message);
-                btn.innerText = "LƯU THÔNG TIN"; btn.disabled = false;
-            }
+            } catch (err) { alert("Lỗi: " + err.message); btn.disabled = false; btn.innerText = "LƯU THÔNG TIN"; }
         };
 
-        // --- UPLOAD FILE (APPS SCRIPT) ---
-        const convertBase64 = (file) => new Promise((resolve, reject) => {
+        // --- LOGIC BÁO CÁO ---
+        const convertBase64 = (file) => new Promise((res, rej) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = error => reject(error);
+            reader.onload = () => res(reader.result.split(',')[1]);
+            reader.onerror = err => rej(err);
         });
 
         async function uploadFiles(files) {
@@ -150,61 +182,44 @@
             for (let i = 0; i < files.length; i++) {
                 try {
                     const base64 = await convertBase64(files[i]);
-                    // Gửi request upload
-                    // Lưu ý: Apps Script cần được deploy với quyền "Anyone"
-                    const response = await fetch(APPS_SCRIPT_URL, {
+                    const res = await fetch(APPS_SCRIPT_URL, {
                         method: "POST",
-                        body: JSON.stringify({
-                            filename: `${Date.now()}_${files[i].name}`,
-                            mimeType: files[i].type,
-                            file: base64
-                        })
+                        body: JSON.stringify({ filename: `${Date.now()}_${files[i].name}`, mimeType: files[i].type, file: base64 })
                     });
-                    const res = await response.json();
-                    if(res.status === 'success') urls.push(res.url);
-                } catch (e) {
-                    console.warn("Upload file lỗi (có thể do CORS nhưng file vẫn lên):", e);
-                }
+                    const data = await res.json();
+                    if(data.status === 'success') urls.push(data.url);
+                } catch (e) { console.warn("Lỗi upload (thường do CORS, file vẫn có thể đã lên Drive):", e); }
             }
             return urls;
         }
 
-        // --- GỬI BÁO CÁO ---
         document.getElementById('reportForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             const originalText = btn.innerHTML;
-            btn.innerHTML = `<span class="loader" style="width:15px;height:15px;border-width:2px;display:inline-block;"></span> Đang xử lý...`;
-            btn.disabled = true;
+            btn.innerHTML = `<span class="loader"></span> Đang gửi...`; btn.disabled = true;
 
-            // Check URL Apps Script
             if (APPS_SCRIPT_URL.includes("DÁN_LINK")) {
-                alert("❌ LỖI: Bạn chưa dán Link Apps Script vào code!");
-                btn.innerHTML = originalText; btn.disabled = false; return;
+                alert("❌ Lỗi: Chưa cấu hình Link Apps Script!"); btn.innerHTML = originalText; btn.disabled = false; return;
             }
 
-            // 1. Lấy GPS (Timeout nhanh 5s để không đợi lâu)
+            // GPS (Timeout 5s)
             let lat = 0, lng = 0;
-            if ("geolocation" in navigator) {
-                try {
-                    const pos = await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {timeout: 5000, enableHighAccuracy: false});
-                    });
-                    lat = pos.coords.latitude;
-                    lng = pos.coords.longitude;
-                } catch (err) { console.log("GPS Skip:", err.message); }
-            }
+            try {
+                const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout: 5000}));
+                lat = pos.coords.latitude; lng = pos.coords.longitude;
+            } catch (err) {}
 
-            // 2. Upload Ảnh
+            // Upload File
             const fileInput = document.getElementById('fileInput');
-            let attachments = [];
+            let att = [];
             if (fileInput.files.length > 0) {
                 btn.innerHTML = `📤 Đang tải ${fileInput.files.length} file...`;
-                attachments = await uploadFiles(fileInput.files);
+                att = await uploadFiles(fileInput.files);
             }
 
-            // 3. Lưu Firestore
-            btn.innerHTML = `💾 Đang lưu dữ liệu...`;
+            // Save DB
+            btn.innerHTML = `💾 Đang lưu...`;
             try {
                 await addDoc(collection(db, "daily_reports"), {
                     uid: auth.currentUser.uid,
@@ -217,134 +232,105 @@
                     pct_lct: document.getElementById('pctLct').value,
                     workContent: document.getElementById('workContent').value,
                     notes: document.getElementById('notes').value,
-                    attachments: attachments
+                    attachments: att
                 });
-                
                 alert("✅ Báo cáo thành công!");
                 document.getElementById('reportForm').reset();
-                // Reset file input label
-                document.getElementById('fileLabelText').innerText = "Chọn ảnh / tài liệu (nếu có)";
+                document.getElementById('fileLabel').innerHTML = `<span class="file-icon">📸</span><span class="file-text">Chọn ảnh / tài liệu minh chứng</span>`;
                 loadReports();
-            } catch (err) {
-                alert("Lỗi gửi báo cáo: " + err.message);
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+            } catch (err) { alert("Lỗi: " + err.message); } 
+            finally { btn.innerHTML = originalText; btn.disabled = false; }
         });
 
-        // Xử lý hiển thị tên file khi chọn
         document.getElementById('fileInput').addEventListener('change', function() {
             const count = this.files.length;
-            const label = document.getElementById('fileLabelText');
-            label.innerText = count > 0 ? `Đã chọn ${count} file` : "Chọn ảnh / tài liệu (nếu có)";
-            label.classList.toggle('text-blue-600', count > 0);
+            document.getElementById('fileLabel').innerHTML = count ? 
+                `<span class="file-icon" style="color:var(--primary)">✅</span><span class="file-text" style="color:var(--primary);font-weight:bold">Đã chọn ${count} file</span>` : 
+                `<span class="file-icon">📸</span><span class="file-text">Chọn ảnh / tài liệu minh chứng</span>`;
         });
 
-        // --- TẢI DANH SÁCH ---
         async function loadReports() {
             const list = document.getElementById('reportList');
-            list.innerHTML = '<div class="text-center py-4"><span class="loader"></span></div>';
+            list.innerHTML = '<div style="text-align:center;padding:20px"><span class="loader" style="border-color:#ccc;border-bottom-color:transparent"></span></div>';
             
             try {
-                const todayStr = new Date().toLocaleDateString('vi-VN');
-                const q = query(collection(db, "daily_reports"), where("reportDateString", "==", todayStr), orderBy("timestamp", "desc"));
+                const today = new Date().toLocaleDateString('vi-VN');
+                const q = query(collection(db, "daily_reports"), where("reportDateString", "==", today), orderBy("timestamp", "desc"));
                 const snap = await getDocs(q);
-                
                 list.innerHTML = "";
+                
                 if (snap.empty) {
-                    list.innerHTML = '<div class="text-center p-6 bg-gray-50 rounded-lg text-gray-400 italic">Chưa có báo cáo nào hôm nay</div>';
+                    list.innerHTML = '<div style="text-align:center;color:#999;font-style:italic;padding:20px">Chưa có báo cáo nào hôm nay</div>';
                     return;
                 }
 
                 snap.forEach(doc => {
-                    const data = doc.data();
-                    const time = data.timestamp.toDate().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
+                    const d = doc.data();
+                    const time = d.timestamp.toDate().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
                     
-                    let filesHtml = "";
-                    if (data.attachments && data.attachments.length) {
-                        filesHtml = `<div class="mt-2 flex flex-wrap gap-2">
-                            ${data.attachments.map((link, i) => 
-                                `<a href="${link}" target="_blank" class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold border border-blue-100 hover:bg-blue-100">📎 File ${i+1}</a>`
-                            ).join('')}
-                        </div>`;
+                    let files = "";
+                    if (d.attachments && d.attachments.length) {
+                        files = `<div style="margin-top:8px">${d.attachments.map((l,i) => `<a href="${l}" target="_blank" class="file-link">📎 File ${i+1}</a>`).join('')}</div>`;
                     }
 
-                    const item = document.createElement("div");
-                    item.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3";
-                    item.innerHTML = `
-                        <div class="flex justify-between items-start border-b border-gray-100 pb-2 mb-2">
-                            <div>
-                                <div class="font-bold text-gray-800">${data.workerName}</div>
-                                <div class="text-xs text-gray-500">${data.role}</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="font-bold text-blue-600">${time}</div>
-                                ${data.locationCoords.lat ? '<span class="text-[10px] text-green-500">📍 GPS OK</span>' : ''}
-                            </div>
+                    const div = document.createElement("div");
+                    div.className = "report-item";
+                    div.innerHTML = `
+                        <div class="report-header">
+                            <div><span class="worker-name">${d.workerName}</span> <span class="worker-role">(${d.role})</span></div>
+                            <div class="report-time">${time} ${d.locationCoords.lat ? '<span class="gps-badge">GPS</span>' : ''}</div>
                         </div>
-                        <div class="text-gray-700 text-sm whitespace-pre-line mb-2">${data.workContent}</div>
-                        ${data.pct_lct ? `<div class="text-xs bg-yellow-50 text-yellow-700 p-1 rounded inline-block mb-1">🎫 Phiếu: <b>${data.pct_lct}</b></div>` : ''}
-                        ${data.notes ? `<div class="text-xs text-gray-400 italic mt-1">Ghi chú: ${data.notes}</div>` : ''}
-                        ${filesHtml}
+                        ${d.pct_lct ? `<div class="report-badge">Phiếu: ${d.pct_lct}</div>` : ''}
+                        <div class="report-content">${d.workContent}</div>
+                        ${d.notes ? `<div style="font-size:12px;color:#888;font-style:italic">Ghi chú: ${d.notes}</div>` : ''}
+                        ${files}
                     `;
-                    list.appendChild(item);
+                    list.appendChild(div);
                 });
-            } catch (err) {
-                console.error(err);
-                list.innerHTML = `<div class="text-red-500 text-center text-sm">Lỗi tải danh sách.<br>Kiểm tra Index Firestore.</div>`;
-            }
+            } catch (err) { list.innerHTML = `<div style="color:red;text-align:center;padding:10px">Lỗi tải: ${err.message}</div>`; }
         }
 
         window.onload = () => document.getElementById('profileForm').addEventListener('submit', window.saveProfile);
     </script>
 </head>
-<body class="bg-gray-50 font-sans text-base text-gray-800 h-screen flex flex-col">
+<body>
 
-    <div id="loadingOverlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <div class="loader mb-4"></div>
-        <p class="text-gray-500 font-medium animate-pulse">Đang kết nối hệ thống...</p>
+    <div id="mainLoading" class="loading-screen">
+        <div class="big-loader"></div>
+        <p style="margin-top:15px;color:#666;font-size:14px">Đang khởi động hệ thống...</p>
     </div>
 
-    <div id="loginScreen" class="hidden flex-1 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-700 to-cyan-500 text-white">
-        <div class="w-full max-w-sm bg-white text-gray-800 p-8 rounded-2xl shadow-2xl text-center">
-            <div class="mb-6">
-                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg class="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                </div>
-                <h1 class="text-2xl font-extrabold text-blue-800">TỔ ĐƯỜNG DÂY</h1>
-                <p class="text-gray-500 text-sm">Báo Cáo Hiện Trường</p>
-            </div>
-            
-            <button id="loginBtn" onclick="window.loginGoogle()" class="w-full bg-white border-2 border-gray-200 hover:bg-gray-50 text-gray-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-sm">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6 mr-3">
+    <div id="loginScreen" class="hidden">
+        <div class="login-box">
+            <div class="login-logo">⚡</div>
+            <h1 style="color:#0056b3;font-weight:800;margin-bottom:5px">TỔ ĐƯỜNG DÂY</h1>
+            <p style="color:#888;font-size:13px">Hệ thống báo cáo hiện trường v1.7</p>
+            <button id="loginBtn" onclick="window.loginGoogle()" class="btn login-btn-google">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:18px;margin-right:10px">
                 Đăng nhập bằng Gmail
             </button>
-            <p class="text-xs text-gray-300 mt-6">Phiên bản 1.6</p>
         </div>
     </div>
 
-    <div id="profileModal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl">
-            <h2 class="text-xl font-bold text-center mb-1">Cập Nhật Hồ Sơ</h2>
-            <p class="text-xs text-gray-500 text-center mb-5">Thông tin này sẽ hiển thị trên báo cáo</p>
-            
-            <form id="profileForm" class="space-y-4">
-                <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase ml-1">Email</label>
-                    <input type="text" id="profileEmail" disabled class="w-full p-3 bg-gray-100 border border-transparent rounded-lg text-gray-500 font-medium">
+    <div id="profileModal" class="hidden modal-overlay">
+        <div class="modal-content">
+            <h2 style="text-align:center;font-size:18px;margin-bottom:15px;color:var(--primary)">Cập Nhật Thông Tin</h2>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="text" id="profileEmail" disabled style="background:#eee">
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase ml-1">Họ và Tên</label>
-                    <input type="text" id="profileName" placeholder="Ví dụ: Nguyễn Văn A" required class="w-full p-3 border border-gray-200 rounded-lg focus:border-blue-500 outline-none">
+                <div class="form-group">
+                    <label class="form-label">Họ và Tên</label>
+                    <input type="text" id="profileName" placeholder="Nhập họ tên" required>
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase ml-1">Mã Nhân Viên</label>
-                    <input type="text" id="profileId" placeholder="Ví dụ: 001234" required class="w-full p-3 border border-gray-200 rounded-lg focus:border-blue-500 outline-none">
+                <div class="form-group">
+                    <label class="form-label">Mã Nhân Viên</label>
+                    <input type="text" id="profileId" placeholder="VD: 001234" required>
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase ml-1">Chức danh</label>
-                    <select id="profileRole" class="w-full p-3 border border-gray-200 rounded-lg bg-white outline-none">
+                <div class="form-group">
+                    <label class="form-label">Chức danh</label>
+                    <select id="profileRole">
                         <option value="Công nhân">Công nhân</option>
                         <option value="Tổ trưởng">Tổ trưởng</option>
                         <option value="Tổ phó">Tổ phó</option>
@@ -352,68 +338,58 @@
                         <option value="Lái xe">Lái xe</option>
                     </select>
                 </div>
-                <button type="submit" id="saveProfileBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl mt-2 shadow-lg transition">LƯU THÔNG TIN</button>
+                <button type="submit" id="btnSaveProfile" class="btn btn-primary">LƯU THÔNG TIN</button>
             </form>
         </div>
     </div>
 
-    <div id="appScreen" class="hidden flex-1 flex flex-col max-w-lg mx-auto w-full">
-        <div class="bg-white p-4 shadow-sm z-10 flex justify-between items-center sticky top-0">
+    <div id="appScreen" class="app-container hidden">
+        <div class="header">
             <div>
-                <h1 class="text-lg font-bold text-blue-800 leading-tight">BÁO CÁO CÔNG VIỆC</h1>
-                <div class="text-xs text-gray-500 flex flex-col">
-                    <span id="userNameDisplay">...</span>
-                    <span id="userRoleDisplay" class="text-gray-400">...</span>
-                </div>
+                <h1>BÁO CÁO NGÀY</h1>
+                <div class="user-info">Xin chào, <span id="userName" style="font-weight:bold">...</span></div>
+                <div id="userRole" style="font-size:10px;color:#999">...</div>
             </div>
-            <button onclick="window.logout()" class="text-xs text-red-500 font-medium bg-red-50 px-3 py-2 rounded-lg hover:bg-red-100 transition">Thoát</button>
+            <button onclick="window.logout()" class="btn-logout">Thoát</button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 space-y-6">
-            
-            <form id="reportForm" class="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-                <div class="text-center">
-                    <span class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full border border-blue-100">
-                        📅 Hôm nay: <span id="currentDateDisplay"></span>
-                        <script>document.getElementById('currentDateDisplay').innerText = new Date().toLocaleDateString('vi-VN');</script>
-                    </span>
+        <div class="scroll-content">
+            <form id="reportForm" class="form-card">
+                <div style="background:#eef2f7;padding:10px;border-radius:var(--radius);text-align:center;margin-bottom:15px;font-size:13px;color:#555">
+                    Hôm nay: <b><span id="displayDate"></span></b>
+                    <script>document.getElementById('displayDate').innerText = new Date().toLocaleDateString('vi-VN');</script>
                 </div>
 
-                <div>
-                    <input type="text" id="pctLct" placeholder="Số Phiếu / Lệnh (nếu có)" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-sm">
+                <div class="form-group">
+                    <input type="text" id="pctLct" placeholder="Số Phiếu / Lệnh (nếu có)">
                 </div>
 
-                <div>
-                    <textarea id="workContent" rows="4" placeholder="Nội dung công việc thực hiện..." required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-sm"></textarea>
+                <div class="form-group">
+                    <textarea id="workContent" rows="5" placeholder="Nội dung công việc thực hiện *" required></textarea>
                 </div>
 
-                <div class="relative group">
-                    <div class="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50 hover:border-blue-400 transition">
-                        <input type="file" id="fileInput" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                        <div class="flex flex-col items-center space-y-1">
-                            <svg class="w-6 h-6 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                            <span id="fileLabelText" class="text-xs text-gray-500 font-medium">Chọn ảnh / tài liệu (nếu có)</span>
+                <div class="form-group">
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="fileInput" multiple>
+                        <div id="fileLabel">
+                            <span class="file-icon">📸</span>
+                            <span class="file-text">Chọn ảnh / tài liệu minh chứng</span>
                         </div>
                     </div>
                 </div>
 
-                <div>
-                    <input type="text" id="notes" placeholder="Ghi chú / Kiến nghị..." class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-sm">
+                <div class="form-group">
+                    <input type="text" id="notes" placeholder="Ghi chú / Kiến nghị">
                 </div>
 
-                <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 transform active:scale-95 transition-all">
-                    GỬI BÁO CÁO
-                </button>
+                <button type="submit" id="submitBtn" class="btn btn-primary">GỬI BÁO CÁO</button>
             </form>
 
-            <div>
-                <div class="flex items-center justify-between mb-3 px-1">
-                    <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Nhật ký trong ngày</h2>
-                    <button type="button" onclick="loadReports()" class="text-xs text-blue-600 font-medium bg-white px-2 py-1 rounded shadow-sm border">Làm mới</button>
-                </div>
-                <div id="reportList" class="pb-10">
-                    </div>
+            <div class="section-title">
+                <span>📋 NHẬT KÝ HÔM NAY</span>
+                <button type="button" onclick="loadReports()" class="btn-refresh">Làm mới</button>
             </div>
+            <div id="reportList"></div>
         </div>
     </div>
 
