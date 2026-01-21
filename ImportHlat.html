@@ -3,183 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trích xuất HLAT - v1.1</title>
+    <title>Nhập liệu HLAT từ JSON - v1.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         :root { --primary: #0068ff; }
-        body { background: #f1f5f9; font-family: sans-serif; }
-        .card { background: white; border-radius: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        .form-input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; }
-        .form-input:focus { border-color: var(--primary); }
-        .hidden { display: none !important; }
-        
-        /* Hiệu ứng loading bar */
-        .progress-container { width: 100%; background-color: #e2e8f0; border-radius: 10px; overflow: hidden; height: 8px; }
-        .progress-bar { width: 0%; height: 100%; background-color: var(--primary); transition: width 0.3s; }
-        
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
+        body { background: #f0f2f5; font-family: -apple-system, sans-serif; }
+        .card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .form-input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 14px; outline: none; transition: all 0.2s; }
+        .form-input:focus { border-color: var(--primary); ring: 2px; ring-color: #0068ff20; }
+        .label-p { text-[10px] font-black text-gray-400 uppercase ml-1 mb-1; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="p-4 md:p-10">
 
-    <div class="max-w-6xl mx-auto">
-        <header class="mb-8">
-            <h1 class="text-2xl font-black text-blue-700 uppercase">Hệ thống Trích xuất Hồ sơ HLAT</h1>
-            [span_1](start_span)[span_2](start_span)<p class="text-gray-500 text-sm">Xử lý hồ sơ: <span class="font-bold">Công ty Trung Việt - 194D/4 TMT 17</span>[span_1](end_span)[span_2](end_span)</p>
+    <div class="max-w-5xl mx-auto">
+        <header class="mb-8 text-center md:text-left">
+            <h1 class="text-3xl font-black text-blue-800 uppercase italic">Import HLAT Tool</h1>
+            <p class="text-gray-500 text-sm">Dán mã JSON từ AI để tạo công việc mới vào kho</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
             <div class="space-y-4">
-                <div class="card p-8 border-2 border-dashed border-blue-200 text-center" id="dropZone">
-                    <input type="file" id="fileInput" class="hidden" accept="image/*,application/pdf">
-                    <div class="cursor-pointer" onclick="document.getElementById('fileInput').click()">
-                        <div class="text-4xl mb-2">📁</div>
-                        <p class="font-black text-gray-700">CHỌN HỒ SƠ PDF/ẢNH</p>
-                        <p id="statusTxt" class="text-xs text-blue-500 mt-2 font-bold">Chưa có file nào được chọn</p>
+                <div class="card p-6 border-2 border-blue-100 bg-blue-50/30">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-blue-700">1. Dán mã JSON vào đây</h3>
+                        <button onclick="clearAll()" class="text-[10px] font-bold text-red-500 uppercase">Xóa sạch</button>
                     </div>
-                </div>
-                
-                <div id="previewContainer" class="card p-4 hidden">
-                    <canvas id="pdfPreview" class="w-full border rounded-lg"></canvas>
-                    <div id="imagePreview"></div>
+                    <textarea id="jsonInput" rows="12" 
+                        class="w-full p-4 font-mono text-xs border-2 border-dashed border-blue-200 rounded-2xl outline-none focus:border-blue-500"
+                        placeholder='{ "don_vi_de_nghi": "...", "dt_hlat_thuc_te": ... }'></textarea>
+                    
+                    <button onclick="parseJSON()" class="w-full mt-4 bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-blue-700 transition active:scale-95">
+                        BẮT ĐẦU ĐỔ DỮ LIỆU ➔
+                    </button>
                 </div>
             </div>
 
-            <div class="card p-6 flex flex-col">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-black text-gray-800 uppercase italic">Kết quả quét AI</h3>
-                    <button id="btnScan" onclick="processAI()" class="bg-blue-600 text-white px-6 py-2 rounded-xl text-xs font-black shadow-lg disabled:bg-gray-400">
-                        QUÉT HỒ SƠ
-                    </button>
-                </div>
-
-                <div id="progressSection" class="mb-6 hidden">
-                    <div class="flex justify-between text-[10px] font-bold mb-1 uppercase">
-                        <span id="progressTxt">Đang phân tích văn bản...</span>
-                        <span id="percentTxt">0%</span>
+            <div class="card p-6 border-2 border-transparent">
+                <h3 class="font-bold text-gray-800 mb-6 uppercase italic border-b pb-2">2. Kiểm tra & Hiệu chỉnh</h3>
+                
+                <form id="hlatForm" class="space-y-4">
+                    <div>
+                        <p class="label-p">Đơn vị / Cá nhân đề nghị</p>
+                        <input id="f_org" class="form-input font-bold text-blue-900">
                     </div>
-                    <div class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
-                </div>
 
-                <form id="resForm" class="space-y-4 flex-1">
-                    <div class="space-y-3">
-                        [span_3](start_span)<label class="text-[10px] font-bold text-gray-400 uppercase">Tên đơn vị đề nghị[span_3](end_span)</label>
-                        <input id="resOrg" class="form-input font-bold text-blue-800" readonly placeholder="...">
-                        
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                [span_4](start_span)<label class="text-[10px] font-bold text-gray-400 uppercase">Người liên hệ[span_4](end_span)</label>
-                                <input id="resUser" class="form-input" readonly>
-                            </div>
-                            <div>
-                                [span_5](start_span)<label class="text-[10px] font-bold text-gray-400 uppercase">Số điện thoại[span_5](end_span)</label>
-                                <input id="resPhone" class="form-input" readonly>
-                            </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="label-p">Người liên hệ</p>
+                            <input id="f_user" class="form-input">
                         </div>
-
-                        [span_6](start_span)<label class="text-[10px] font-bold text-gray-400 uppercase">Địa chỉ HLAT[span_6](end_span)</label>
-                        <input id="resAddr" class="form-input" readonly>
-
-                        <div class="bg-slate-50 p-4 rounded-xl border">
-                            [span_7](start_span)<p class="text-[10px] font-black text-blue-500 uppercase mb-3">Thông số kỹ thuật HLAT[span_7](end_span)</p>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="text-[9px] font-bold text-gray-500">DT Thực tế (m2)</label>
-                                    <input id="resReal" class="form-input font-black text-red-600" readonly>
-                                </div>
-                                <div>
-                                    <label class="text-[9px] font-bold text-gray-500">DT Quy hoạch (m2)</label>
-                                    <input id="resPlan" class="form-input font-black text-red-600" readonly>
-                                </div>
-                            </div>
+                        <div>
+                            <p class="label-p">Số điện thoại</p>
+                            <input id="f_phone" class="form-input">
                         </div>
                     </div>
 
-                    <button type="button" onclick="confirmSave()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg mt-auto uppercase tracking-wider">
-                        Xác nhận đưa vào kho việc
+                    <div>
+                        <p class="label-p">Địa chỉ công trình</p>
+                        <input id="f_addr" class="form-input">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border">
+                        <div>
+                            <p class="label-p">DT Thực tế (m2)</p>
+                            <input id="f_real" type="number" step="0.1" class="form-input font-black text-red-600">
+                        </div>
+                        <div>
+                            <p class="label-p">DT Quy hoạch (m2)</p>
+                            <input id="f_plan" type="number" step="0.1" class="form-input font-black text-red-600">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="label-p">Ngày nhận</p>
+                            <input id="f_date" type="date" class="form-input">
+                        </div>
+                        <div>
+                            <p class="label-p">Hạn xử lý (10 ngày)</p>
+                            <input id="f_deadline" type="date" class="form-input border-red-200 bg-red-50">
+                        </div>
+                    </div>
+
+                    <button type="button" onclick="saveToPool()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-green-700 transition mt-4 uppercase">
+                        Lưu vào kho công việc
                     </button>
                 </form>
             </div>
+
         </div>
     </div>
 
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        function parseJSON() {
+            const raw = document.getElementById('jsonInput').value;
+            try {
+                const data = JSON.parse(raw);
+                
+                // Đổ dữ liệu vào Form
+                document.getElementById('f_org').value = data.don_vi_de_nghi || "";
+                document.getElementById('f_user').value = data.nguoi_lien_he || "";
+                document.getElementById('f_phone').value = data.so_dien_thoai || "";
+                document.getElementById('f_addr').value = data.dia_chi_cong_trinh || "";
+                document.getElementById('f_real').value = data.dt_hlat_thuc_te || 0;
+                document.getElementById('f_plan').value = data.dt_hlat_quy_hoach || 0;
+                document.getElementById('f_date').value = data.ngay_nhan || "";
+                document.getElementById('f_deadline').value = data.han_xu_ly || "";
 
-        const fileInput = document.getElementById('fileInput');
-        
-        fileInput.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            document.getElementById('statusTxt').innerText = `✅ Đã nhận: ${file.name}`;
-            document.getElementById('previewContainer').classList.remove('hidden');
-
-            if (file.type === "application/pdf") {
-                const reader = new FileReader();
-                reader.onload = async function() {
-                    const loadingTask = pdfjsLib.getDocument({data: new Uint8Array(this.result)});
-                    const pdf = await loadingTask.promise;
-                    const page = await pdf.getPage(1);
-                    const viewport = page.getViewport({scale: 1.5});
-                    const canvas = document.getElementById('pdfPreview');
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    await page.render({canvasContext: context, viewport: viewport}).promise;
-                    document.getElementById('imagePreview').innerHTML = "";
-                };
-                reader.readAsArrayBuffer(file);
-            } else {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    document.getElementById('imagePreview').innerHTML = `<img src="${e.target.result}" class="rounded-lg">`;
-                    document.getElementById('pdfPreview').classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
+                // Hiệu ứng thông báo thành công
+                alert("Đã đổ dữ liệu thành công! Anh vui lòng kiểm tra lại trước khi Lưu.");
+            } catch (e) {
+                alert("Lỗi mã JSON: Anh hãy kiểm tra xem đã copy đủ dấu ngoặc { } chưa.");
             }
-        };
-
-        function processAI() {
-            const btn = document.getElementById('btnScan');
-            const progSec = document.getElementById('progressSection');
-            const bar = document.getElementById('progressBar');
-            const percent = document.getElementById('percentTxt');
-            
-            btn.disabled = true;
-            progSec.classList.remove('hidden');
-            
-            let width = 0;
-            const interval = setInterval(() => {
-                if (width >= 100) {
-                    clearInterval(interval);
-                    fillData();
-                } else {
-                    width += 2;
-                    bar.style.width = width + '%';
-                    percent.innerText = width + '%';
-                }
-            }, 50);
         }
 
-        function fillData() {
-            [span_8](start_span)// Trích xuất giả lập từ hồ sơ 58-HLAT [cite: 38-66]
-            document.getElementById('resOrg').value = "Công ty TNHH XNK Thiết bị Công nghiệp Trung Việt";
-            document.getElementById('resUser').value = "Nguyễn Thị Hằng";
-            document.getElementById('resPhone').value = "0862611299";
-            document.getElementById('resAddr').value = "194D/4 đường TMT 17, Trung Mỹ Tây, Quận 12";
-            document.getElementById('resReal').value = "24.1";
-            document.getElementById('resPlan').value = "178.5";
-            
-            document.getElementById('progressTxt').innerText = "✅ Trích xuất hoàn tất!";
-            document.getElementById('btnScan').innerText = "QUÉT LẠI";
-            document.getElementById('btnScan').disabled = false;
+        function clearAll() {
+            if(confirm("Xóa toàn bộ nội dung?")) {
+                document.getElementById('jsonInput').value = "";
+                document.getElementById('hlatForm').reset();
+            }
         }
 
-        function confirmSave() {
-            alert("Công việc đã được đưa vào kho quản lý của Đội QLLĐ 2!");
+        function saveToPool() {
+            const org = document.getElementById('f_org').value;
+            if(!org) return alert("Vui lòng dán dữ liệu trước!");
+            
+            // Logic lưu vào kho (Console log để kiểm tra)
+            console.log("Đã gửi công việc vào kho QLLĐ2:", org);
+            alert("Công việc '" + org + "' đã được đưa vào kho. Trạng thái: Chờ phân công.");
         }
     </script>
 </body>
