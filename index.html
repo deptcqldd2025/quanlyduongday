@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sổ tay công việc - v1.12</title>
+    <title>Sổ tay công việc - v1.14</title>
     
     <style>
         :root { --primary: #0068ff; --bg: #f2f4f8; --white: #ffffff; --text: #333; --radius: 12px; }
@@ -36,7 +36,7 @@
         .filter-select { width: auto; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid #ccc; }
         
         .report-item { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); border-left: 4px solid var(--primary); }
-        .r-top { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #666; border-bottom: 1px solid #f5f5f5; padding-bottom: 5px; }
+        .r-top { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #666; border-bottom: 1px solid #f5f5f5; padding-bottom: 5px; align-items: center; }
         .r-date { font-weight: bold; color: #333; }
         .r-content { white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5; }
         .r-files { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
@@ -49,9 +49,10 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, doc, getDoc, setDoc, addDoc, query, where, getDocs, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, setDoc, addDoc, query, where, getDocs, orderBy, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+        // Cấu hình Google Apps Script xử lý upload file
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
 
         const firebaseConfig = {
@@ -68,13 +69,12 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+        
         let currentUser = null;
-        let selectedFiles = []; // Mảng lưu trữ file cộng dồn
+        let selectedFiles = [];
 
         // --- AUTH ---
-        window.login = () => {
-            signInWithPopup(auth, provider).catch(err => alert(err.message));
-        };
+        window.login = () => signInWithPopup(auth, provider).catch(err => alert(err.message));
         window.logout = () => signOut(auth).then(() => location.reload());
 
         onAuthStateChanged(auth, async (user) => {
@@ -91,62 +91,45 @@
                         document.getElementById('profileModal').classList.remove('hidden');
                         document.getElementById('pEmail').value = user.email;
                     }
-                } catch (e) { alert("Lỗi kết nối: " + e.message); }
+                } catch (e) { alert("Lỗi: " + e.message); }
             } else {
                 document.getElementById('loginScreen').classList.remove('hidden');
             }
         });
 
-        // --- FILE HANDLING (MULTIPLE ADDS) ---
+        // --- FILE HANDLING ---
         window.triggerFileInput = () => document.getElementById('fileIn').click();
-
         document.getElementById('fileIn').onchange = function(e) {
-            const newFiles = Array.from(e.target.files);
-            selectedFiles = selectedFiles.concat(newFiles);
+            selectedFiles = selectedFiles.concat(Array.from(e.target.files));
             renderFileList();
-            this.value = ""; // Reset để có thể chọn lại cùng 1 file nếu cần
+            this.value = "";
         };
-
+        window.removeFile = (idx) => { selectedFiles.splice(idx, 1); renderFileList(); };
         function renderFileList() {
             const container = document.getElementById('fileListPreview');
             container.innerHTML = "";
-            selectedFiles.forEach((file, index) => {
-                const div = document.createElement('div');
-                div.className = "file-item";
-                div.innerHTML = `
-                    <span class="truncate" style="max-width: 80%">${file.name}</span>
-                    <span class="btn-remove" onclick="removeFile(${index})">✕</span>
-                `;
-                container.appendChild(div);
+            selectedFiles.forEach((f, i) => {
+                container.innerHTML += `<div class="file-item"><span class="truncate">${f.name}</span><span class="btn-remove" onclick="removeFile(${i})">✕</span></div>`;
             });
-            document.getElementById('fileTxt').innerText = selectedFiles.length > 0 ? `Đã chọn ${selectedFiles.length} file` : "Chưa có file nào được chọn";
+            document.getElementById('fileTxt').innerText = selectedFiles.length > 0 ? `Đã chọn ${selectedFiles.length} file` : "Chưa có file";
         }
 
-        window.removeFile = (index) => {
-            selectedFiles.splice(index, 1);
-            renderFileList();
-        };
-
-        // --- UPLOAD ---
-        async function uploadAll() {
+        async function uploadFiles() {
             let urls = [];
             for (let f of selectedFiles) {
                 let reader = new FileReader();
                 let base64 = await new Promise(r => { reader.readAsDataURL(f); reader.onload = () => r(reader.result.split(',')[1]) });
                 try {
-                    let res = await fetch(APPS_SCRIPT_URL, {
-                        method: "POST",
-                        body: JSON.stringify({ filename: Date.now() + "_" + f.name, mimeType: f.type, file: base64 })
-                    });
+                    let res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ filename: Date.now()+"_"+f.name, mimeType: f.type, file: base64 }) });
                     let json = await res.json();
                     if (json.status == "success") urls.push(json.url);
-                } catch (e) { console.error("Lỗi file: " + f.name); }
+                } catch (e) { console.error(e); }
             }
             return urls;
         }
 
-        // --- FORM SUBMIT ---
-        document.getElementById('form').addEventListener('submit', async (e) => {
+        // --- ACTIONS ---
+        document.getElementById('form').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('sBtn');
             btn.innerHTML = `<span class="loader"></span> Đang gửi...`; btn.disabled = true;
@@ -154,83 +137,69 @@
             let lat = 0, lng = 0;
             try { let p = await new Promise((r,j)=>navigator.geolocation.getCurrentPosition(r,j,{timeout:3000})); lat=p.coords.latitude; lng=p.coords.longitude; } catch(e){}
 
-            let att = [];
-            if(selectedFiles.length > 0) {
-                btn.innerHTML = `<span class="loader"></span> Đang tải ${selectedFiles.length} file...`;
-                att = await uploadAll();
-            }
+            let att = await uploadFiles();
 
             try {
                 await addDoc(collection(db, "daily_reports"), {
-                    uid: auth.currentUser.uid, 
-                    workerName: currentUser.name,
-                    workerId: currentUser.empId,
-                    role: currentUser.role,
-                    timestamp: Timestamp.now(),
-                    locationCoords: { lat, lng },
-                    pct: document.getElementById('pct').value,
-                    content: document.getElementById('content').value,
-                    notes: document.getElementById('notes').value,
-                    attachments: att
+                    uid: auth.currentUser.uid, workerName: currentUser.name, workerId: currentUser.empId,
+                    role: currentUser.role, timestamp: Timestamp.now(), locationCoords: { lat, lng },
+                    pct: document.getElementById('pct').value, content: document.getElementById('content').value,
+                    notes: document.getElementById('notes').value, attachments: att, status: "pending"
                 });
-                alert("Đã lưu sổ tay công việc!");
+                alert("Đã gửi thành công!");
                 document.getElementById('form').reset();
-                selectedFiles = [];
-                renderFileList();
-                loadReports('today'); 
-            } catch(e) { alert("Lỗi: " + e.message); }
-            
+                selectedFiles = []; renderFileList(); loadReports('today');
+            } catch(e) { alert(e.message); }
             btn.innerHTML = "GỬI BÁO CÁO"; btn.disabled = false;
-        });
+        };
 
-        // --- LOAD REPORTS ---
         window.loadReports = async (mode) => {
             const list = document.getElementById('list');
-            list.innerHTML = `<div style="text-align:center;padding:10px"><span class="loader" style="border-color:#888;border-bottom-color:transparent"></span></div>`;
-            
-            let startDate = new Date();
-            startDate.setHours(0,0,0,0); 
-            if (mode === 'week') {
-                const day = startDate.getDay();
-                const diff = startDate.getDate() - day + (day == 0 ? -6 : 1); 
-                startDate.setDate(diff);
-            } else if (mode === 'month') { startDate.setDate(1); }
+            list.innerHTML = `<p style="text-align:center">Đang tải...</p>`;
+            let start = new Date(); start.setHours(0,0,0,0);
+            if(mode === 'week') start.setDate(start.getDate() - 7);
+            if(mode === 'month') start.setDate(1);
 
-            try {
-                const q = query(collection(db, "daily_reports"), where("uid", "==", auth.currentUser.uid), where("timestamp", ">=", Timestamp.fromDate(startDate)), orderBy("timestamp", "desc"));
-                const snap = await getDocs(q);
-                list.innerHTML = "";
-                if(snap.empty) { list.innerHTML = "<p style='text-align:center;color:#999;font-size:13px'>Chưa có nhật ký.</p>"; return; }
-                snap.forEach(d => {
-                    const data = d.data();
-                    const date = data.timestamp.toDate();
-                    let files = data.attachments ? data.attachments.map((u,i) => `<a href="${u}" target="_blank" class="file-tag">📎 File ${i+1}</a>`).join("") : "";
-                    list.innerHTML += `
-                        <div class="report-item">
-                            <div class="r-top">
-                                <span class="r-date">${date.toLocaleDateString('vi-VN')} - ${date.toLocaleTimeString('vi-VN').slice(0,5)}</span>
-                                <span>${data.locationCoords.lat ? '📍 GPS' : ''}</span>
-                            </div>
-                            <div class="r-content">${data.content}</div>
-                            ${data.pct ? `<div style="font-size:12px;color:#d32f2f;margin-top:5px">🎫 Phiếu: ${data.pct}</div>` : ''}
-                            <div class="r-files">${files}</div>
-                        </div>`;
-                });
-            } catch (e) { list.innerHTML = "Lỗi tải dữ liệu."; }
-        }
+            const q = query(collection(db, "daily_reports"), where("uid", "==", auth.currentUser.uid), where("timestamp", ">=", Timestamp.fromDate(start)), orderBy("timestamp", "desc"));
+            const snap = await getDocs(q);
+            list.innerHTML = "";
+            snap.forEach(d => {
+                const r = d.data();
+                const id = d.id;
+                const isLocked = r.status === "reviewed";
+                const date = r.timestamp.toDate();
+                let files = r.attachments ? r.attachments.map((u,i) => `<a href="${u}" target="_blank" class="file-tag">📎 File ${i+1}</a>`).join("") : "";
+                
+                list.innerHTML += `
+                    <div class="report-item">
+                        <div class="r-top">
+                            <span class="r-date">${date.toLocaleDateString('vi-VN')} - ${date.toLocaleTimeString('vi-VN').slice(0,5)}</span>
+                            ${isLocked ? '<span style="color:green;font-weight:bold">✓ Đã duyệt</span>' : `<button onclick="editReport('${id}', '${r.content.replace(/'/g, "\\'")}')" style="color:var(--primary);font-weight:bold;font-size:11px">✏️ SỬA</button>`}
+                        </div>
+                        <div class="r-content" id="c-${id}">${r.content}</div>
+                        <div class="r-files">${files}</div>
+                    </div>`;
+            });
+        };
+
+        window.editReport = async (id, oldContent) => {
+            const newContent = prompt("Chỉnh sửa nội dung công việc:", oldContent);
+            if (newContent && newContent.trim() !== "" && newContent !== oldContent) {
+                try {
+                    await updateDoc(doc(db, "daily_reports", id), { content: newContent, updatedAt: Timestamp.now() });
+                    alert("Đã cập nhật!"); loadReports(document.getElementById('timeFilter').value);
+                } catch (e) { alert("Lỗi: " + e.message); }
+            }
+        };
 
         window.saveProfile = async (e) => {
             e.preventDefault();
             await setDoc(doc(db, "users", auth.currentUser.uid), {
-                name: document.getElementById('pName').value,
-                empId: document.getElementById('pId').value,
-                role: document.getElementById('pRole').value,
-                email: auth.currentUser.email,
-                uid: auth.currentUser.uid
+                name: document.getElementById('pName').value, empId: document.getElementById('pId').value,
+                role: document.getElementById('pRole').value, email: auth.currentUser.email, uid: auth.currentUser.uid
             });
             location.reload();
-        }
-        window.onload = () => document.getElementById('pForm').addEventListener('submit', window.saveProfile);
+        };
     </script>
 </head>
 <body>
@@ -238,20 +207,20 @@
     <div id="loginScreen">
         <div style="text-align:center">
             <h1 style="color:var(--primary);font-weight:900;font-size:24px;margin-bottom:5px">SỔ TAY CÔNG VIỆC</h1>
-            <p style="color:#888;font-size:12px">Hệ thống quản lý v1.12</p>
-            <button onclick="window.login()" style="background:#fff;border:1px solid #ddd;padding:12px 25px;border-radius:30px;font-weight:bold;color:#444;margin-top:25px;cursor:pointer">Đăng nhập Gmail</button>
+            <p style="color:#888;font-size:12px">Hệ thống quản lý nội bộ</p>
+            <button onclick="window.login()" style="background:#fff;border:1px solid #ddd;padding:12px 25px;border-radius:30px;font-weight:bold;color:#444;margin-top:25px;cursor:pointer">Đăng nhập Google</button>
         </div>
     </div>
 
     <div id="profileModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px">
         <div style="background:#fff;padding:20px;border-radius:15px;width:100%;max-width:350px">
             <h3 style="text-align:center;margin-top:0">Cập nhật hồ sơ</h3>
-            <form id="pForm">
+            <form onsubmit="saveProfile(event)">
                 <input id="pEmail" disabled style="background:#eee;margin-bottom:10px">
                 <input id="pName" placeholder="Họ tên" required style="margin-bottom:10px">
                 <input id="pId" placeholder="Mã NV" required style="margin-bottom:10px">
                 <select id="pRole" style="margin-bottom:15px">
-                    <option>Công nhân</option><option>Tổ trưởng</option><option>Tổ phó</option><option>Kỹ thuật viên</option><option>Lãnh đạo Đội</option><option>Admin</option>
+                    <option>Công nhân</option><option>Tổ trưởng</option><option>Tổ phó</option><option>Kỹ thuật viên</option><option>Lãnh đạo Đội</option>
                 </select>
                 <button class="btn btn-primary">LƯU HỒ SƠ</button>
             </form>
@@ -260,10 +229,7 @@
 
     <div id="appScreen" class="app-container hidden">
         <div class="header">
-            <div>
-                <h1>SỔ TAY CÔNG VIỆC</h1>
-                <div style="font-size:11px;color:#777">Xin chào, <span id="uName" style="font-weight:bold;color:#000">...</span></div>
-            </div>
+            <div><h1>SỔ TAY CÔNG VIỆC</h1><div style="font-size:11px">Chào, <span id="uName" style="font-weight:bold">...</span></div></div>
             <button onclick="window.logout()" class="btn-logout">THOÁT</button>
         </div>
 
@@ -271,22 +237,20 @@
             <form id="form">
                 <div class="form-group"><input id="pct" placeholder="Số Phiếu / Lệnh (Nếu có)"></div>
                 <div class="form-group"><textarea id="content" rows="4" placeholder="Nội dung công việc hôm nay *" required></textarea></div>
-                
                 <div class="form-group">
                     <div class="upload-section">
-                        <span id="fileTxt" style="font-size: 12px; color: #666;">Chưa có file nào được chọn</span>
+                        <span id="fileTxt" style="font-size:12px;color:#666">Chưa có file</span>
                         <div id="fileListPreview" class="file-list-preview"></div>
                         <input type="file" id="fileIn" multiple class="hidden">
                         <button type="button" class="btn btn-add-file" onclick="triggerFileInput()">➕ CHỌN THÊM ẢNH/FILE</button>
                     </div>
                 </div>
-                
                 <div class="form-group"><input id="notes" placeholder="Ghi chú / Kiến nghị"></div>
                 <button id="sBtn" class="btn btn-primary">GỬI BÁO CÁO</button>
             </form>
 
             <div class="filter-bar">
-                <b style="font-size:14px;color:#444">NHẬT KÝ CÔNG VIỆC</b>
+                <b style="font-size:14px">NHẬT KÝ</b>
                 <select id="timeFilter" class="filter-select" onchange="loadReports(this.value)">
                     <option value="today">Hôm nay</option><option value="week">Tuần này</option><option value="month">Tháng này</option>
                 </select>
@@ -294,6 +258,5 @@
             <div id="list"></div>
         </div>
     </div>
-
 </body>
 </html>
