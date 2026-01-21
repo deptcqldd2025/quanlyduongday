@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ tay công việc - v1.37</title>
+    <title>Sổ tay công việc - v1.38</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    
+    <style>
+        /* CSS bổ sung nhỏ cho riêng trang này nếu cần */
+        .loading-dots:after { content: '.'; animation: dots 1.5s steps(5, end) infinite; }
+        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } 80%, 100% { content: ''; } }
+    </style>
 </head>
 <body class="pb-16">
 
@@ -22,7 +28,7 @@
             <img src="https://img.icons8.com/color/48/000000/google-logo.png" class="w-5 h-5"/>
             Đăng nhập Gmail
         </button>
-        <p id="loading-text" class="mt-4 text-[10px] text-white/50 hidden">Đang kết nối hệ thống...</p>
+        <p id="loading-text" class="mt-4 text-[10px] text-white/60 hidden font-bold">Đang kết nối hệ thống<span class="loading-dots"></span></p>
     </div>
 
     <div id="sidebar" class="sidebar">
@@ -96,12 +102,17 @@
                 <textarea id="job-content" rows="4" class="input-evn" placeholder="Nội dung công việc hôm nay *"></textarea>
                 
                 <div id="file-list-container" class="space-y-2"></div>
+                
                 <div class="border-2 border-dashed border-slate-100 rounded-[20px] p-4 text-center bg-slate-50/50 cursor-pointer" onclick="document.getElementById('file-in').click()">
                     <input type="file" id="file-in" class="hidden" multiple accept="image/*,.pdf">
                     <div class="text-[10px] font-black text-blue-700 uppercase italic">+ Chọn file ảnh hoặc PDF</div>
                 </div>
+
                 <input type="text" id="job-note" class="input-evn" placeholder="Ghi chú / Kiến nghị">
-                <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-[11px] tracking-widest">Gửi báo cáo</button>
+
+                <button onclick="submitReport()" id="btn-submit" class="w-full bg-[#1A479A] text-white font-black py-4 rounded-[18px] shadow-lg uppercase text-[11px] tracking-widest active:scale-95 transition-all">
+                    Gửi báo cáo
+                </button>
                 <button id="btn-cancel-edit" onclick="resetForm()" class="hidden w-full text-red-500 font-bold text-[10px] uppercase py-2">Hủy sửa đổi</button>
             </section>
 
@@ -113,11 +124,11 @@
     </div>
 
     <div class="footer-evn">
-        <p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.37</p>
+        <p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.38</p>
     </div>
 
     <script>
-        // CẤU HÌNH TRỰC TIẾP ĐỂ TRÁNH LỖI IMPORT FILE
+        // Cấu hình Firebase trực tiếp
         const firebaseConfig = {
             apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M",
             authDomain: "baocaongay-e73a2.firebaseapp.com",
@@ -127,7 +138,6 @@
             appId: "1:75165392007:web:4ec22bb1612108b096ac22"
         };
         
-        // Khởi tạo Firebase
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
@@ -139,14 +149,14 @@
         const formattedDate = `${todayRaw.getDate().toString().padStart(2, '0')}/${(todayRaw.getMonth() + 1).toString().padStart(2, '0')}/${todayRaw.getFullYear().toString().slice(-2)}`;
         const reportNameDefault = `Báo cáo ngày ${formattedDate}`;
 
-        // 1. XỬ LÝ ĐĂNG NHẬP / MÀN HÌNH
+        // --- AUTHENTICATION ---
         auth.onAuthStateChanged(user => {
             const loginScreen = document.getElementById('login-screen');
             const mainApp = document.getElementById('main-app');
             const loadingText = document.getElementById('loading-text');
 
             if (user) {
-                // Đã đăng nhập: Ẩn Login, Hiện Main
+                // Đăng nhập thành công
                 loginScreen.classList.add('hidden');
                 mainApp.classList.remove('hidden');
                 
@@ -157,14 +167,14 @@
                 checkAssignedTasks(user.displayName);
                 loadHistory(user.email);
             } else {
-                // Chưa đăng nhập: Hiện Login
+                // Chưa đăng nhập
                 loginScreen.classList.remove('hidden');
                 mainApp.classList.add('hidden');
                 loadingText.classList.add('hidden');
             }
         });
 
-        // 2. SIDEBAR & MENU LOGIC
+        // --- SIDEBAR & MENU ---
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
 
         window.menuAction = (action) => {
@@ -176,22 +186,27 @@
                 document.getElementById('report-type').value = "Công việc được giao";
                 handleTypeChange();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (action === 'profile') {
+                window.location.href = "thongtincanhan.html"; // Chuyển trang hồ sơ
             } else {
-                alert("Tính năng " + action + " đang phát triển!");
+                alert("Chức năng đang phát triển!");
             }
         };
 
         window.handleLogin = () => {
             document.getElementById('loading-text').classList.remove('hidden');
             auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
-                .catch(e => alert("Lỗi đăng nhập: " + e.message));
+                .catch(e => {
+                    alert("Lỗi: " + e.message);
+                    document.getElementById('loading-text').classList.add('hidden');
+                });
         };
         
         window.handleLogout = () => {
-            if(confirm("Bạn muốn đăng xuất?")) auth.signOut();
+            if(confirm("Xác nhận đăng xuất?")) auth.signOut();
         };
 
-        // 3. LOGIC APP CHÍNH
+        // --- LOGIC BÁO CÁO & VIỆC ĐƯỢC GIAO ---
         async function checkAssignedTasks(workerName) {
             const taskOpt = document.getElementById('opt-assigned');
             const taskList = document.getElementById('assigned-task-list');
@@ -213,6 +228,7 @@
             document.getElementById('assigned-tasks-container').classList.toggle('hidden', type !== 'Công việc được giao');
         };
 
+        // --- XỬ LÝ FILE ---
         document.getElementById('file-in').onchange = (e) => {
             const files = Array.from(e.target.files);
             files.forEach(file => {
@@ -231,18 +247,20 @@
         }
         window.removeFile = (i) => { selectedFiles.splice(i, 1); renderFileList(); };
 
+        // --- SUBMIT BÁO CÁO ---
         window.submitReport = async () => {
             const user = auth.currentUser;
             const content = document.getElementById('job-content').value;
-            if (!content) return alert("Chưa nhập nội dung!");
+            if (!content) return alert("Vui lòng nhập nội dung công việc!");
 
             const btn = document.getElementById('btn-submit');
-            btn.disabled = true; btn.innerText = "ĐANG GỬI...";
+            btn.disabled = true; btn.innerText = "ĐANG GỬI DỮ LIỆU...";
 
             try {
                 const type = document.getElementById('report-type').value;
                 const taskId = type === 'Công việc được giao' ? document.getElementById('assigned-task-list').value : null;
 
+                // Gửi file qua AppScript (No-CORS)
                 if (selectedFiles.length > 0) {
                     fetch(APPSCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ files: selectedFiles, user: user.email }) });
                 }
@@ -252,7 +270,7 @@
                     email: user.email,
                     reportType: type,
                     assignedTaskId: taskId,
-                    reportTitle: reportNameDefault,
+                    reportTitle: reportNameDefault, // Tên báo cáo chuẩn cho Nhật ký
                     content: content,
                     note: document.getElementById('job-note').value,
                     status: "pending",
@@ -266,27 +284,31 @@
                     await db.collection("daily_reports").add(reportData);
                 }
 
-                alert("Thành công!");
+                alert("Gửi báo cáo thành công!");
                 resetForm();
-                setTimeout(() => loadHistory(user.email), 800);
+                setTimeout(() => loadHistory(user.email), 800); // Reload nhật ký
             } catch (e) { alert("Lỗi: " + e.message); }
             finally { btn.disabled = false; btn.innerText = "Gửi báo cáo"; }
         };
 
+        // --- TẢI NHẬT KÝ ---
         async function loadHistory(email) {
             const list = document.getElementById('history-list');
             const today = new Date().toLocaleDateString('vi-VN');
             try {
-                // FALLBACK MODE: Nếu lỗi index thì chỉ where, không orderBy
                 let snap;
+                // Ưu tiên sắp xếp theo thời gian (Cần Index)
                 try {
                     snap = await db.collection("daily_reports").where("email", "==", email).where("date", "==", today).orderBy("timestamp", "desc").get();
                 } catch(err) {
-                    console.warn("Index missing, switching fallback");
+                    console.warn("Chưa có Index, dùng chế độ dự phòng.");
                     snap = await db.collection("daily_reports").where("email", "==", email).where("date", "==", today).get();
                 }
 
-                if (snap.empty) { list.innerHTML = `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Chưa có báo cáo</p>`; return; }
+                if (snap.empty) { 
+                    list.innerHTML = `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Chưa có báo cáo hôm nay</p>`; 
+                    return; 
+                }
                 
                 list.innerHTML = snap.docs.map(doc => {
                     const d = doc.data();
@@ -300,7 +322,7 @@
                         <p class="text-xs text-slate-600 font-bold mt-2">${d.content}</p>
                     </div>`;
                 }).join('');
-            } catch (e) { list.innerHTML = `<p class="text-center py-10 text-red-300 text-[9px]">Lỗi: ${e.message}</p>`; }
+            } catch (e) { list.innerHTML = `<p class="text-center py-10 text-red-300 text-[9px]">Lỗi tải dữ liệu.</p>`; }
         }
 
         window.editReport = async (id) => {
