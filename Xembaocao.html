@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theo dõi báo cáo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="pb-16 bg-[#F4F7FA]">
+
+    <div id="sidebar-container"></div>
+
+    <div class="evn-header">
+        <div class="max-w-md mx-auto flex items-center">
+            <i class="fa fa-bars text-2xl cursor-pointer mr-4" onclick="toggleSidebar()"></i>
+            <h1 class="font-black text-lg italic uppercase leading-none">Theo dõi báo cáo</h1>
+        </div>
+    </div>
+
+    <div class="max-w-md mx-auto px-4 -mt-8 space-y-4">
+        
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+            <span class="text-xs font-bold text-slate-500 uppercase">Ngày xem:</span>
+            <input type="date" id="filter-date" class="border border-slate-200 rounded-lg px-3 py-1 text-sm font-bold text-blue-900 outline-none focus:border-blue-500">
+        </div>
+
+        <div id="stats-container" class="grid grid-cols-2 gap-3">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-green-500">
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Đã báo cáo</p>
+                <p class="text-2xl font-black text-green-600" id="count-reported">-</p>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-red-500">
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Chưa báo cáo</p>
+                <p class="text-2xl font-black text-red-600" id="count-missing">-</p>
+            </div>
+        </div>
+
+        <div id="missing-section" class="hidden">
+            <div class="bg-red-50 border border-red-100 p-4 rounded-2xl">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa fa-triangle-exclamation text-red-500 animate-pulse"></i>
+                    <h3 class="font-black text-red-600 text-xs uppercase" id="warning-title">Danh sách chưa báo cáo</h3>
+                </div>
+                <div id="missing-list" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="font-black text-blue-900 text-xs uppercase mb-3 ml-2">Chi tiết báo cáo (<span id="list-count">0</span>)</h3>
+            <div id="report-list" class="space-y-3">
+                <p class="text-center text-xs text-slate-400 py-10">Đang tải dữ liệu...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[24px] p-6 relative shadow-2xl animate-fade-in-up">
+            <i class="fa fa-times absolute top-4 right-4 text-slate-400 cursor-pointer text-xl" onclick="closeModal()"></i>
+            <h3 class="font-black text-lg text-[#1A479A] uppercase mb-4 border-b pb-2">Nội dung báo cáo</h3>
+            <div id="modal-content" class="text-sm text-slate-700 leading-relaxed max-h-[60vh] overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.68</p></div>
+
+    <script>
+        // 1. CONFIG
+        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        let currentUser = null;
+
+        // Set Default Date = Today
+        const dateInput = document.getElementById('filter-date');
+        const today = new Date();
+        dateInput.valueAsDate = today; 
+        // Định dạng string dd/mm/yyyy để so sánh với DB
+        let currentDateStr = today.toLocaleDateString('vi-VN');
+
+        // 2. LOAD SIDEBAR
+        fetch('sidebar.html').then(r=>r.text()).then(d=>{
+            document.getElementById('sidebar-container').innerHTML=d;
+            if(currentUser) updateSidebarInfo(currentUser);
+        });
+
+        // 3. AUTH & CHECK ROLE
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                updateSidebarInfo(user);
+                // Kiểm tra quyền: Chỉ Lãnh đạo mới được xem
+                checkManagerAccess(user);
+            } else { window.location.href = "index.html"; }
+        });
+
+        async function checkManagerAccess(user) {
+            try {
+                const doc = await db.collection("users").doc(user.email).get();
+                if(doc.exists) {
+                    const role = doc.data().position || "";
+                    const allowed = ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"];
+                    if(allowed.includes(role)) {
+                        loadDashboard(); // Đủ quyền -> Tải dữ liệu
+                    } else {
+                        alert("Bạn không có quyền truy cập trang này!");
+                        window.location.href = "index.html";
+                    }
+                }
+            } catch(e) { window.location.href = "index.html"; }
+        }
+
+        // 4. MAIN LOGIC: LOAD DASHBOARD
+        dateInput.addEventListener('change', (e) => {
+            const d = new Date(e.target.value);
+            currentDateStr = d.toLocaleDateString('vi-VN');
+            loadDashboard();
+        });
+
+        async function loadDashboard() {
+            const reportListEl = document.getElementById('report-list');
+            const missingListEl = document.getElementById('missing-list');
+            const missingSection = document.getElementById('missing-section');
+            
+            reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang xử lý...</p>';
+
+            try {
+                // Bước 1: Lấy danh sách toàn bộ nhân viên
+                const usersSnap = await db.collection("users").get();
+                const allUsers = [];
+                usersSnap.forEach(doc => {
+                    // Chỉ lấy những người có tên (đã cập nhật hồ sơ)
+                    if(doc.data().name) allUsers.push({email: doc.id, name: doc.data().name});
+                });
+
+                // Bước 2: Lấy danh sách báo cáo trong ngày đã chọn
+                const reportsSnap = await db.collection("daily_reports")
+                                            .where("date", "==", currentDateStr)
+                                            .get();
+                
+                const reportedEmails = [];
+                const reports = [];
+                
+                reportsSnap.forEach(doc => {
+                    const d = doc.data();
+                    reportedEmails.push(d.email);
+                    reports.push({...d, id: doc.id});
+                });
+
+                // Bước 3: Tìm người chưa báo cáo
+                const missingUsers = allUsers.filter(u => !reportedEmails.includes(u.email));
+
+                // Bước 4: Hiển thị Thống kê
+                document.getElementById('count-reported').innerText = reports.length;
+                document.getElementById('count-missing').innerText = missingUsers.length;
+                document.getElementById('list-count').innerText = reports.length;
+
+                // Bước 5: Hiển thị Danh sách Chưa báo cáo & Cảnh báo 19g
+                missingListEl.innerHTML = "";
+                if(missingUsers.length > 0) {
+                    missingSection.classList.remove('hidden');
+                    
+                    // Kiểm tra giờ: Nếu xem ngày hôm nay VÀ quá 19 giờ -> Cảnh báo ĐỎ
+                    const now = new Date();
+                    const isToday = (new Date().toLocaleDateString('vi-VN') === currentDateStr);
+                    const isLate = now.getHours() >= 19;
+
+                    const titleEl = document.getElementById('warning-title');
+                    
+                    if (isToday && isLate) {
+                        titleEl.innerText = "CẢNH BÁO: QUÁ 19H CHƯA BÁO CÁO";
+                        titleEl.className = "font-black text-red-600 text-xs uppercase animate-pulse";
+                    } else {
+                        titleEl.innerText = "Danh sách chưa báo cáo";
+                        titleEl.className = "font-black text-slate-600 text-xs uppercase";
+                    }
+
+                    missingListEl.innerHTML = missingUsers.map(u => 
+                        `<span class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-sm">${u.name}</span>`
+                    ).join('');
+                } else {
+                    missingSection.classList.add('hidden');
+                }
+
+                // Bước 6: Hiển thị Danh sách Đã báo cáo
+                if (reports.length === 0) {
+                    reportListEl.innerHTML = `<p class="text-center text-xs text-slate-400 italic py-4">Chưa có báo cáo nào trong ngày ${currentDateStr}</p>`;
+                } else {
+                    // Sắp xếp báo cáo: Mới nhất lên đầu
+                    reports.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+
+                    reportListEl.innerHTML = reports.map(r => {
+                        // Icon file
+                        let fileIcon = "";
+                        if(r.files && r.files.length > 0) fileIcon = `<i class="fa fa-paperclip text-blue-500 ml-1"></i>`;
+
+                        return `
+                        <div class="bg-white p-4 rounded-[20px] shadow-sm border border-slate-50 cursor-pointer hover:bg-slate-50 transition" onclick="showContent('${r.worker}', '${r.content.replace(/'/g, "\\'").replace(/\n/g, '<br>')}')">
+                            <div class="flex justify-between items-start mb-1">
+                                <h4 class="font-black text-xs text-[#1A479A] uppercase">${r.worker}</h4>
+                                <span class="bg-blue-50 text-blue-600 text-[9px] font-bold px-2 py-0.5 rounded">${r.reportType}</span>
+                            </div>
+                            <p class="text-xs text-slate-600 line-clamp-2">${r.content}</p>
+                            ${fileIcon ? `<p class="text-[9px] text-slate-400 mt-1">${fileIcon} Có đính kèm file</p>` : ''}
+                        </div>`;
+                    }).join('');
+                }
+
+            } catch(e) {
+                console.error(e);
+                reportListEl.innerHTML = `<p class="text-red-400 text-center text-xs">Lỗi tải dữ liệu: ${e.message}</p>`;
+            }
+        }
+
+        // 5. UTILS
+        function showContent(worker, content) {
+            document.getElementById('modal-content').innerHTML = `<b>Người báo cáo:</b> ${worker}<br><br>${content}`;
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+        function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
+        
+        function updateSidebarInfo(user) {
+            const nameEl = document.getElementById('sidebar-user-name');
+            if(nameEl) nameEl.innerText = user.displayName;
+        }
+
+        window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
+        window.menuAction = (action) => {
+            toggleSidebar();
+            if (action === 'report') window.location.href = "index.html";
+            else if (action === 'view-reports') {}; // Trang này
+            else if (action === 'assigned') window.location.href = "congvieccuatoi.html";
+            else if (action === 'notification') window.location.href = "xemthongbao.html";
+            else if (action === 'profile') window.location.href = "thongtincanhan.html";
+            else if (action === 'guide') window.location.href = "huongdan.html";
+            else if (action === 'send-notify') window.location.href = "guithongbao.html";
+            else if (action === 'assign-task') window.location.href = "giaocongviec.html";
+        };
+        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
+    </script>
+</body>
+</html>
