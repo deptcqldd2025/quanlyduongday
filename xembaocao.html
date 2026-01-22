@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Theo dõi báo cáo - v1.74</title>
+    <title>Theo dõi báo cáo - v1.75</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -29,7 +29,7 @@
                 <span class="text-xs font-bold text-slate-500 uppercase">Ngày xem:</span>
                 <input type="date" id="filter-date" class="border border-slate-200 rounded-lg px-3 py-1 text-sm font-bold text-blue-900 outline-none focus:border-blue-500">
             </div>
-            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang tải hệ thống...</p>
+            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang khởi động...</p>
         </div>
 
         <div id="stats-container" class="grid grid-cols-2 gap-3">
@@ -69,28 +69,16 @@
         </div>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.74</p></div>
+    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.75</p></div>
 
     <script>
-        // 1. CONFIG
-        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-        let currentUser = null;
-
-        // 2. LOAD SIDEBAR & MENU (ĐƯA LÊN TRƯỚC ĐỂ LUÔN CHẠY)
-        fetch('sidebar.html').then(r=>r.text()).then(d=>{
-            document.getElementById('sidebar-container').innerHTML=d;
-            if(currentUser) updateSidebarInfo(currentUser);
-        });
-
-        window.toggleSidebar = () => {
-            const sb = document.getElementById('sidebar');
+        // --- 1. MENU ACTION (ĐƯA LÊN ĐẦU ĐỂ KHÔNG BỊ LỖI) ---
+        window.toggleSidebar = function() {
+            var sb = document.getElementById('sidebar');
             if(sb) sb.classList.toggle('active');
         };
 
-        window.menuAction = (action) => {
+        window.menuAction = function(action) {
             toggleSidebar();
             if (action === 'report') window.location.href = "index.html";
             else if (action === 'view-reports') {}; 
@@ -103,162 +91,190 @@
             else alert("Tính năng đang phát triển!");
         };
 
-        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
+        window.handleLogout = function() {
+            if(confirm("Đăng xuất?")) {
+                if(typeof firebase !== 'undefined') firebase.auth().signOut().then(function(){ window.location.href = "index.html"; });
+                else window.location.href = "index.html";
+            }
+        };
 
-        // 3. KHỞI TẠO NGÀY (CÁCH AN TOÀN NHẤT)
-        // Tự tạo chuỗi YYYY-MM-DD theo giờ địa phương để tránh lỗi múi giờ
-        const todayObj = new Date();
-        const yyyy = todayObj.getFullYear();
-        const mm = String(todayObj.getMonth() + 1).padStart(2, '0');
-        const dd = String(todayObj.getDate()).padStart(2, '0');
-        
-        const dateInput = document.getElementById('filter-date');
-        if(dateInput) dateInput.value = `${yyyy}-${mm}-${dd}`;
+        // --- 2. MAIN LOGIC (BỌC TRONG TRY-CATCH ĐỂ BẮT LỖI) ---
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                // A. ĐIỀN NGÀY MẶC ĐỊNH
+                var todayObj = new Date();
+                var yyyy = todayObj.getFullYear();
+                var mm = String(todayObj.getMonth() + 1).padStart(2, '0');
+                var dd = String(todayObj.getDate()).padStart(2, '0');
+                
+                var dateInput = document.getElementById('filter-date');
+                if(dateInput) dateInput.value = yyyy + '-' + mm + '-' + dd;
 
-        // 4. AUTH & CHECK QUYỀN
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                currentUser = user;
-                updateSidebarInfo(user);
-                checkManagerAccess(user);
-            } else { window.location.href = "index.html"; }
+                // B. KIỂM TRA FIREBASE
+                if (typeof firebase === 'undefined') {
+                    throw new Error("Không thể tải thư viện Firebase. Vui lòng kiểm tra kết nối mạng!");
+                }
+
+                // C. CẤU HÌNH
+                var firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
+                
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                var db = firebase.firestore();
+                var auth = firebase.auth();
+                var currentUser = null;
+
+                // D. LOAD SIDEBAR
+                fetch('sidebar.html').then(function(r){ return r.text() }).then(function(d){
+                    document.getElementById('sidebar-container').innerHTML = d;
+                    if(currentUser) updateSidebarInfo(currentUser);
+                }).catch(function(err){ console.error(err); });
+
+                // E. AUTHENTICATION
+                auth.onAuthStateChanged(function(user) {
+                    if (user) {
+                        currentUser = user;
+                        updateSidebarInfo(user);
+                        checkManagerAccess(user);
+                    } else {
+                        window.location.href = "index.html";
+                    }
+                });
+
+                // F. EVENT LISTENER
+                dateInput.addEventListener('change', function() { loadDashboard(); });
+
+                // G. CÁC HÀM XỬ LÝ
+                function updateSidebarInfo(user) { 
+                    var n = document.getElementById('sidebar-user-name'); 
+                    if(n) n.innerText = user.displayName; 
+                }
+
+                async function checkManagerAccess(user) {
+                    try {
+                        var doc = await db.collection("users").doc(user.email).get();
+                        if(doc.exists) {
+                            var role = doc.data().position;
+                            if(["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"].includes(role)) {
+                                loadDashboard();
+                            } else {
+                                alert("Bạn không có quyền truy cập!"); window.location.href="index.html";
+                            }
+                        } else {
+                            loadDashboard(); // Cho phép chạy thử nếu chưa có role (tùy chọn)
+                        }
+                    } catch(e) { console.error(e); loadDashboard(); }
+                }
+
+                async function loadDashboard() {
+                    var reportListEl = document.getElementById('report-list');
+                    var statusText = document.getElementById('status-text');
+                    var inputVal = dateInput.value;
+                    
+                    if(!inputVal) return;
+
+                    var parts = inputVal.split('-');
+                    var startOfDay = new Date(parts[0], parts[1]-1, parts[2], 0, 0, 0);
+                    var endOfDay = new Date(parts[0], parts[1]-1, parts[2], 23, 59, 59);
+
+                    statusText.innerText = "Đang tải dữ liệu: " + startOfDay.toLocaleDateString('vi-VN');
+                    reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang truy xuất...</p>';
+
+                    try {
+                        // 1. Lấy Users
+                        var usersSnap = await db.collection("users").get();
+                        var allUsers = [];
+                        usersSnap.forEach(function(doc) {
+                            var d = doc.data();
+                            if(d.name) allUsers.push({email: doc.id, name: d.name});
+                        });
+
+                        // 2. Lấy Báo Cáo (Query theo Timestamp)
+                        var reportsSnap = await db.collection("daily_reports")
+                                                .where("timestamp", ">=", startOfDay)
+                                                .where("timestamp", "<=", endOfDay)
+                                                .get();
+                        
+                        var reportedEmails = [];
+                        var reports = [];
+                        
+                        reportsSnap.forEach(function(doc) {
+                            var d = doc.data();
+                            reportedEmails.push(d.email);
+                            reports.push({...d, id: doc.id});
+                        });
+
+                        // 3. Tính toán
+                        var missingUsers = allUsers.filter(function(u) { return !reportedEmails.includes(u.email); });
+
+                        document.getElementById('count-reported').innerText = reports.length;
+                        document.getElementById('count-missing').innerText = missingUsers.length;
+                        document.getElementById('list-count').innerText = reports.length;
+
+                        // 4. Hiển thị thiếu
+                        var missingEl = document.getElementById('missing-list');
+                        var missingSec = document.getElementById('missing-section');
+                        missingEl.innerHTML = "";
+
+                        if(missingUsers.length > 0) {
+                            missingSec.classList.remove('hidden');
+                            var now = new Date();
+                            var isToday = now.getDate() === startOfDay.getDate() && now.getMonth() === startOfDay.getMonth();
+                            var isLate = now.getHours() >= 19;
+                            var titleEl = document.getElementById('warning-title');
+
+                            if(isToday && isLate) {
+                                titleEl.innerText = "CẢNH BÁO: QUÁ 19H CHƯA BÁO CÁO";
+                                titleEl.className = "font-black text-red-600 text-xs uppercase animate-pulse";
+                            } else {
+                                titleEl.innerText = "Danh sách chưa báo cáo";
+                                titleEl.className = "font-black text-slate-600 text-xs uppercase";
+                            }
+
+                            missingEl.innerHTML = missingUsers.map(function(u) {
+                                return '<span class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-sm">' + u.name + '</span>';
+                            }).join('');
+                        } else {
+                            missingSec.classList.add('hidden');
+                        }
+
+                        // 5. Hiển thị báo cáo
+                        if (reports.length === 0) {
+                            reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 italic py-4">Chưa có báo cáo nào</p>';
+                        } else {
+                            reports.sort(function(a,b) { return (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0) });
+                            reportListEl.innerHTML = reports.map(function(r) {
+                                var fileIcon = (r.files && r.files.length > 0) ? '<i class="fa fa-paperclip text-blue-500 ml-1"></i>' : "";
+                                var cleanContent = r.content.replace(/'/g, "\\'").replace(/\n/g, '<br>');
+                                return '<div class="bg-white p-4 rounded-[20px] shadow-sm border border-slate-50 cursor-pointer hover:bg-slate-50 transition" onclick="showContent(\'' + r.worker + '\', \'' + cleanContent + '\')">' +
+                                    '<div class="flex justify-between items-start mb-1">' +
+                                        '<h4 class="font-black text-xs text-[#1A479A] uppercase">' + r.worker + '</h4>' +
+                                        '<span class="bg-blue-50 text-blue-600 text-[9px] font-bold px-2 py-0.5 rounded">' + r.reportType + '</span>' +
+                                    '</div>' +
+                                    '<p class="text-xs text-slate-600 line-clamp-2">' + r.content + '</p>' +
+                                    (fileIcon ? '<p class="text-[9px] text-slate-400 mt-1">' + fileIcon + ' Có đính kèm file</p>' : '') +
+                                '</div>';
+                            }).join('');
+                        }
+                        statusText.innerText = "Đã cập nhật dữ liệu.";
+
+                    } catch(err) {
+                        console.error(err);
+                        reportListEl.innerHTML = '<p class="text-red-400 text-center text-xs">Lỗi: ' + err.message + '</p>';
+                    }
+                }
+
+            } catch(globalErr) {
+                alert("Lỗi Nghiêm Trọng: " + globalErr.message);
+            }
         });
 
-        async function checkManagerAccess(user) {
-            try {
-                const doc = await db.collection("users").doc(user.email).get();
-                if(doc.exists && ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"].includes(doc.data().position)) {
-                    loadDashboard(); // Bắt đầu tải dữ liệu
-                } else {
-                    alert("Bạn không có quyền xem báo cáo!");
-                    window.location.href = "index.html";
-                }
-            } catch(e) { window.location.href = "index.html"; }
-        }
-
-        // 5. XỬ LÝ DỮ LIỆU BÁO CÁO (SO KHỚP THÔNG MINH)
-        dateInput.addEventListener('change', () => loadDashboard());
-
-        async function loadDashboard() {
-            const reportListEl = document.getElementById('report-list');
-            const statusText = document.getElementById('status-text');
-            
-            // Lấy ngày từ input
-            const inputVal = dateInput.value; 
-            if(!inputVal) return;
-            
-            // Tách chuỗi YYYY-MM-DD
-            const parts = inputVal.split('-');
-            const searchYear = parseInt(parts[0]);
-            const searchMonth = parseInt(parts[1]);
-            const searchDay = parseInt(parts[2]);
-
-            statusText.innerText = `Đang xem ngày: ${searchDay}/${searchMonth}/${searchYear}`;
-            reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang xử lý dữ liệu...</p>';
-
-            try {
-                // A. Lấy danh sách nhân viên
-                const usersSnap = await db.collection("users").get();
-                const allUsers = [];
-                usersSnap.forEach(doc => { 
-                    const d = doc.data();
-                    if(d.name) allUsers.push({email: doc.id, name: d.name}); 
-                });
-
-                // B. Lấy 200 báo cáo mới nhất (Để lọc bằng JS cho chính xác)
-                const reportsSnap = await db.collection("daily_reports")
-                                            .orderBy("timestamp", "desc")
-                                            .limit(200)
-                                            .get();
-                
-                const reportedEmails = [];
-                const reports = [];
-                
-                reportsSnap.forEach(doc => {
-                    const d = doc.data();
-                    // KIỂM TRA NGÀY (Quan trọng: So sánh số học để bỏ qua vấn đề 01 vs 1)
-                    if(d.date) {
-                        const dateParts = d.date.split('/'); // Giả định dd/mm/yyyy
-                        if(dateParts.length === 3) {
-                            const rDay = parseInt(dateParts[0]);
-                            const rMonth = parseInt(dateParts[1]);
-                            const rYear = parseInt(dateParts[2]);
-
-                            if(rDay === searchDay && rMonth === searchMonth && rYear === searchYear) {
-                                reportedEmails.push(d.email);
-                                reports.push({...d, id: doc.id});
-                            }
-                        }
-                    }
-                });
-
-                // C. Tính toán người thiếu
-                const missingUsers = allUsers.filter(u => !reportedEmails.includes(u.email));
-
-                // D. Hiển thị Thống kê
-                document.getElementById('count-reported').innerText = reports.length;
-                document.getElementById('count-missing').innerText = missingUsers.length;
-                document.getElementById('list-count').innerText = reports.length;
-
-                // E. Hiển thị danh sách thiếu
-                const missingEl = document.getElementById('missing-list');
-                const missingSec = document.getElementById('missing-section');
-                missingEl.innerHTML = "";
-                
-                if(missingUsers.length > 0) {
-                    missingSec.classList.remove('hidden');
-                    // Cảnh báo 19h
-                    const now = new Date();
-                    const isToday = (now.getDate() === searchDay && (now.getMonth()+1) === searchMonth && now.getFullYear() === searchYear);
-                    const isLate = now.getHours() >= 19;
-                    const titleEl = document.getElementById('warning-title');
-                    
-                    if(isToday && isLate) {
-                        titleEl.innerText = "CẢNH BÁO: QUÁ 19H CHƯA BÁO CÁO";
-                        titleEl.className = "font-black text-red-600 text-xs uppercase animate-pulse";
-                    } else {
-                        titleEl.innerText = "Danh sách chưa báo cáo";
-                        titleEl.className = "font-black text-slate-600 text-xs uppercase";
-                    }
-
-                    missingEl.innerHTML = missingUsers.map(u => 
-                        `<span class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-sm">${u.name}</span>`
-                    ).join('');
-                } else {
-                    missingSec.classList.add('hidden');
-                }
-
-                // F. Hiển thị danh sách báo cáo
-                if (reports.length === 0) {
-                    reportListEl.innerHTML = `<p class="text-center text-xs text-slate-400 italic py-4">Không tìm thấy báo cáo nào</p>`;
-                } else {
-                    reportListEl.innerHTML = reports.map(r => {
-                        let fileIcon = (r.files && r.files.length > 0) ? `<i class="fa fa-paperclip text-blue-500 ml-1"></i>` : "";
-                        return `
-                        <div class="bg-white p-4 rounded-[20px] shadow-sm border border-slate-50 cursor-pointer hover:bg-slate-50 transition" onclick="showContent('${r.worker}', '${r.content.replace(/'/g, "\\'").replace(/\n/g, '<br>')}')">
-                            <div class="flex justify-between items-start mb-1">
-                                <h4 class="font-black text-xs text-[#1A479A] uppercase">${r.worker}</h4>
-                                <span class="bg-blue-50 text-blue-600 text-[9px] font-bold px-2 py-0.5 rounded">${r.reportType}</span>
-                            </div>
-                            <p class="text-xs text-slate-600 line-clamp-2">${r.content}</p>
-                            ${fileIcon ? `<p class="text-[9px] text-slate-400 mt-1">${fileIcon} Có đính kèm file</p>` : ''}
-                        </div>`;
-                    }).join('');
-                }
-
-            } catch(e) { 
-                console.error(e);
-                reportListEl.innerHTML = `<p class="text-red-400 text-center text-xs">Lỗi: ${e.message}</p>`;
-            }
-        }
-
-        // UTILS
+        // HÀM TOÀN CỤC CHO HTML GỌI
         function showContent(worker, content) {
-            document.getElementById('modal-content').innerHTML = `<b>Người báo cáo:</b> ${worker}<br><br>${content}`;
+            document.getElementById('modal-content').innerHTML = '<b>Người báo cáo:</b> ' + worker + '<br><br>' + content;
             document.getElementById('detailModal').classList.remove('hidden');
         }
         function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
-        function updateSidebarInfo(user) { const n = document.getElementById('sidebar-user-name'); if(n) n.innerText = user.displayName; }
+
     </script>
 </body>
 </html>
