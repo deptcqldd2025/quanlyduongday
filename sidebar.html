@@ -16,8 +16,10 @@
         <div class="menu-item" onclick="menuAction('report')">
             <i class="fa fa-pen-to-square"></i> Gửi báo cáo
         </div>
+        
         <div class="menu-item" onclick="menuAction('assigned')">
             <i class="fa fa-clipboard-list"></i> Công việc của tôi
+            <span id="task-badge" class="ml-auto bg-blue-600 text-white text-[9px] px-2 rounded-full hidden">0</span>
         </div>
         
         <div class="menu-item hidden manager-only" onclick="menuAction('send-notify')">
