@@ -1,84 +1,311 @@
-<script>
-    // ... (Các phần code khác giữ nguyên)
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang Quản Trị - Admin v1.85</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-tab { cursor: pointer; padding: 12px 20px; font-weight: 700; color: #64748B; border-bottom: 3px solid transparent; transition: 0.3s; white-space: nowrap; font-size: 13px; }
+        .admin-tab:hover { background-color: #F8FAFC; }
+        .admin-tab.active { color: #1A479A; border-bottom-color: #1A479A; background-color: #EFF6FF; }
+        .table-header { background: #F1F5F9; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 800; }
+        .table-row { border-bottom: 1px solid #E2E8F0; transition: 0.2s; }
+        .table-row:hover { background: #F8FAFC; }
+        .td-cell { padding: 12px; font-size: 12px; color: #334155; vertical-align: middle; }
+        .modal { display: none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 600px; border-radius: 10px; }
+        #auth-loading { position: fixed; inset: 0; background: #F4F7FA; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body class="bg-[#F4F7FA] pb-10">
 
-    // LOAD NHÂN SỰ
-    async function loadUsers() {
-        const tbody = document.getElementById('tbody-users'); 
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>';
-        
-        try {
-            // Sắp xếp: Pending lên đầu để dễ thấy
-            const s = await db.collection("users").orderBy("status", "desc").get(); // pending > approved (theo alphabet P > A)
-            
-            tbody.innerHTML = s.docs.map(doc => {
-                const d = doc.data();
-                const isPending = d.status === 'pending';
-                const statusBadge = isPending 
-                    ? `<span class="bg-orange-100 text-orange-600 px-2 py-1 rounded text-[9px] font-black uppercase animate-pulse">Chờ duyệt</span>`
-                    : `<span class="bg-green-100 text-green-600 px-2 py-1 rounded text-[9px] font-bold uppercase">Đã duyệt</span>`;
+    <div id="auth-loading">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900 mb-4"></div>
+        <p class="text-xs font-bold text-slate-500 uppercase">Đang xác thực quyền Admin...</p>
+    </div>
+
+    <div id="admin-main-content" class="hidden">
+        <div id="sidebar-container"></div>
+
+        <div class="evn-header">
+            <div class="max-w-6xl mx-auto flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fa fa-bars text-2xl cursor-pointer mr-4 lg:hidden" onclick="toggleSidebar()"></i>
+                    <h1 class="font-black text-xl italic uppercase leading-none">Hệ thống quản trị</h1>
+                </div>
+                <div class="flex flex-col items-end">
+                    <div class="text-[10px] bg-white/20 px-3 py-1 rounded-full font-bold">SUPER ADMIN</div>
+                    <span id="current-admin-name" class="text-[9px] mt-1 opacity-80">...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-6xl mx-auto px-4 mt-6">
+            <div class="bg-white rounded-t-2xl shadow-sm border-b border-slate-200 flex overflow-x-auto no-scrollbar">
+                <div class="admin-tab active" onclick="switchTab(event, 'reports')"><i class="fa fa-file-alt mr-2"></i>Báo cáo</div>
+                <div class="admin-tab" onclick="switchTab(event, 'notifications')"><i class="fa fa-history mr-2"></i>Lịch sử TB</div>
+                <div class="admin-tab" onclick="switchTab(event, 'tasks')"><i class="fa fa-history mr-2"></i>Lịch sử Việc</div>
+                <div class="admin-tab" onclick="switchTab(event, 'users')"><i class="fa fa-users mr-2"></i>Nhân sự (Duyệt)</div>
                 
-                // Nếu đang chờ duyệt, hiện nút DUYỆT. Nếu đã duyệt, hiện nút LƯU
-                const actionBtn = isPending
-                    ? `<button onclick="approveUser('${doc.id}', '${d.name}')" class="bg-green-600 text-white px-3 py-1 rounded text-[10px] font-bold shadow hover:bg-green-700"><i class="fa fa-check mr-1"></i> DUYỆT NGAY</button>`
-                    : `<button onclick="updateUser('${doc.id}')" class="bg-blue-600 text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-700">Lưu</button>`;
+                <div class="admin-tab text-red-600" onclick="switchTab(event, 'create-notify')"><i class="fa fa-bullhorn mr-2"></i>Soạn Thông báo</div>
+                <div class="admin-tab text-green-600" onclick="switchTab(event, 'create-task')"><i class="fa fa-plus-circle mr-2"></i>Giao Việc Mới</div>
+            </div>
 
-                return `<tr class="table-row ${isPending ? 'bg-orange-50/50' : ''}">
-                    <td class="td-cell font-bold">${d.name || '---'}</td>
-                    <td class="td-cell text-[10px]">${d.email}</td>
-                    <td class="td-cell text-center">${statusBadge}</td>
-                    <td class="td-cell">
-                        <select id="role-${doc.id}" class="border rounded p-1 text-[11px] font-bold bg-white">
-                            <option value="Công nhân" ${d.position=='Công nhân'?'selected':''}>Công nhân</option>
-                            <option value="Kỹ thuật viên" ${d.position=='Kỹ thuật viên'?'selected':''}>Kỹ thuật viên</option>
-                            <option value="Tổ phó" ${d.position=='Tổ phó'?'selected':''}>Tổ phó</option>
-                            <option value="Tổ trưởng" ${d.position=='Tổ trưởng'?'selected':''}>Tổ trưởng</option>
-                            <option value="Đội phó" ${d.position=='Đội phó'?'selected':''}>Đội phó</option>
-                            <option value="Đội trưởng" ${d.position=='Đội trưởng'?'selected':''}>Đội trưởng</option>
-                            <option value="Lãnh đạo" ${d.position=='Lãnh đạo'?'selected':''}>Lãnh đạo</option>
-                        </select>
-                    </td>
-                    <td class="td-cell">
-                        <select id="unit-${doc.id}" class="border rounded p-1 text-[11px] font-bold bg-white">
-                            <option value="Nhóm 1" ${d.unit=='Nhóm 1'?'selected':''}>Nhóm 1</option>
-                            <option value="Nhóm 2" ${d.unit=='Nhóm 2'?'selected':''}>Nhóm 2</option>
-                            <option value="Nhóm 3" ${d.unit=='Nhóm 3'?'selected':''}>Nhóm 3</option>
-                            <option value="Nhóm 4" ${d.unit=='Nhóm 4'?'selected':''}>Nhóm 4</option>
-                            <option value="Nhóm kỹ thuật" ${d.unit=='Nhóm kỹ thuật'?'selected':''}>Nhóm kỹ thuật</option>
-                            <option value="Văn phòng đội" ${d.unit=='Văn phòng đội'?'selected':''}>Văn phòng đội</option>
-                        </select>
-                    </td>
-                    <td class="td-cell text-center">${actionBtn}</td>
-                    <td class="td-cell text-center"><i class="fa fa-trash text-red-400 cursor-pointer" onclick="deleteItem('users','${doc.id}')"></i></td>
-                </tr>`;
-            }).join('');
-        } catch(e) { console.error(e); }
-    }
+            <div class="bg-white rounded-b-2xl shadow-lg min-h-[500px] p-4 overflow-x-auto">
+                
+                <div id="tab-reports" class="tab-content">
+                    <div class="flex justify-between items-center mb-4"><h3 class="font-black text-blue-900 text-sm uppercase">Dữ liệu báo cáo ngày</h3><button onclick="loadReports()" class="text-xs bg-slate-100 p-2 rounded hover:bg-slate-200"><i class="fa fa-sync"></i></button></div>
+                    <table class="w-full text-left border-collapse min-w-[800px]">
+                        <thead><tr class="table-header"><th class="p-3">Thời gian</th><th class="p-3">Nhân viên</th><th class="p-3">Loại</th><th class="p-3 w-1/3">Nội dung</th><th class="p-3 text-center">File</th><th class="p-3 text-center">Xóa</th></tr></thead>
+                        <tbody id="tbody-reports"></tbody>
+                    </table>
+                </div>
 
-    // HÀM DUYỆT USER MỚI
-    async function approveUser(email, name) {
-        if(confirm(`Duyệt tài khoản ${name} (${email}) vào hệ thống?`)) {
+                <div id="tab-notifications" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4"><h3 class="font-black text-blue-900 text-sm uppercase">Lịch sử thông báo</h3><button onclick="loadNoti()" class="text-xs bg-slate-100 p-2 rounded hover:bg-slate-200"><i class="fa fa-sync"></i></button></div>
+                    <table class="w-full text-left border-collapse min-w-[800px]">
+                        <thead><tr class="table-header"><th class="p-3">Ngày gửi</th><th class="p-3">Tiêu đề</th><th class="p-3">Người gửi</th><th class="p-3">Nội dung</th><th class="p-3 text-center">File</th><th class="p-3 text-center">Đã xem</th><th class="p-3 text-center">Xóa</th></tr></thead>
+                        <tbody id="tbody-notifications"></tbody>
+                    </table>
+                </div>
+
+                <div id="tab-tasks" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4"><h3 class="font-black text-blue-900 text-sm uppercase">Theo dõi giao việc</h3><button onclick="loadTasks()" class="text-xs bg-slate-100 p-2 rounded hover:bg-slate-200"><i class="fa fa-sync"></i></button></div>
+                    <table class="w-full text-left border-collapse min-w-[800px]">
+                        <thead><tr class="table-header"><th class="p-3">Ngày giao</th><th class="p-3">Hạn chót</th><th class="p-3">Tên việc</th><th class="p-3">Người làm</th><th class="p-3">Trạng thái</th><th class="p-3 text-center">File</th><th class="p-3 text-center">Xóa</th></tr></thead>
+                        <tbody id="tbody-tasks"></tbody>
+                    </table>
+                </div>
+
+                <div id="tab-users" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4"><h3 class="font-black text-blue-900 text-sm uppercase">Quản lý nhân viên</h3><button onclick="loadUsers()" class="text-xs bg-slate-100 p-2 rounded hover:bg-slate-200"><i class="fa fa-sync"></i></button></div>
+                    <p class="text-[10px] text-orange-500 italic mb-2">* Nhân viên mới đăng ký sẽ hiện ở đầu danh sách với trạng thái "Chờ duyệt".</p>
+                    <table class="w-full text-left border-collapse min-w-[800px]">
+                        <thead><tr class="table-header"><th class="p-3">Tên</th><th class="p-3">Email</th><th class="p-3">Trạng thái</th><th class="p-3">Chức vụ</th><th class="p-3">Đơn vị</th><th class="p-3 text-center">Hành động</th><th class="p-3 text-center">Xóa</th></tr></thead>
+                        <tbody id="tbody-users"></tbody>
+                    </table>
+                </div>
+
+                <div id="tab-create-notify" class="tab-content hidden">
+                    <div class="max-w-2xl mx-auto">
+                        <h3 class="font-black text-blue-900 text-sm uppercase mb-4 border-l-4 border-red-500 pl-3">Soạn thảo thông báo mới</h3>
+                        <div class="space-y-4">
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">Tiêu đề</label><input type="text" id="nt-title" class="input-evn" placeholder="Nhập tiêu đề..."></div>
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">Mức độ</label><select id="nt-priority" class="input-evn"><option value="normal">Thông thường</option><option value="urgent">Khẩn cấp ⚡</option><option value="warning">Cảnh báo an toàn ⚠️</option></select></div>
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">Nội dung</label><textarea id="nt-content" rows="5" class="input-evn" placeholder="Nội dung chi tiết..."></textarea></div>
+                            
+                            <div id="nt-file-list" class="space-y-2"></div>
+                            <div class="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-50" onclick="document.getElementById('nt-file-in').click()">
+                                <input type="file" id="nt-file-in" class="hidden" multiple accept="image/*,.pdf,.doc,.docx"><div class="text-[11px] font-bold text-blue-500">+ Đính kèm file</div>
+                            </div>
+
+                            <button onclick="sendNotificationAdmin()" id="btn-send-nt" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-red-700 transition">PHÁT HÀNH THÔNG BÁO</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-create-task" class="tab-content hidden">
+                    <div class="max-w-2xl mx-auto">
+                        <h3 class="font-black text-blue-900 text-sm uppercase mb-4 border-l-4 border-green-500 pl-3">Phát lệnh giao việc</h3>
+                        <div class="space-y-4">
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">Tên công việc</label><input type="text" id="task-name" class="input-evn" placeholder="Tên công việc..."></div>
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">Người thực hiện</label><select id="task-assignee" class="input-evn"><option value="">Đang tải danh sách...</option></select></div>
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">Mô tả chi tiết</label><textarea id="task-desc" rows="4" class="input-evn" placeholder="Mô tả công việc..."></textarea></div>
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">Hạn hoàn thành</label><input type="date" id="task-deadline" class="input-evn"></div>
+
+                            <div id="task-file-list" class="space-y-2"></div>
+                            <div class="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-50" onclick="document.getElementById('task-file-in').click()">
+                                <input type="file" id="task-file-in" class="hidden" multiple accept="image/*,.pdf,.doc,.docx"><div class="text-[11px] font-bold text-blue-500">+ Đính kèm tài liệu</div>
+                            </div>
+
+                            <button onclick="assignTaskAdmin()" id="btn-send-task" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 transition">GIAO VIỆC NGAY</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="detailModal" class="modal"><div class="modal-content relative"><span class="absolute top-2 right-4 text-2xl font-bold cursor-pointer text-slate-400 hover:text-red-500" onclick="closeModal()">&times;</span><h2 id="modal-title" class="font-black text-lg text-blue-900 mb-4 border-b pb-2">Chi tiết</h2><div id="modal-body" class="text-sm text-slate-700 leading-relaxed"></div></div></div>
+
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(); const auth = firebase.auth();
+        const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
+        
+        let currentUser = null, notifyFiles = [], taskFiles = [];
+
+        fetch('sidebar.html').then(r=>r.text()).then(d=>{ document.getElementById('sidebar-container').innerHTML=d; });
+
+        // --- AUTH & SECURITY ---
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                try {
+                    const doc = await db.collection("users").doc(user.email).get();
+                    if(doc.exists && ["Tổ phó","Tổ trưởng","Đội phó","Đội trưởng","Lãnh đạo"].includes(doc.data().position)) {
+                        currentUser = user;
+                        document.getElementById('current-admin-name').innerText = user.displayName;
+                        document.getElementById('auth-loading').classList.add('hidden');
+                        document.getElementById('admin-main-content').classList.remove('hidden');
+                        loadReports(); // Default Load
+                    } else { alert("Không có quyền Admin!"); window.location.href="index.html"; }
+                } catch(e) { window.location.href="index.html"; }
+            } else { window.location.href="index.html"; }
+        });
+
+        // --- TAB SWITCHER ---
+        function switchTab(event, tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.admin-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            if(event) event.currentTarget.classList.add('active');
+            
+            if(tabName === 'reports') loadReports();
+            if(tabName === 'users') loadUsers();
+            if(tabName === 'notifications') loadNoti();
+            if(tabName === 'tasks') loadTasks();
+            if(tabName === 'create-task') loadStaffForAssign();
+        }
+
+        // --- DATA LOADERS ---
+        async function loadReports() {
+            const tbody = document.getElementById('tbody-reports'); tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>';
+            const s = await db.collection("daily_reports").orderBy("timestamp", "desc").limit(50).get();
+            tbody.innerHTML = s.empty ? '<tr><td colspan="6" class="text-center p-4">Trống</td></tr>' : s.docs.map(doc=>{const d=doc.data(); return `<tr class="table-row"><td class="td-cell">${d.date}</td><td class="td-cell font-bold text-blue-900">${d.worker}</td><td class="td-cell">${d.reportType}</td><td class="td-cell truncate max-w-xs" title="${d.content}">${d.content}</td><td class="td-cell text-center">${renderFileIcons(d.files)}</td><td class="td-cell text-center"><i class="fa fa-trash text-red-400 cursor-pointer" onclick="deleteItem('daily_reports','${doc.id}')"></i></td></tr>`;}).join('');
+        }
+
+        async function loadNoti() {
+            const tbody = document.getElementById('tbody-notifications'); tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>';
+            const s = await db.collection("notifications").orderBy("timestamp", "desc").limit(30).get();
+            tbody.innerHTML = s.docs.map(doc=>{const d=doc.data(); return `<tr class="table-row"><td class="td-cell">${d.date}</td><td class="td-cell font-bold">${d.title}</td><td class="td-cell">${d.sender}</td><td class="td-cell truncate max-w-xs">${d.content}</td><td class="td-cell text-center">${renderFileIcons(d.files)}</td><td class="td-cell text-center">${d.read_by?d.read_by.length:0} người</td><td class="td-cell text-center"><i class="fa fa-trash text-red-400 cursor-pointer" onclick="deleteItem('notifications','${doc.id}')"></i></td></tr>`;}).join('');
+        }
+
+        async function loadTasks() {
+            const tbody = document.getElementById('tbody-tasks'); tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>';
+            const s = await db.collection("tasks").orderBy("created_at", "desc").limit(50).get();
+            tbody.innerHTML = s.docs.map(doc=>{const d=doc.data(); return `<tr class="table-row"><td class="td-cell">${new Date(d.created_at.seconds*1000).toLocaleDateString('vi-VN')}</td><td class="td-cell text-red-500 font-bold">${d.deadline}</td><td class="td-cell font-bold">${d.don_vi_de_nghi}</td><td class="td-cell">${d.assigned_leader}</td><td class="td-cell">${d.accepted_at?'<span class="text-green-600 font-bold">Đã nhận</span>':'<span class="text-orange-500">Chưa nhận</span>'}</td><td class="td-cell text-center">${renderFileIcons(d.files)}</td><td class="td-cell text-center"><i class="fa fa-trash text-red-400 cursor-pointer" onclick="deleteItem('tasks','${doc.id}')"></i></td></tr>`;}).join('');
+        }
+
+        // --- LOAD USERS (CÓ DUYỆT) ---
+        async function loadUsers() {
+            const tbody = document.getElementById('tbody-users'); tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>';
             try {
-                // Mặc định set là Công nhân / Nhóm 1. Admin có thể sửa sau.
-                await db.collection("users").doc(email).update({
-                    status: 'approved',
-                    position: document.getElementById(`role-${email}`).value,
-                    unit: document.getElementById(`unit-${email}`).value
+                // Sắp xếp: Pending lên đầu
+                const s = await db.collection("users").orderBy("status", "desc").get();
+                tbody.innerHTML = s.docs.map(doc => {
+                    const d = doc.data();
+                    const isPending = d.status === 'pending';
+                    const statusBadge = isPending 
+                        ? `<span class="bg-orange-100 text-orange-600 px-2 py-1 rounded text-[9px] font-black uppercase animate-pulse">Chờ duyệt</span>`
+                        : `<span class="bg-green-100 text-green-600 px-2 py-1 rounded text-[9px] font-bold uppercase">Đã duyệt</span>`;
+                    
+                    const actionBtn = isPending
+                        ? `<button onclick="approveUser('${doc.id}', '${d.name}')" class="bg-green-600 text-white px-3 py-1 rounded text-[10px] font-bold shadow hover:bg-green-700"><i class="fa fa-check mr-1"></i> DUYỆT NGAY</button>`
+                        : `<button onclick="updateUser('${doc.id}')" class="bg-blue-600 text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-700">Lưu</button>`;
+
+                    return `<tr class="table-row ${isPending ? 'bg-orange-50/50' : ''}">
+                        <td class="td-cell font-bold">${d.name || '---'}</td>
+                        <td class="td-cell text-[10px]">${d.email}</td>
+                        <td class="td-cell text-center">${statusBadge}</td>
+                        <td class="td-cell"><select id="role-${doc.id}" class="border rounded p-1 text-[11px] font-bold bg-white"><option value="Công nhân" ${d.position=='Công nhân'?'selected':''}>Công nhân</option><option value="Kỹ thuật viên" ${d.position=='Kỹ thuật viên'?'selected':''}>Kỹ thuật viên</option><option value="Tổ phó" ${d.position=='Tổ phó'?'selected':''}>Tổ phó</option><option value="Tổ trưởng" ${d.position=='Tổ trưởng'?'selected':''}>Tổ trưởng</option><option value="Đội phó" ${d.position=='Đội phó'?'selected':''}>Đội phó</option><option value="Đội trưởng" ${d.position=='Đội trưởng'?'selected':''}>Đội trưởng</option><option value="Lãnh đạo" ${d.position=='Lãnh đạo'?'selected':''}>Lãnh đạo</option></select></td>
+                        <td class="td-cell"><select id="unit-${doc.id}" class="border rounded p-1 text-[11px] font-bold bg-white"><option value="Nhóm 1" ${d.unit=='Nhóm 1'?'selected':''}>Nhóm 1</option><option value="Nhóm 2" ${d.unit=='Nhóm 2'?'selected':''}>Nhóm 2</option><option value="Nhóm 3" ${d.unit=='Nhóm 3'?'selected':''}>Nhóm 3</option><option value="Nhóm 4" ${d.unit=='Nhóm 4'?'selected':''}>Nhóm 4</option><option value="Nhóm kỹ thuật" ${d.unit=='Nhóm kỹ thuật'?'selected':''}>Nhóm kỹ thuật</option><option value="Văn phòng đội" ${d.unit=='Văn phòng đội'?'selected':''}>Văn phòng đội</option></select></td>
+                        <td class="td-cell text-center">${actionBtn}</td>
+                        <td class="td-cell text-center"><i class="fa fa-trash text-red-400 cursor-pointer" onclick="deleteItem('users','${doc.id}')"></i></td>
+                    </tr>`;
+                }).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadStaffForAssign() {
+            const s=document.getElementById('task-assignee'); s.innerHTML='<option>Đang tải...</option>';
+            const snap = await db.collection("users").get();
+            s.innerHTML = snap.docs.map(doc=>`<option value="${doc.data().name}">${doc.data().name} (${doc.data().position})</option>`).join('');
+        }
+
+        // --- ACTIONS ---
+        function renderFileIcons(files) { return (files&&files.length)?`<i class="fa fa-paperclip text-blue-500"></i> ${files.length}`:'-'; }
+        
+        async function deleteItem(col, id) {
+            if(confirm("Xóa dữ liệu này vĩnh viễn?")) {
+                try {
+                    await db.collection(col).doc(id).delete();
+                    alert("Đã xóa thành công!");
+                    // Auto reload
+                    if(col==='daily_reports') loadReports();
+                    else if(col==='notifications') loadNoti();
+                    else if(col==='tasks') loadTasks();
+                    else if(col==='users') loadUsers();
+                } catch(e) { alert("Lỗi xóa: " + e.message); }
+            }
+        }
+
+        async function approveUser(email, name) {
+            if(confirm(`Duyệt tài khoản ${name} (${email})?`)) {
+                try {
+                    await db.collection("users").doc(email).update({
+                        status: 'approved',
+                        position: document.getElementById(`role-${email}`).value,
+                        unit: document.getElementById(`unit-${email}`).value
+                    });
+                    alert("Đã duyệt!"); loadUsers();
+                } catch(e) { alert("Lỗi: " + e.message); }
+            }
+        }
+
+        async function updateUser(id) { await db.collection("users").doc(id).update({position:document.getElementById(`role-${id}`).value, unit:document.getElementById(`unit-${id}`).value}); alert("Đã lưu!"); }
+        
+        // --- CREATE NOTIFY/TASK ---
+        function setupFileHandler(inputId, listId, storageArr) {
+            document.getElementById(inputId).onchange = (e) => {
+                Array.from(e.target.files).forEach(f => {
+                    const r = new FileReader(); r.onload = (v) => { storageArr.push({name:f.name, type:f.type, data:v.target.result.split(',')[1]}); renderFileList(listId, storageArr); }; r.readAsDataURL(f);
                 });
-                alert("Đã duyệt thành công!");
-                loadUsers(); // Reload lại bảng
-            } catch(e) { alert("Lỗi: " + e.message); }
+            };
         }
-    }
-
-    // HÀM CẬP NHẬT USER CŨ (GIỮ NGUYÊN)
-    async function updateUser(emailKey) {
-        const role = document.getElementById(`role-${emailKey}`).value;
-        const unit = document.getElementById(`unit-${emailKey}`).value;
-        if(confirm(`Cập nhật cho ${emailKey}?`)) {
-            await db.collection("users").doc(emailKey).update({ position: role, unit: unit });
-            alert("Đã cập nhật!");
+        function renderFileList(listId, storageArr) { document.getElementById(listId).innerHTML = storageArr.map((f,i) => `<div class="flex items-center justify-between bg-white border px-3 py-2 rounded text-xs"><span><i class="fa fa-file mr-2 text-blue-500"></i>${f.name}</span><i class="fa fa-times text-red-500 cursor-pointer" onclick="removeFile('${listId}', ${i})"></i></div>`).join(''); }
+        window.removeFile = (listId, index) => {
+            if(listId === 'nt-file-list') { notifyFiles.splice(index, 1); renderFileList(listId, notifyFiles); }
+            if(listId === 'task-file-list') { taskFiles.splice(index, 1); renderFileList(listId, taskFiles); }
         }
-    }
+        setupFileHandler('nt-file-in', 'nt-file-list', notifyFiles);
+        setupFileHandler('task-file-in', 'task-file-list', taskFiles);
 
-    // ... (Các phần khác giữ nguyên)
-</script>
+        window.sendNotificationAdmin = async () => {
+            const t=document.getElementById('nt-title').value, c=document.getElementById('nt-content').value; if(!t||!c) return alert("Thiếu thông tin!");
+            const btn=document.getElementById('btn-send-nt'); btn.innerText="ĐANG GỬI..."; btn.disabled=true;
+            try {
+                if(notifyFiles.length) await fetch(APPSCRIPT_URL, {method:"POST", mode:"no-cors", body:JSON.stringify({files:notifyFiles, user:currentUser.email})});
+                await db.collection("notifications").add({ title:t, content:c, priority:document.getElementById('nt-priority').value, sender:currentUser.displayName, files: notifyFiles.map(f=>({name:f.name})), read_by: [], date:new Date().toLocaleDateString('vi-VN'), timestamp:firebase.firestore.FieldValue.serverTimestamp() });
+                alert("Đã gửi!"); document.getElementById('nt-title').value=""; document.getElementById('nt-content').value=""; notifyFiles=[]; renderFileList('nt-file-list', notifyFiles); 
+                switchTab(null, 'notifications'); document.querySelectorAll('.admin-tab')[1].classList.add('active');
+            } catch(e){ alert(e.message); } finally { btn.innerText="PHÁT HÀNH THÔNG BÁO"; btn.disabled=false; }
+        }
+
+        window.assignTaskAdmin = async () => {
+            const n=document.getElementById('task-name').value, a=document.getElementById('task-assignee').value; if(!n||!a) return alert("Thiếu thông tin!");
+            const btn=document.getElementById('btn-send-task'); btn.innerText="ĐANG GỬI..."; btn.disabled=true;
+            try {
+                if(taskFiles.length) await fetch(APPSCRIPT_URL, {method:"POST", mode:"no-cors", body:JSON.stringify({files:taskFiles, user:currentUser.email})});
+                await db.collection("tasks").add({ don_vi_de_nghi:n, description:document.getElementById('task-desc').value, assigned_leader:a, deadline:document.getElementById('task-deadline').value, status:"assigned", sender:currentUser.displayName, files: taskFiles.map(f=>({name:f.name})), accepted_at: null, created_at:firebase.firestore.FieldValue.serverTimestamp() });
+                alert("Đã giao!"); document.getElementById('task-name').value=""; document.getElementById('task-desc').value=""; taskFiles=[]; renderFileList('task-file-list', taskFiles);
+                switchTab(null, 'tasks'); document.querySelectorAll('.admin-tab')[2].classList.add('active');
+            } catch(e){ alert(e.message); } finally { btn.innerText="GIAO VIỆC NGAY"; btn.disabled=false; }
+        }
+
+        function showModal(title, content) { document.getElementById('modal-title').innerText=title; document.getElementById('modal-body').innerHTML=content; document.getElementById('detailModal').style.display="block"; }
+        function closeModal() { document.getElementById('detailModal').style.display="none"; }
+        window.onclick = function(e) { if(e.target==document.getElementById('detailModal')) closeModal(); }
+        window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
+        window.menuAction = (a) => window.location.href="index.html";
+        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(()=>window.location.href='index.html');
+    </script>
+</body>
+</html>
