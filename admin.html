@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trang Quản Trị - Admin v1.66</title>
+    <title>Trang Quản Trị - Admin v1.67</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -48,13 +48,13 @@
 
         <div class="max-w-6xl mx-auto px-4 mt-6">
             <div class="bg-white rounded-t-2xl shadow-sm border-b border-slate-200 flex overflow-x-auto no-scrollbar">
-                <div class="admin-tab active" onclick="switchTab('reports')"><i class="fa fa-file-alt mr-2"></i>Báo cáo</div>
-                <div class="admin-tab" onclick="switchTab('notifications')"><i class="fa fa-history mr-2"></i>Lịch sử TB</div>
-                <div class="admin-tab" onclick="switchTab('tasks')"><i class="fa fa-history mr-2"></i>Lịch sử Việc</div>
-                <div class="admin-tab" onclick="switchTab('users')"><i class="fa fa-users mr-2"></i>Nhân sự</div>
+                <div class="admin-tab active" onclick="switchTab(event, 'reports')"><i class="fa fa-file-alt mr-2"></i>Báo cáo</div>
+                <div class="admin-tab" onclick="switchTab(event, 'notifications')"><i class="fa fa-history mr-2"></i>Lịch sử TB</div>
+                <div class="admin-tab" onclick="switchTab(event, 'tasks')"><i class="fa fa-history mr-2"></i>Lịch sử Việc</div>
+                <div class="admin-tab" onclick="switchTab(event, 'users')"><i class="fa fa-users mr-2"></i>Nhân sự</div>
                 
-                <div class="admin-tab text-red-600" onclick="switchTab('create-notify')"><i class="fa fa-bullhorn mr-2"></i>Soạn Thông báo</div>
-                <div class="admin-tab text-green-600" onclick="switchTab('create-task')"><i class="fa fa-plus-circle mr-2"></i>Giao Việc Mới</div>
+                <div class="admin-tab text-red-600" onclick="switchTab(event, 'create-notify')"><i class="fa fa-bullhorn mr-2"></i>Soạn Thông báo</div>
+                <div class="admin-tab text-green-600" onclick="switchTab(event, 'create-task')"><i class="fa fa-plus-circle mr-2"></i>Giao Việc Mới</div>
             </div>
 
             <div class="bg-white rounded-b-2xl shadow-lg min-h-[500px] p-4 overflow-x-auto">
@@ -140,9 +140,7 @@
         const db = firebase.firestore(); const auth = firebase.auth();
         const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
         
-        let currentUser = null;
-        let notifyFiles = []; // File cho thông báo
-        let taskFiles = [];   // File cho giao việc
+        let currentUser = null, notifyFiles = [], taskFiles = [];
 
         fetch('sidebar.html').then(r=>r.text()).then(d=>{ document.getElementById('sidebar-container').innerHTML=d; });
 
@@ -155,18 +153,22 @@
                         document.getElementById('current-admin-name').innerText = user.displayName;
                         document.getElementById('auth-loading').classList.add('hidden');
                         document.getElementById('admin-main-content').classList.remove('hidden');
-                        loadReports();
+                        loadReports(); // Load default
                     } else { alert("Không có quyền Admin!"); window.location.href="index.html"; }
                 } catch(e) { window.location.href="index.html"; }
             } else { window.location.href="index.html"; }
         });
 
         // --- TAB SWITCHER ---
-        function switchTab(tabName) {
+        function switchTab(event, tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.admin-tab').forEach(el => el.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-            event.currentTarget.classList.add('active');
+            if(event) event.currentTarget.classList.add('active'); // Chỉ add class nếu có event click
+            else {
+                // Nếu gọi thủ công (sau khi xóa), tìm tab tương ứng để active
+                // Cách đơn giản là reset UI mà không cần active tab CSS nếu không cần thiết, hoặc querySelector
+            }
             
             if(tabName === 'reports') loadReports();
             if(tabName === 'users') loadUsers();
@@ -175,7 +177,7 @@
             if(tabName === 'create-task') loadStaffForAssign();
         }
 
-        // --- LOAD DATA FUNCTIONS ---
+        // --- LOAD DATA ---
         async function loadReports() {
             const tbody = document.getElementById('tbody-reports'); tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>';
             const s = await db.collection("daily_reports").orderBy("timestamp", "desc").limit(50).get();
@@ -206,56 +208,67 @@
             s.innerHTML = snap.docs.map(doc=>`<option value="${doc.data().name}">${doc.data().name} (${doc.data().position})</option>`).join('');
         }
 
-        // --- CREATE FUNCTIONS ---
-        // 1. File Handling
+        // --- UTILS: FILE & DELETE ---
+        function renderFileIcons(files) { return (files&&files.length)?`<i class="fa fa-paperclip text-blue-500"></i> ${files.length}`:'-'; }
+        
+        async function deleteItem(col, id) {
+            if(confirm("Xóa dữ liệu này vĩnh viễn?")) {
+                try {
+                    await db.collection(col).doc(id).delete();
+                    alert("Đã xóa thành công!");
+                    // Tự động load lại dữ liệu mà không cần switchTab
+                    if(col==='daily_reports') loadReports();
+                    else if(col==='notifications') loadNoti();
+                    else if(col==='tasks') loadTasks();
+                    else if(col==='users') loadUsers();
+                } catch(e) { alert("Lỗi xóa: " + e.message); }
+            }
+        }
+
+        async function updateUser(id) { await db.collection("users").doc(id).update({position:document.getElementById(`role-${id}`).value, unit:document.getElementById(`unit-${id}`).value}); alert("Đã lưu!"); }
+        
+        // --- CREATE LOGIC ---
         function setupFileHandler(inputId, listId, storageArr) {
             document.getElementById(inputId).onchange = (e) => {
                 Array.from(e.target.files).forEach(f => {
-                    const r = new FileReader();
-                    r.onload = (v) => { storageArr.push({name:f.name, type:f.type, data:v.target.result.split(',')[1]}); renderFileList(listId, storageArr); };
-                    r.readAsDataURL(f);
+                    const r = new FileReader(); r.onload = (v) => { storageArr.push({name:f.name, type:f.type, data:v.target.result.split(',')[1]}); renderFileList(listId, storageArr); }; r.readAsDataURL(f);
                 });
             };
         }
-        function renderFileList(listId, storageArr) {
-            document.getElementById(listId).innerHTML = storageArr.map((f,i) => `<div class="flex items-center justify-between bg-white border px-3 py-2 rounded text-xs"><span><i class="fa fa-file mr-2 text-blue-500"></i>${f.name}</span><i class="fa fa-times text-red-500 cursor-pointer" onclick="removeFile('${listId}', ${i})"></i></div>`).join('');
-        }
-        // Gọi hàm này từ HTML onclick vì scope
+        function renderFileList(listId, storageArr) { document.getElementById(listId).innerHTML = storageArr.map((f,i) => `<div class="flex items-center justify-between bg-white border px-3 py-2 rounded text-xs"><span><i class="fa fa-file mr-2 text-blue-500"></i>${f.name}</span><i class="fa fa-times text-red-500 cursor-pointer" onclick="removeFile('${listId}', ${i})"></i></div>`).join(''); }
         window.removeFile = (listId, index) => {
             if(listId === 'nt-file-list') { notifyFiles.splice(index, 1); renderFileList(listId, notifyFiles); }
             if(listId === 'task-file-list') { taskFiles.splice(index, 1); renderFileList(listId, taskFiles); }
         }
-        
         setupFileHandler('nt-file-in', 'nt-file-list', notifyFiles);
         setupFileHandler('task-file-in', 'task-file-list', taskFiles);
 
-        // 2. Send Notify
         window.sendNotificationAdmin = async () => {
             const t=document.getElementById('nt-title').value, c=document.getElementById('nt-content').value; if(!t||!c) return alert("Thiếu thông tin!");
             const btn=document.getElementById('btn-send-nt'); btn.innerText="ĐANG GỬI..."; btn.disabled=true;
             try {
                 if(notifyFiles.length) await fetch(APPSCRIPT_URL, {method:"POST", mode:"no-cors", body:JSON.stringify({files:notifyFiles, user:currentUser.email})});
                 await db.collection("notifications").add({ title:t, content:c, priority:document.getElementById('nt-priority').value, sender:currentUser.displayName, files: notifyFiles.map(f=>({name:f.name})), read_by: [], date:new Date().toLocaleDateString('vi-VN'), timestamp:firebase.firestore.FieldValue.serverTimestamp() });
-                alert("Gửi thành công!"); document.getElementById('nt-title').value=""; document.getElementById('nt-content').value=""; notifyFiles=[]; renderFileList('nt-file-list', notifyFiles); switchTab('notifications');
+                alert("Đã gửi!"); document.getElementById('nt-title').value=""; document.getElementById('nt-content').value=""; notifyFiles=[]; renderFileList('nt-file-list', notifyFiles); 
+                // Chuyển về tab Lịch sử
+                switchTab(null, 'notifications'); // null event để không lỗi
+                document.querySelectorAll('.admin-tab')[2].classList.add('active'); // Hack active UI
             } catch(e){ alert(e.message); } finally { btn.innerText="PHÁT HÀNH THÔNG BÁO"; btn.disabled=false; }
         }
 
-        // 3. Assign Task
         window.assignTaskAdmin = async () => {
             const n=document.getElementById('task-name').value, a=document.getElementById('task-assignee').value; if(!n||!a) return alert("Thiếu thông tin!");
             const btn=document.getElementById('btn-send-task'); btn.innerText="ĐANG GỬI..."; btn.disabled=true;
             try {
                 if(taskFiles.length) await fetch(APPSCRIPT_URL, {method:"POST", mode:"no-cors", body:JSON.stringify({files:taskFiles, user:currentUser.email})});
                 await db.collection("tasks").add({ don_vi_de_nghi:n, description:document.getElementById('task-desc').value, assigned_leader:a, deadline:document.getElementById('task-deadline').value, status:"assigned", sender:currentUser.displayName, files: taskFiles.map(f=>({name:f.name})), accepted_at: null, created_at:firebase.firestore.FieldValue.serverTimestamp() });
-                alert("Giao việc thành công!"); document.getElementById('task-name').value=""; document.getElementById('task-desc').value=""; taskFiles=[]; renderFileList('task-file-list', taskFiles); switchTab('tasks');
+                alert("Đã giao!"); document.getElementById('task-name').value=""; document.getElementById('task-desc').value=""; taskFiles=[]; renderFileList('task-file-list', taskFiles);
+                switchTab(null, 'tasks');
+                document.querySelectorAll('.admin-tab')[3].classList.add('active');
             } catch(e){ alert(e.message); } finally { btn.innerText="GIAO VIỆC NGAY"; btn.disabled=false; }
         }
 
-        // --- UTILS ---
-        function renderFileIcons(files) { return (files&&files.length)?`<i class="fa fa-paperclip text-blue-500"></i> ${files.length}`:'-'; }
-        async function deleteItem(col, id) { if(confirm("Xóa vĩnh viễn?")) { await db.collection(col).doc(id).delete(); alert("Đã xóa"); switchTab(col==='daily_reports'?'reports':(col==='users'?'users':(col==='notifications'?'notifications':'tasks'))); } }
-        async function updateUser(id) { await db.collection("users").doc(id).update({position:document.getElementById(`role-${id}`).value, unit:document.getElementById(`unit-${id}`).value}); alert("Đã lưu!"); }
-        
+        // Modal & Sidebar
         function showModal(title, content) { document.getElementById('modal-title').innerText=title; document.getElementById('modal-body').innerHTML=content; document.getElementById('detailModal').style.display="block"; }
         function closeModal() { document.getElementById('detailModal').style.display="none"; }
         window.onclick = function(e) { if(e.target==document.getElementById('detailModal')) closeModal(); }
