@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Theo dõi báo cáo - v1.73</title>
+    <title>Theo dõi báo cáo - v1.74</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -29,7 +29,7 @@
                 <span class="text-xs font-bold text-slate-500 uppercase">Ngày xem:</span>
                 <input type="date" id="filter-date" class="border border-slate-200 rounded-lg px-3 py-1 text-sm font-bold text-blue-900 outline-none focus:border-blue-500">
             </div>
-            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang tải...</p>
+            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang tải hệ thống...</p>
         </div>
 
         <div id="stats-container" class="grid grid-cols-2 gap-3">
@@ -47,7 +47,7 @@
             <div class="bg-red-50 border border-red-100 p-4 rounded-2xl">
                 <div class="flex items-center gap-2 mb-2">
                     <i class="fa fa-triangle-exclamation text-red-500 animate-pulse"></i>
-                    <h3 class="font-black text-red-600 text-xs uppercase" id="warning-title">Danh sách chưa báo cáo</h3>
+                    <h3 class="font-black text-red-600 text-xs uppercase" id="warning-title">Chưa báo cáo</h3>
                 </div>
                 <div id="missing-list" class="flex flex-wrap gap-2"></div>
             </div>
@@ -69,7 +69,7 @@
         </div>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.73</p></div>
+    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.74</p></div>
 
     <script>
         // 1. CONFIG
@@ -79,17 +79,43 @@
         const auth = firebase.auth();
         let currentUser = null;
 
-        // 2. SET DEFAULT DATE (TODAY)
+        // 2. KHỞI TẠO NGÀY (CÁCH AN TOÀN NHẤT)
+        // Tự tạo chuỗi YYYY-MM-DD theo giờ địa phương để tránh lỗi múi giờ
+        const todayObj = new Date();
+        const yyyy = todayObj.getFullYear();
+        const mm = String(todayObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(todayObj.getDate()).padStart(2, '0');
+        
         const dateInput = document.getElementById('filter-date');
-        dateInput.value = new Date().toISOString().split('T')[0];
+        if(dateInput) dateInput.value = `${yyyy}-${mm}-${dd}`;
 
-        // 3. LOAD SIDEBAR
+        // 3. LOAD SIDEBAR & MENU (ĐƯA LÊN TRƯỚC ĐỂ LUÔN CHẠY)
         fetch('sidebar.html').then(r=>r.text()).then(d=>{
             document.getElementById('sidebar-container').innerHTML=d;
             if(currentUser) updateSidebarInfo(currentUser);
         });
 
-        // 4. AUTH
+        window.toggleSidebar = () => {
+            const sb = document.getElementById('sidebar');
+            if(sb) sb.classList.toggle('active');
+        };
+
+        window.menuAction = (action) => {
+            toggleSidebar();
+            if (action === 'report') window.location.href = "index.html";
+            else if (action === 'view-reports') {}; 
+            else if (action === 'assigned') window.location.href = "congvieccuatoi.html";
+            else if (action === 'notification') window.location.href = "xemthongbao.html";
+            else if (action === 'profile') window.location.href = "thongtincanhan.html";
+            else if (action === 'guide') window.location.href = "huongdan.html";
+            else if (action === 'send-notify') window.location.href = "guithongbao.html";
+            else if (action === 'assign-task') window.location.href = "giaocongviec.html";
+            else alert("Tính năng đang phát triển!");
+        };
+
+        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
+
+        // 4. AUTH & CHECK QUYỀN
         auth.onAuthStateChanged(user => {
             if (user) {
                 currentUser = user;
@@ -102,35 +128,36 @@
             try {
                 const doc = await db.collection("users").doc(user.email).get();
                 if(doc.exists && ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"].includes(doc.data().position)) {
-                    loadDashboard(); 
+                    loadDashboard(); // Bắt đầu tải dữ liệu
                 } else {
-                    alert("Không có quyền truy cập!"); window.location.href="index.html";
+                    alert("Bạn không có quyền xem báo cáo!");
+                    window.location.href = "index.html";
                 }
-            } catch(e) { window.location.href="index.html"; }
+            } catch(e) { window.location.href = "index.html"; }
         }
 
-        // 5. EVENT: CHANGE DATE
+        // 5. XỬ LÝ DỮ LIỆU BÁO CÁO (SO KHỚP THÔNG MINH)
         dateInput.addEventListener('change', () => loadDashboard());
 
-        // 6. MAIN LOGIC: SO KHỚP THÔNG MINH
         async function loadDashboard() {
             const reportListEl = document.getElementById('report-list');
             const statusText = document.getElementById('status-text');
             
-            // Lấy ngày từ ô input (YYYY-MM-DD)
+            // Lấy ngày từ input
             const inputVal = dateInput.value; 
             if(!inputVal) return;
             
+            // Tách chuỗi YYYY-MM-DD
             const parts = inputVal.split('-');
             const searchYear = parseInt(parts[0]);
             const searchMonth = parseInt(parts[1]);
             const searchDay = parseInt(parts[2]);
 
-            statusText.innerText = `Đang xem: ${searchDay}/${searchMonth}/${searchYear}`;
+            statusText.innerText = `Đang xem ngày: ${searchDay}/${searchMonth}/${searchYear}`;
             reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang xử lý dữ liệu...</p>';
 
             try {
-                // A. Lấy tất cả nhân viên
+                // A. Lấy danh sách nhân viên
                 const usersSnap = await db.collection("users").get();
                 const allUsers = [];
                 usersSnap.forEach(doc => { 
@@ -138,11 +165,10 @@
                     if(d.name) allUsers.push({email: doc.id, name: d.name}); 
                 });
 
-                // B. Lấy 100 báo cáo mới nhất (Bỏ qua query where date để tránh lỗi format)
-                // Ta sẽ lọc thủ công bằng Javascript để đảm bảo chính xác 100%
+                // B. Lấy 200 báo cáo mới nhất (Để lọc bằng JS cho chính xác)
                 const reportsSnap = await db.collection("daily_reports")
                                             .orderBy("timestamp", "desc")
-                                            .limit(200) // Lấy dư ra để lọc
+                                            .limit(200)
                                             .get();
                 
                 const reportedEmails = [];
@@ -150,15 +176,14 @@
                 
                 reportsSnap.forEach(doc => {
                     const d = doc.data();
+                    // KIỂM TRA NGÀY (Quan trọng: So sánh số học để bỏ qua vấn đề 01 vs 1)
                     if(d.date) {
-                        // XỬ LÝ CHUỖI NGÀY: "22/1/2026" hay "22/01/2026" đều chạy được
-                        const dateParts = d.date.split('/'); // Tách chuỗi theo dấu /
+                        const dateParts = d.date.split('/'); // Giả định dd/mm/yyyy
                         if(dateParts.length === 3) {
                             const rDay = parseInt(dateParts[0]);
                             const rMonth = parseInt(dateParts[1]);
                             const rYear = parseInt(dateParts[2]);
 
-                            // So sánh số học (22 == 22, 1 == 01)
                             if(rDay === searchDay && rMonth === searchMonth && rYear === searchYear) {
                                 reportedEmails.push(d.email);
                                 reports.push({...d, id: doc.id});
@@ -170,24 +195,24 @@
                 // C. Tính toán người thiếu
                 const missingUsers = allUsers.filter(u => !reportedEmails.includes(u.email));
 
-                // D. Hiển thị UI
+                // D. Hiển thị Thống kê
                 document.getElementById('count-reported').innerText = reports.length;
                 document.getElementById('count-missing').innerText = missingUsers.length;
                 document.getElementById('list-count').innerText = reports.length;
 
-                // E. Danh sách thiếu
+                // E. Hiển thị danh sách thiếu
                 const missingEl = document.getElementById('missing-list');
                 const missingSec = document.getElementById('missing-section');
                 missingEl.innerHTML = "";
                 
                 if(missingUsers.length > 0) {
                     missingSec.classList.remove('hidden');
-                    // Check 19h
+                    // Cảnh báo 19h
                     const now = new Date();
                     const isToday = (now.getDate() === searchDay && (now.getMonth()+1) === searchMonth && now.getFullYear() === searchYear);
                     const isLate = now.getHours() >= 19;
-                    
                     const titleEl = document.getElementById('warning-title');
+                    
                     if(isToday && isLate) {
                         titleEl.innerText = "CẢNH BÁO: QUÁ 19H CHƯA BÁO CÁO";
                         titleEl.className = "font-black text-red-600 text-xs uppercase animate-pulse";
@@ -203,9 +228,9 @@
                     missingSec.classList.add('hidden');
                 }
 
-                // F. Danh sách báo cáo
+                // F. Hiển thị danh sách báo cáo
                 if (reports.length === 0) {
-                    reportListEl.innerHTML = `<p class="text-center text-xs text-slate-400 italic py-4">Chưa có báo cáo nào khớp ngày ${searchDay}/${searchMonth}/${searchYear}</p>`;
+                    reportListEl.innerHTML = `<p class="text-center text-xs text-slate-400 italic py-4">Không tìm thấy báo cáo nào</p>`;
                 } else {
                     reportListEl.innerHTML = reports.map(r => {
                         let fileIcon = (r.files && r.files.length > 0) ? `<i class="fa fa-paperclip text-blue-500 ml-1"></i>` : "";
@@ -234,20 +259,6 @@
         }
         function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
         function updateSidebarInfo(user) { const n = document.getElementById('sidebar-user-name'); if(n) n.innerText = user.displayName; }
-
-        window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
-        window.menuAction = (a) => {
-            toggleSidebar();
-            if (a === 'report') window.location.href = "index.html";
-            else if (a === 'view-reports') {}; 
-            else if (a === 'assigned') window.location.href = "congvieccuatoi.html";
-            else if (a === 'notification') window.location.href = "xemthongbao.html";
-            else if (a === 'profile') window.location.href = "thongtincanhan.html";
-            else if (a === 'guide') window.location.href = "huongdan.html";
-            else if (a === 'send-notify') window.location.href = "guithongbao.html";
-            else if (a === 'assign-task') window.location.href = "giaocongviec.html";
-        };
-        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
     </script>
 </body>
 </html>
