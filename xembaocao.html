@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Theo dõi báo cáo - v1.69</title>
+    <title>Theo dõi báo cáo - v1.71</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -29,7 +29,7 @@
                 <span class="text-xs font-bold text-slate-500 uppercase">Ngày xem:</span>
                 <input type="date" id="filter-date" class="border border-slate-200 rounded-lg px-3 py-1 text-sm font-bold text-blue-900 outline-none focus:border-blue-500">
             </div>
-            <p id="debug-date" class="text-[10px] text-slate-400 text-right italic">Đang tìm dữ liệu ngày: ...</p>
+            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang chờ tải...</p>
         </div>
 
         <div id="stats-container" class="grid grid-cols-2 gap-3">
@@ -56,53 +56,52 @@
         <div>
             <h3 class="font-black text-blue-900 text-xs uppercase mb-3 ml-2">Chi tiết (<span id="list-count">0</span>)</h3>
             <div id="report-list" class="space-y-3">
-                <p class="text-center text-xs text-slate-400 py-10">Đang tải dữ liệu...</p>
+                <p class="text-center text-xs text-slate-400 py-10">Vui lòng đợi...</p>
             </div>
         </div>
     </div>
 
     <div id="detailModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-[24px] p-6 relative shadow-2xl animate-fade-in-up">
+        <div class="bg-white w-full max-w-sm rounded-[24px] p-6 relative shadow-2xl">
             <i class="fa fa-times absolute top-4 right-4 text-slate-400 cursor-pointer text-xl" onclick="closeModal()"></i>
             <h3 class="font-black text-lg text-[#1A479A] uppercase mb-4 border-b pb-2">Nội dung báo cáo</h3>
             <div id="modal-content" class="text-sm text-slate-700 leading-relaxed max-h-[60vh] overflow-y-auto"></div>
         </div>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.69</p></div>
+    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.71</p></div>
 
     <script>
-        // 1. CONFIG
+        // --- 1. CONFIG & INIT ---
         const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
         let currentUser = null;
 
-        // 2. KHỞI TẠO NGÀY THÁNG (FIX LỖI HIỂN THỊ)
+        // --- 2. HÀM XỬ LÝ NGÀY THÁNG (QUAN TRỌNG) ---
+        // Hàm này chuyển đổi ngày từ input (yyyy-mm-dd) sang format DB (dd/mm/yyyy)
+        function formatDateForDB(dateObj) {
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const y = dateObj.getFullYear();
+            return `${d}/${m}/${y}`; // Luôn trả về dạng 22/01/2026
+        }
+
+        // Set mặc định là hôm nay
         const dateInput = document.getElementById('filter-date');
         const today = new Date();
-        // Định dạng YYYY-MM-DD để gán vào input type="date"
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        dateInput.value = `${yyyy}-${mm}-${dd}`;
+        dateInput.value = today.toISOString().split('T')[0]; // Set value cho input
+        let currentDateStr = formatDateForDB(today); // Set value để tìm kiếm
 
-        // Định dạng DD/MM/YYYY để tìm trong Database
-        // Lưu ý: Code này giả định DB lưu dạng "dd/mm/yyyy" (Ví dụ: 22/01/2026)
-        // Nếu DB anh lưu dạng 22/1/2026 thì cần chỉnh lại hàm này. 
-        // Hiện tại tôi dùng toLocaleDateString('vi-VN') giống file index.html để đồng bộ.
-        let currentDateStr = today.toLocaleDateString('vi-VN'); 
-        document.getElementById('debug-date').innerText = `Đang tìm dữ liệu ngày: ${currentDateStr}`;
-
-        // 3. LOAD SIDEBAR
+        // --- 3. LOAD SIDEBAR ---
         fetch('sidebar.html').then(r=>r.text()).then(d=>{
             document.getElementById('sidebar-container').innerHTML=d;
             if(currentUser) updateSidebarInfo(currentUser);
         });
 
-        // 4. AUTH
-        auth.onAuthStateChanged(async (user) => {
+        // --- 4. AUTH ---
+        auth.onAuthStateChanged(user => {
             if (user) {
                 currentUser = user;
                 updateSidebarInfo(user);
@@ -113,45 +112,34 @@
         async function checkManagerAccess(user) {
             try {
                 const doc = await db.collection("users").doc(user.email).get();
-                if(doc.exists) {
-                    const role = doc.data().position || "";
-                    const allowed = ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"];
-                    if(allowed.includes(role)) {
-                        loadDashboard(); 
-                    } else {
-                        alert("Bạn không có quyền truy cập!");
-                        window.location.href = "index.html";
-                    }
+                if(doc.exists && ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"].includes(doc.data().position)) {
+                    loadDashboard(); // Load dữ liệu
+                } else {
+                    alert("Không có quyền truy cập!"); window.location.href="index.html";
                 }
-            } catch(e) { window.location.href = "index.html"; }
+            } catch(e) { window.location.href="index.html"; }
         }
 
-        // 5. XỬ LÝ KHI ĐỔI NGÀY
+        // --- 5. LOGIC LOAD DỮ LIỆU ---
         dateInput.addEventListener('change', (e) => {
-            // Chuyển từ YYYY-MM-DD (input) sang format của VN (Database)
-            const parts = e.target.value.split('-'); // [2026, 01, 22]
-            const year = parts[0];
-            const month = parts[1]; // Giữ nguyên 01 hoặc 1 tùy input
-            const day = parts[2];
-            
-            // Tái tạo lại chuỗi ngày cho khớp với toLocaleDateString('vi-VN') ở index.html
-            // Cách an toàn nhất là tạo đối tượng Date rồi convert lại
-            const d = new Date(year, month - 1, day);
-            currentDateStr = d.toLocaleDateString('vi-VN');
-            
-            document.getElementById('debug-date').innerText = `Đang tìm dữ liệu ngày: ${currentDateStr}`;
-            loadDashboard();
+            if(e.target.value) {
+                const parts = e.target.value.split('-');
+                // Tạo Date object chính xác (năm, tháng-1, ngày)
+                const d = new Date(parts[0], parts[1]-1, parts[2]);
+                currentDateStr = formatDateForDB(d);
+                loadDashboard();
+            }
         });
 
         async function loadDashboard() {
             const reportListEl = document.getElementById('report-list');
-            const missingListEl = document.getElementById('missing-list');
-            const missingSection = document.getElementById('missing-section');
+            const statusText = document.getElementById('status-text');
             
-            reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang tải...</p>';
+            statusText.innerText = `Đang tìm dữ liệu ngày: ${currentDateStr}`;
+            reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang xử lý...</p>';
 
             try {
-                // Bước A: Lấy danh sách nhân viên
+                // A. Lấy tất cả nhân viên
                 const usersSnap = await db.collection("users").get();
                 const allUsers = [];
                 usersSnap.forEach(doc => { 
@@ -159,9 +147,10 @@
                     if(d.name) allUsers.push({email: doc.id, name: d.name}); 
                 });
 
-                // Bước B: Lấy báo cáo theo ngày (chuỗi currentDateStr)
-                console.log("Querying date:", currentDateStr);
-                const reportsSnap = await db.collection("daily_reports").where("date", "==", currentDateStr).get();
+                // B. Lấy báo cáo theo chuỗi ngày chính xác
+                const reportsSnap = await db.collection("daily_reports")
+                                            .where("date", "==", currentDateStr)
+                                            .get();
                 
                 const reportedEmails = [];
                 const reports = [];
@@ -172,23 +161,28 @@
                     reports.push({...d, id: doc.id});
                 });
 
-                // Bước C: Tính toán
+                // C. Tính toán
                 const missingUsers = allUsers.filter(u => !reportedEmails.includes(u.email));
 
+                // D. Cập nhật UI Thống kê
                 document.getElementById('count-reported').innerText = reports.length;
                 document.getElementById('count-missing').innerText = missingUsers.length;
                 document.getElementById('list-count').innerText = reports.length;
 
-                // Bước D: Hiển thị người thiếu
-                missingListEl.innerHTML = "";
+                // E. Danh sách thiếu
+                const missingEl = document.getElementById('missing-list');
+                const missingSec = document.getElementById('missing-section');
+                missingEl.innerHTML = "";
+                
                 if(missingUsers.length > 0) {
-                    missingSection.classList.remove('hidden');
+                    missingSec.classList.remove('hidden');
+                    // Check cảnh báo 19h
                     const now = new Date();
-                    const isToday = (new Date().toLocaleDateString('vi-VN') === currentDateStr);
+                    const isToday = (formatDateForDB(now) === currentDateStr);
                     const isLate = now.getHours() >= 19;
-                    const titleEl = document.getElementById('warning-title');
                     
-                    if (isToday && isLate) {
+                    const titleEl = document.getElementById('warning-title');
+                    if(isToday && isLate) {
                         titleEl.innerText = "CẢNH BÁO: QUÁ 19H CHƯA BÁO CÁO";
                         titleEl.className = "font-black text-red-600 text-xs uppercase animate-pulse";
                     } else {
@@ -196,29 +190,40 @@
                         titleEl.className = "font-black text-slate-600 text-xs uppercase";
                     }
 
-                    missingListEl.innerHTML = missingUsers.map(u => `<span class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-sm">${u.name}</span>`).join('');
+                    missingEl.innerHTML = missingUsers.map(u => 
+                        `<span class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-sm">${u.name}</span>`
+                    ).join('');
                 } else {
-                    missingSection.classList.add('hidden');
+                    missingSec.classList.add('hidden');
                 }
 
-                // Bước E: Hiển thị báo cáo
+                // F. Danh sách báo cáo
                 if (reports.length === 0) {
-                    reportListEl.innerHTML = `<p class="text-center text-xs text-slate-400 italic py-4">Không tìm thấy báo cáo nào ngày ${currentDateStr}</p>`;
+                    reportListEl.innerHTML = `<p class="text-center text-xs text-slate-400 italic py-4">Chưa có báo cáo nào</p>`;
                 } else {
                     reports.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                     reportListEl.innerHTML = reports.map(r => {
                         let fileIcon = (r.files && r.files.length > 0) ? `<i class="fa fa-paperclip text-blue-500 ml-1"></i>` : "";
-                        return `<div class="bg-white p-4 rounded-[20px] shadow-sm border border-slate-50 cursor-pointer hover:bg-slate-50 transition" onclick="showContent('${r.worker}', '${r.content.replace(/'/g, "\\'").replace(/\n/g, '<br>')}')"><div class="flex justify-between items-start mb-1"><h4 class="font-black text-xs text-[#1A479A] uppercase">${r.worker}</h4><span class="bg-blue-50 text-blue-600 text-[9px] font-bold px-2 py-0.5 rounded">${r.reportType}</span></div><p class="text-xs text-slate-600 line-clamp-2">${r.content}</p>${fileIcon ? `<p class="text-[9px] text-slate-400 mt-1">${fileIcon} Có đính kèm file</p>` : ''}</div>`;
+                        return `
+                        <div class="bg-white p-4 rounded-[20px] shadow-sm border border-slate-50 cursor-pointer hover:bg-slate-50 transition" onclick="showContent('${r.worker}', '${r.content.replace(/'/g, "\\'").replace(/\n/g, '<br>')}')">
+                            <div class="flex justify-between items-start mb-1">
+                                <h4 class="font-black text-xs text-[#1A479A] uppercase">${r.worker}</h4>
+                                <span class="bg-blue-50 text-blue-600 text-[9px] font-bold px-2 py-0.5 rounded">${r.reportType}</span>
+                            </div>
+                            <p class="text-xs text-slate-600 line-clamp-2">${r.content}</p>
+                            ${fileIcon ? `<p class="text-[9px] text-slate-400 mt-1">${fileIcon} Có đính kèm file</p>` : ''}
+                        </div>`;
                     }).join('');
                 }
+                statusText.innerText = `Đã tải xong dữ liệu ngày: ${currentDateStr}`;
 
-            } catch(e) { 
+            } catch(e) {
                 console.error(e);
-                reportListEl.innerHTML = `<p class="text-red-400 text-center text-xs">Lỗi: ${e.message}</p>`; 
+                reportListEl.innerHTML = `<p class="text-red-400 text-center text-xs">Lỗi: ${e.message}</p>`;
             }
         }
 
-        // UTILS
+        // --- 6. MENU & UTILS ---
         function showContent(worker, content) {
             document.getElementById('modal-content').innerHTML = `<b>Người báo cáo:</b> ${worker}<br><br>${content}`;
             document.getElementById('detailModal').classList.remove('hidden');
@@ -227,17 +232,31 @@
         function updateSidebarInfo(user) { const n = document.getElementById('sidebar-user-name'); if(n) n.innerText = user.displayName; }
 
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
-        window.menuAction = (a) => {
+        
+        // HÀM MENU ĐƯỢC VIẾT LẠI RÕ RÀNG ĐỂ TRÁNH LỖI CÚ PHÁP
+        window.menuAction = (action) => {
             toggleSidebar();
-            if (a === 'report') window.location.href = "index.html";
-            else if (a === 'view-reports') {}; 
-            else if (a === 'assigned') window.location.href = "congvieccuatoi.html";
-            else if (a === 'notification') window.location.href = "xemthongbao.html";
-            else if (a === 'profile') window.location.href = "thongtincanhan.html";
-            else if (a === 'guide') window.location.href = "huongdan.html";
-            else if (a === 'send-notify') window.location.href = "guithongbao.html";
-            else if (a === 'assign-task') window.location.href = "giaocongviec.html";
+            if (action === 'report') {
+                window.location.href = "index.html";
+            } else if (action === 'view-reports') {
+                // Đang ở trang này
+            } else if (action === 'assigned') {
+                window.location.href = "congvieccuatoi.html";
+            } else if (action === 'notification') {
+                window.location.href = "xemthongbao.html";
+            } else if (action === 'profile') {
+                window.location.href = "thongtincanhan.html";
+            } else if (action === 'guide') {
+                window.location.href = "huongdan.html";
+            } else if (action === 'send-notify') {
+                window.location.href = "guithongbao.html";
+            } else if (action === 'assign-task') {
+                window.location.href = "giaocongviec.html";
+            } else {
+                alert("Tính năng đang phát triển!");
+            }
         };
+
         window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
     </script>
 </body>
