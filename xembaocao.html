@@ -79,17 +79,7 @@
         const auth = firebase.auth();
         let currentUser = null;
 
-        // 2. KHỞI TẠO NGÀY (CÁCH AN TOÀN NHẤT)
-        // Tự tạo chuỗi YYYY-MM-DD theo giờ địa phương để tránh lỗi múi giờ
-        const todayObj = new Date();
-        const yyyy = todayObj.getFullYear();
-        const mm = String(todayObj.getMonth() + 1).padStart(2, '0');
-        const dd = String(todayObj.getDate()).padStart(2, '0');
-        
-        const dateInput = document.getElementById('filter-date');
-        if(dateInput) dateInput.value = `${yyyy}-${mm}-${dd}`;
-
-        // 3. LOAD SIDEBAR & MENU (ĐƯA LÊN TRƯỚC ĐỂ LUÔN CHẠY)
+        // 2. LOAD SIDEBAR & MENU (ĐƯA LÊN TRƯỚC ĐỂ LUÔN CHẠY)
         fetch('sidebar.html').then(r=>r.text()).then(d=>{
             document.getElementById('sidebar-container').innerHTML=d;
             if(currentUser) updateSidebarInfo(currentUser);
@@ -114,6 +104,16 @@
         };
 
         window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
+
+        // 3. KHỞI TẠO NGÀY (CÁCH AN TOÀN NHẤT)
+        // Tự tạo chuỗi YYYY-MM-DD theo giờ địa phương để tránh lỗi múi giờ
+        const todayObj = new Date();
+        const yyyy = todayObj.getFullYear();
+        const mm = String(todayObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(todayObj.getDate()).padStart(2, '0');
+        
+        const dateInput = document.getElementById('filter-date');
+        if(dateInput) dateInput.value = `${yyyy}-${mm}-${dd}`;
 
         // 4. AUTH & CHECK QUYỀN
         auth.onAuthStateChanged(user => {
