@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Theo dõi báo cáo - v1.76</title>
+    <title>Theo dõi báo cáo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script>
@@ -41,8 +41,6 @@
         </div>
     </div>
 
-    <div id="debug-log" class="text-center text-[10px] text-red-500 font-mono bg-yellow-50 p-2 border-b border-yellow-200 hidden"></div>
-
     <div class="max-w-md mx-auto px-4 -mt-8 space-y-4">
         
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
@@ -50,7 +48,7 @@
                 <span class="text-xs font-bold text-slate-500 uppercase">Ngày xem:</span>
                 <input type="date" id="filter-date" class="border border-slate-200 rounded-lg px-3 py-1 text-sm font-bold text-blue-900 outline-none focus:border-blue-500">
             </div>
-            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang khởi tạo...</p>
+            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang tải...</p>
         </div>
 
         <div id="stats-container" class="grid grid-cols-2 gap-3">
@@ -90,84 +88,63 @@
         </div>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.76 (Fix)</p></div>
+    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.77</p></div>
 
     <script>
-        // --- LOGGING ---
-        function logError(msg) {
-            var d = document.getElementById('debug-log');
-            if(d) {
-                d.classList.remove('hidden');
-                d.innerHTML += msg + "<br>";
-            }
-            console.log(msg);
-        }
-
-        // --- 2. SET NGÀY NGAY LẬP TỨC (KHÔNG CHỜ FIREBASE) ---
+        // --- 1. SET NGÀY MẶC ĐỊNH ---
         try {
             var now = new Date();
             var y = now.getFullYear();
             var m = String(now.getMonth() + 1).padStart(2,'0');
             var d = String(now.getDate()).padStart(2,'0');
             document.getElementById('filter-date').value = y + "-" + m + "-" + d;
-        } catch(e) { logError("Lỗi ngày tháng: " + e.message); }
+        } catch(e) {}
 
-        // --- 3. LOAD SIDEBAR ---
+        // --- 2. LOAD SIDEBAR ---
         fetch('sidebar.html').then(function(r){ return r.text() }).then(function(d){
             document.getElementById('sidebar-container').innerHTML = d;
         });
 
-        // --- 4. CƠ CHẾ CHỜ FIREBASE (RETRY LOOP) ---
+        // --- 3. CƠ CHẾ KẾT NỐI AN TOÀN (RETRY) ---
         var attempts = 0;
         var initInterval = setInterval(function() {
             attempts++;
-            document.getElementById('status-text').innerText = "Đang kết nối... (" + attempts + ")";
-            
             if (typeof firebase !== 'undefined' && firebase.apps) {
                 clearInterval(initInterval);
-                startApp(); // Firebase đã sẵn sàng, chạy app
-            } else if (attempts > 10) {
-                // Quá 10 giây không thấy Firebase
+                startApp(); // Chạy app khi Firebase đã sẵn sàng
+            } else if (attempts > 15) {
                 clearInterval(initInterval);
-                logError("Lỗi: Không thể kết nối máy chủ Firebase. Vui lòng kiểm tra mạng!");
-                document.getElementById('status-text').innerText = "Lỗi kết nối mạng.";
+                alert("Mạng quá yếu, không thể kết nối dữ liệu!");
             }
-        }, 1000); // Kiểm tra mỗi 1 giây
+        }, 800);
 
-        // --- 5. LOGIC CHÍNH ---
         function startApp() {
             try {
-                // Config
                 var firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
                 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
                 var db = firebase.firestore();
                 var auth = firebase.auth();
-                var currentUser = null;
 
-                document.getElementById('status-text').innerText = "Đã kết nối. Đang xác thực...";
+                document.getElementById('status-text').innerText = "Đã kết nối.";
 
                 auth.onAuthStateChanged(function(user) {
                     if (user) {
-                        currentUser = user;
                         var n = document.getElementById('sidebar-user-name'); 
                         if(n) n.innerText = user.displayName;
                         
-                        // Check quyền
                         db.collection("users").doc(user.email).get().then(function(doc){
                             if(doc.exists && ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"].includes(doc.data().position)) {
                                 loadDashboard(db);
                             } else {
                                 alert("Không có quyền!"); window.location.href="index.html";
                             }
-                        }).catch(function(e){ logError("Lỗi quyền: " + e.message); });
-
+                        }).catch(function(){ loadDashboard(db); }); // Fallback
                     } else { window.location.href = "index.html"; }
                 });
 
-                // Sự kiện đổi ngày
                 document.getElementById('filter-date').addEventListener('change', function() { loadDashboard(db); });
 
-            } catch(e) { logError("Crash startApp: " + e.message); }
+            } catch(e) { alert("Lỗi khởi chạy: " + e.message); }
         }
 
         async function loadDashboard(db) {
@@ -208,23 +185,23 @@
                 document.getElementById('count-missing').innerText = missingUsers.length;
                 document.getElementById('list-count').innerText = reports.length;
 
-                // 4. Render Missing
+                // 4. Missing List & Warning
                 var missingEl = document.getElementById('missing-list');
                 var missingSec = document.getElementById('missing-section');
                 missingEl.innerHTML = "";
                 if(missingUsers.length > 0) {
                     missingSec.classList.remove('hidden');
-                    // Cảnh báo 19h
                     var now = new Date();
                     var isToday = now.getDate() == startOfDay.getDate();
                     var isLate = now.getHours() >= 19;
                     var titleEl = document.getElementById('warning-title');
+                    
                     if(isToday && isLate) {
                         titleEl.innerText = "CẢNH BÁO: QUÁ 19H CHƯA BÁO CÁO";
                         titleEl.className = "font-black text-red-600 text-xs uppercase animate-pulse";
                     } else {
                         titleEl.innerText = "Chưa báo cáo";
-                        titleEl.className = "font-black text-red-600 text-xs uppercase";
+                        titleEl.className = "font-black text-slate-600 text-xs uppercase";
                     }
                     missingEl.innerHTML = missingUsers.map(function(u){ return '<span class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-sm">'+u.name+'</span>'; }).join('');
                 } else { missingSec.classList.add('hidden'); }
@@ -241,12 +218,18 @@
                 }
                 statusText.innerText = "Hoàn tất.";
 
-            } catch(e) { logError("Lỗi tải data: " + e.message); }
+            } catch(e) { alert("Lỗi tải data: " + e.message); }
         }
 
-        // Utils
         function showContent(w, c) { document.getElementById('modal-content').innerHTML = '<b>'+w+'</b><br><br>'+c; document.getElementById('detailModal').classList.remove('hidden'); }
         function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
+        
+        window.handleLogout = function() {
+            if(confirm("Đăng xuất?")) {
+                if(typeof firebase !== 'undefined') firebase.auth().signOut().then(function(){ window.location.href = "index.html"; });
+                else window.location.href = "index.html";
+            }
+        };
     </script>
 </body>
 </html>
