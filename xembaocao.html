@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Theo dõi báo cáo - v1.71</title>
+    <title>Theo dõi báo cáo - v1.72</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -29,7 +29,7 @@
                 <span class="text-xs font-bold text-slate-500 uppercase">Ngày xem:</span>
                 <input type="date" id="filter-date" class="border border-slate-200 rounded-lg px-3 py-1 text-sm font-bold text-blue-900 outline-none focus:border-blue-500">
             </div>
-            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang chờ tải...</p>
+            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang tải...</p>
         </div>
 
         <div id="stats-container" class="grid grid-cols-2 gap-3">
@@ -69,38 +69,27 @@
         </div>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.71</p></div>
+    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.72</p></div>
 
     <script>
-        // --- 1. CONFIG & INIT ---
+        // 1. CONFIG
         const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
         let currentUser = null;
 
-        // --- 2. HÀM XỬ LÝ NGÀY THÁNG (QUAN TRỌNG) ---
-        // Hàm này chuyển đổi ngày từ input (yyyy-mm-dd) sang format DB (dd/mm/yyyy)
-        function formatDateForDB(dateObj) {
-            const d = String(dateObj.getDate()).padStart(2, '0');
-            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const y = dateObj.getFullYear();
-            return `${d}/${m}/${y}`; // Luôn trả về dạng 22/01/2026
-        }
-
-        // Set mặc định là hôm nay
+        // 2. SET DEFAULT DATE (TODAY)
         const dateInput = document.getElementById('filter-date');
-        const today = new Date();
-        dateInput.value = today.toISOString().split('T')[0]; // Set value cho input
-        let currentDateStr = formatDateForDB(today); // Set value để tìm kiếm
+        dateInput.value = new Date().toISOString().split('T')[0];
 
-        // --- 3. LOAD SIDEBAR ---
+        // 3. LOAD SIDEBAR
         fetch('sidebar.html').then(r=>r.text()).then(d=>{
             document.getElementById('sidebar-container').innerHTML=d;
             if(currentUser) updateSidebarInfo(currentUser);
         });
 
-        // --- 4. AUTH ---
+        // 4. AUTH CHECK
         auth.onAuthStateChanged(user => {
             if (user) {
                 currentUser = user;
@@ -113,33 +102,35 @@
             try {
                 const doc = await db.collection("users").doc(user.email).get();
                 if(doc.exists && ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"].includes(doc.data().position)) {
-                    loadDashboard(); // Load dữ liệu
+                    loadDashboard(); 
                 } else {
                     alert("Không có quyền truy cập!"); window.location.href="index.html";
                 }
             } catch(e) { window.location.href="index.html"; }
         }
 
-        // --- 5. LOGIC LOAD DỮ LIỆU ---
-        dateInput.addEventListener('change', (e) => {
-            if(e.target.value) {
-                const parts = e.target.value.split('-');
-                // Tạo Date object chính xác (năm, tháng-1, ngày)
-                const d = new Date(parts[0], parts[1]-1, parts[2]);
-                currentDateStr = formatDateForDB(d);
-                loadDashboard();
-            }
-        });
+        // 5. EVENT CHANGE DATE
+        dateInput.addEventListener('change', () => loadDashboard());
 
+        // 6. MAIN LOGIC: QUERY BY TIMESTAMP RANGE
         async function loadDashboard() {
             const reportListEl = document.getElementById('report-list');
             const statusText = document.getElementById('status-text');
             
-            statusText.innerText = `Đang tìm dữ liệu ngày: ${currentDateStr}`;
-            reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang xử lý...</p>';
+            reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang truy xuất dữ liệu...</p>';
 
             try {
-                // A. Lấy tất cả nhân viên
+                // A. Tính toán khoảng thời gian (Start of Day -> End of Day)
+                const inputVal = dateInput.value; // YYYY-MM-DD
+                if(!inputVal) return;
+
+                const parts = inputVal.split('-');
+                const startOfDay = new Date(parts[0], parts[1]-1, parts[2], 0, 0, 0);
+                const endOfDay = new Date(parts[0], parts[1]-1, parts[2], 23, 59, 59);
+                
+                statusText.innerText = `Dữ liệu ngày: ${startOfDay.toLocaleDateString('vi-VN')}`;
+
+                // B. Lấy danh sách nhân viên
                 const usersSnap = await db.collection("users").get();
                 const allUsers = [];
                 usersSnap.forEach(doc => { 
@@ -147,9 +138,10 @@
                     if(d.name) allUsers.push({email: doc.id, name: d.name}); 
                 });
 
-                // B. Lấy báo cáo theo chuỗi ngày chính xác
+                // C. Lấy báo cáo bằng TIMESTAMP RANGE (Chính xác tuyệt đối)
                 const reportsSnap = await db.collection("daily_reports")
-                                            .where("date", "==", currentDateStr)
+                                            .where("timestamp", ">=", startOfDay)
+                                            .where("timestamp", "<=", endOfDay)
                                             .get();
                 
                 const reportedEmails = [];
@@ -161,27 +153,26 @@
                     reports.push({...d, id: doc.id});
                 });
 
-                // C. Tính toán
+                // D. Tính toán thiếu/đủ
                 const missingUsers = allUsers.filter(u => !reportedEmails.includes(u.email));
 
-                // D. Cập nhật UI Thống kê
                 document.getElementById('count-reported').innerText = reports.length;
                 document.getElementById('count-missing').innerText = missingUsers.length;
                 document.getElementById('list-count').innerText = reports.length;
 
-                // E. Danh sách thiếu
+                // E. Render danh sách thiếu
                 const missingEl = document.getElementById('missing-list');
                 const missingSec = document.getElementById('missing-section');
                 missingEl.innerHTML = "";
                 
                 if(missingUsers.length > 0) {
                     missingSec.classList.remove('hidden');
-                    // Check cảnh báo 19h
                     const now = new Date();
-                    const isToday = (formatDateForDB(now) === currentDateStr);
+                    // Kiểm tra nếu là ngày hôm nay và quá 19h
+                    const isToday = now.toDateString() === startOfDay.toDateString();
                     const isLate = now.getHours() >= 19;
-                    
                     const titleEl = document.getElementById('warning-title');
+                    
                     if(isToday && isLate) {
                         titleEl.innerText = "CẢNH BÁO: QUÁ 19H CHƯA BÁO CÁO";
                         titleEl.className = "font-black text-red-600 text-xs uppercase animate-pulse";
@@ -197,10 +188,11 @@
                     missingSec.classList.add('hidden');
                 }
 
-                // F. Danh sách báo cáo
+                // F. Render danh sách báo cáo
                 if (reports.length === 0) {
                     reportListEl.innerHTML = `<p class="text-center text-xs text-slate-400 italic py-4">Chưa có báo cáo nào</p>`;
                 } else {
+                    // Sắp xếp mới nhất lên đầu
                     reports.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                     reportListEl.innerHTML = reports.map(r => {
                         let fileIcon = (r.files && r.files.length > 0) ? `<i class="fa fa-paperclip text-blue-500 ml-1"></i>` : "";
@@ -215,15 +207,13 @@
                         </div>`;
                     }).join('');
                 }
-                statusText.innerText = `Đã tải xong dữ liệu ngày: ${currentDateStr}`;
 
-            } catch(e) {
+            } catch(e) { 
                 console.error(e);
                 reportListEl.innerHTML = `<p class="text-red-400 text-center text-xs">Lỗi: ${e.message}</p>`;
             }
         }
 
-        // --- 6. MENU & UTILS ---
         function showContent(worker, content) {
             document.getElementById('modal-content').innerHTML = `<b>Người báo cáo:</b> ${worker}<br><br>${content}`;
             document.getElementById('detailModal').classList.remove('hidden');
@@ -232,31 +222,17 @@
         function updateSidebarInfo(user) { const n = document.getElementById('sidebar-user-name'); if(n) n.innerText = user.displayName; }
 
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
-        
-        // HÀM MENU ĐƯỢC VIẾT LẠI RÕ RÀNG ĐỂ TRÁNH LỖI CÚ PHÁP
         window.menuAction = (action) => {
             toggleSidebar();
-            if (action === 'report') {
-                window.location.href = "index.html";
-            } else if (action === 'view-reports') {
-                // Đang ở trang này
-            } else if (action === 'assigned') {
-                window.location.href = "congvieccuatoi.html";
-            } else if (action === 'notification') {
-                window.location.href = "xemthongbao.html";
-            } else if (action === 'profile') {
-                window.location.href = "thongtincanhan.html";
-            } else if (action === 'guide') {
-                window.location.href = "huongdan.html";
-            } else if (action === 'send-notify') {
-                window.location.href = "guithongbao.html";
-            } else if (action === 'assign-task') {
-                window.location.href = "giaocongviec.html";
-            } else {
-                alert("Tính năng đang phát triển!");
-            }
+            if (action === 'report') window.location.href = "index.html";
+            else if (action === 'view-reports') {}; 
+            else if (action === 'assigned') window.location.href = "congvieccuatoi.html";
+            else if (action === 'notification') window.location.href = "xemthongbao.html";
+            else if (action === 'profile') window.location.href = "thongtincanhan.html";
+            else if (action === 'guide') window.location.href = "huongdan.html";
+            else if (action === 'send-notify') window.location.href = "guithongbao.html";
+            else if (action === 'assign-task') window.location.href = "giaocongviec.html";
         };
-
         window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut().then(() => window.location.href = "index.html");
     </script>
 </body>
