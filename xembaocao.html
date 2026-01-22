@@ -3,32 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Theo dõi báo cáo</title>
+    <title>Theo dõi & Chấm công - v1.78</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script>
-        function toggleSidebar() {
-            var sb = document.getElementById('sidebar');
-            if(sb) sb.classList.toggle('active');
-        }
-        function menuAction(action) {
-            toggleSidebar();
-            if (action === 'report') window.location.href = "index.html";
-            else if (action === 'assigned') window.location.href = "congvieccuatoi.html";
-            else if (action === 'notification') window.location.href = "xemthongbao.html";
-            else if (action === 'profile') window.location.href = "thongtincanhan.html";
-            else if (action === 'guide') window.location.href = "huongdan.html";
-            else if (action === 'send-notify') window.location.href = "guithongbao.html";
-            else if (action === 'assign-task') window.location.href = "giaocongviec.html";
-            else if (action === 'view-reports') window.location.reload(); 
-        }
-    </script>
-
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* CSS cho bảng chấm công cuộn ngang */
+        .table-container { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+        .timesheet-table th, .timesheet-table td { border: 1px solid #e2e8f0; padding: 8px; text-align: center; font-size: 10px; }
+        .timesheet-table th { background-color: #f1f5f9; color: #334155; font-weight: bold; position: sticky; top: 0; z-index: 10; }
+        .timesheet-table .col-name { position: sticky; left: 0; background-color: #fff; z-index: 20; border-right: 2px solid #cbd5e1; font-weight: bold; color: #1e3a8a; text-align: left; min-width: 120px; }
+        .timesheet-table th.col-name { background-color: #f8fafc; z-index: 30; }
+        .check-ok { color: #16a34a; font-weight: 900; font-size: 14px; } /* Màu xanh */
+        .check-miss { color: #cbd5e1; font-size: 10px; } /* Màu xám nhạt */
+        .weekend { background-color: #fff7ed; } /* Màu cam nhạt cho cuối tuần */
+    </style>
 </head>
 <body class="pb-16 bg-[#F4F7FA]">
 
@@ -37,21 +29,27 @@
     <div class="evn-header">
         <div class="max-w-md mx-auto flex items-center">
             <i class="fa fa-bars text-2xl cursor-pointer mr-4" onclick="toggleSidebar()"></i>
-            <h1 class="font-black text-lg italic uppercase leading-none">Theo dõi báo cáo</h1>
+            <h1 class="font-black text-lg italic uppercase leading-none">Quản lý báo cáo</h1>
         </div>
     </div>
 
-    <div class="max-w-md mx-auto px-4 -mt-8 space-y-4">
-        
+    <div class="max-w-md mx-auto px-4 mt-4 mb-2">
+        <div class="flex bg-white rounded-xl p-1 shadow-sm border border-slate-100">
+            <button onclick="switchView('daily')" id="btn-tab-daily" class="flex-1 py-2 text-xs font-black uppercase rounded-lg bg-blue-600 text-white shadow transition">Theo ngày</button>
+            <button onclick="switchView('monthly')" id="btn-tab-monthly" class="flex-1 py-2 text-xs font-black uppercase rounded-lg text-slate-500 hover:bg-slate-50 transition">Bảng chấm công</button>
+        </div>
+    </div>
+
+    <div id="view-daily" class="max-w-md mx-auto px-4 space-y-4">
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
             <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-bold text-slate-500 uppercase">Ngày xem:</span>
                 <input type="date" id="filter-date" class="border border-slate-200 rounded-lg px-3 py-1 text-sm font-bold text-blue-900 outline-none focus:border-blue-500">
             </div>
-            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Đang tải...</p>
+            <p id="status-text" class="text-[10px] text-slate-400 text-right italic">Sẵn sàng.</p>
         </div>
 
-        <div id="stats-container" class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-3">
             <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-green-500">
                 <p class="text-[10px] text-slate-400 font-bold uppercase">Đã báo cáo</p>
                 <p class="text-2xl font-black text-green-600" id="count-reported">0</p>
@@ -62,174 +60,292 @@
             </div>
         </div>
 
-        <div id="missing-section" class="hidden">
-            <div class="bg-red-50 border border-red-100 p-4 rounded-2xl">
-                <div class="flex items-center gap-2 mb-2">
-                    <i class="fa fa-triangle-exclamation text-red-500 animate-pulse"></i>
-                    <h3 class="font-black text-red-600 text-xs uppercase" id="warning-title">Chưa báo cáo</h3>
-                </div>
-                <div id="missing-list" class="flex flex-wrap gap-2"></div>
+        <div id="missing-section" class="hidden bg-red-50 border border-red-100 p-4 rounded-2xl">
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fa fa-triangle-exclamation text-red-500 animate-pulse"></i>
+                <h3 class="font-black text-red-600 text-xs uppercase" id="warning-title">Chưa báo cáo</h3>
             </div>
+            <div id="missing-list" class="flex flex-wrap gap-2"></div>
         </div>
 
-        <div>
-            <h3 class="font-black text-blue-900 text-xs uppercase mb-3 ml-2">Chi tiết (<span id="list-count">0</span>)</h3>
-            <div id="report-list" class="space-y-3">
-                <p class="text-center text-xs text-slate-400 py-10">Vui lòng đợi...</p>
+        <div id="report-list" class="space-y-3 pb-10"></div>
+    </div>
+
+    <div id="view-monthly" class="max-w-6xl mx-auto px-2 hidden space-y-4">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-500 uppercase">Chọn tháng:</span>
+                <input type="month" id="filter-month" class="border border-slate-200 rounded-lg px-3 py-1 text-sm font-bold text-blue-900 outline-none">
             </div>
+            <button onclick="loadTimesheet()" class="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow hover:bg-blue-700">Tạo bảng công</button>
+        </div>
+        
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+            <h3 id="timesheet-title" class="text-sm font-black text-blue-900 uppercase mb-4 border-l-4 border-blue-500 pl-2">Bảng công sơ bộ</h3>
+            <p class="text-[10px] text-slate-400 italic mb-2">Chu kỳ: Từ ngày 16 tháng trước đến ngày 15 tháng này.</p>
+            
+            <div class="table-container">
+                <table class="timesheet-table w-full">
+                    <thead id="ts-head"></thead>
+                    <tbody id="ts-body"></tbody>
+                </table>
+            </div>
+            <p id="ts-loading" class="text-center text-xs text-slate-400 py-4 hidden">Đang tổng hợp dữ liệu...</p>
         </div>
     </div>
 
     <div id="detailModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[24px] p-6 relative shadow-2xl">
             <i class="fa fa-times absolute top-4 right-4 text-slate-400 cursor-pointer text-xl" onclick="closeModal()"></i>
-            <h3 class="font-black text-lg text-[#1A479A] uppercase mb-4 border-b pb-2">Nội dung báo cáo</h3>
+            <h3 class="font-black text-lg text-[#1A479A] uppercase mb-4 border-b pb-2">Chi tiết</h3>
             <div id="modal-content" class="text-sm text-slate-700 leading-relaxed max-h-[60vh] overflow-y-auto"></div>
         </div>
     </div>
 
-    <div class="footer-evn"><p>Hệ thống quản lý - Version 1.77</p></div>
-
     <script>
-        // --- 1. SET NGÀY MẶC ĐỊNH ---
+        // --- MENU LOGIC ---
+        function toggleSidebar() { var sb=document.getElementById('sidebar'); if(sb) sb.classList.toggle('active'); }
+        function menuAction(a) { 
+            toggleSidebar();
+            if(a==='report') window.location.href="index.html";
+            else if(a==='view-reports') window.location.reload();
+            else if(a==='assigned') window.location.href="congvieccuatoi.html";
+            else if(a==='notification') window.location.href="xemthongbao.html";
+            else if(a==='profile') window.location.href="thongtincanhan.html";
+            else if(a==='guide') window.location.href="huongdan.html";
+            else if(a==='send-notify') window.location.href="guithongbao.html";
+            else if(a==='assign-task') window.location.href="giaocongviec.html";
+            else alert("Tính năng đang phát triển");
+        }
+
+        // --- INIT ---
         try {
+            // Set Today for Daily View
             var now = new Date();
+            document.getElementById('filter-date').value = now.toISOString().split('T')[0];
+            
+            // Set Current Month for Monthly View
+            var m = now.getMonth() + 1;
             var y = now.getFullYear();
-            var m = String(now.getMonth() + 1).padStart(2,'0');
-            var d = String(now.getDate()).padStart(2,'0');
-            document.getElementById('filter-date').value = y + "-" + m + "-" + d;
-        } catch(e) {}
+            document.getElementById('filter-month').value = `${y}-${String(m).padStart(2,'0')}`;
+        } catch(e){}
 
-        // --- 2. LOAD SIDEBAR ---
-        fetch('sidebar.html').then(function(r){ return r.text() }).then(function(d){
-            document.getElementById('sidebar-container').innerHTML = d;
-        });
+        fetch('sidebar.html').then(r=>r.text()).then(d=>{ document.getElementById('sidebar-container').innerHTML=d; });
 
-        // --- 3. CƠ CHẾ KẾT NỐI AN TOÀN (RETRY) ---
+        // --- FIREBASE START ---
         var attempts = 0;
-        var initInterval = setInterval(function() {
+        var initInt = setInterval(function() {
             attempts++;
             if (typeof firebase !== 'undefined' && firebase.apps) {
-                clearInterval(initInterval);
-                startApp(); // Chạy app khi Firebase đã sẵn sàng
-            } else if (attempts > 15) {
-                clearInterval(initInterval);
-                alert("Mạng quá yếu, không thể kết nối dữ liệu!");
-            }
+                clearInterval(initInt);
+                startApp();
+            } else if (attempts > 15) { clearInterval(initInt); alert("Lỗi kết nối mạng!"); }
         }, 800);
 
         function startApp() {
-            try {
-                var firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
-                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-                var db = firebase.firestore();
-                var auth = firebase.auth();
+            var config = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
+            if (!firebase.apps.length) firebase.initializeApp(config);
+            var db = firebase.firestore();
+            var auth = firebase.auth();
 
-                document.getElementById('status-text').innerText = "Đã kết nối.";
+            auth.onAuthStateChanged(function(user) {
+                if(user) {
+                    var n=document.getElementById('sidebar-user-name'); if(n) n.innerText=user.displayName;
+                    db.collection("users").doc(user.email).get().then(function(doc){
+                        if(doc.exists && ["Tổ trưởng","Tổ phó","Đội trưởng","Đội phó","Lãnh đạo"].includes(doc.data().position)) {
+                            // Mặc định load view ngày
+                            loadDailyReport(db);
+                        } else { alert("Không có quyền!"); window.location.href="index.html"; }
+                    }).catch(function(){ loadDailyReport(db); });
+                } else window.location.href="index.html";
+            });
 
-                auth.onAuthStateChanged(function(user) {
-                    if (user) {
-                        var n = document.getElementById('sidebar-user-name'); 
-                        if(n) n.innerText = user.displayName;
-                        
-                        db.collection("users").doc(user.email).get().then(function(doc){
-                            if(doc.exists && ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"].includes(doc.data().position)) {
-                                loadDashboard(db);
-                            } else {
-                                alert("Không có quyền!"); window.location.href="index.html";
-                            }
-                        }).catch(function(){ loadDashboard(db); }); // Fallback
-                    } else { window.location.href = "index.html"; }
-                });
-
-                document.getElementById('filter-date').addEventListener('change', function() { loadDashboard(db); });
-
-            } catch(e) { alert("Lỗi khởi chạy: " + e.message); }
+            // Event Listeners
+            document.getElementById('filter-date').addEventListener('change', function(){ loadDailyReport(db); });
+            window.dbInstance = db; // Global ref
         }
 
-        async function loadDashboard(db) {
-            var reportListEl = document.getElementById('report-list');
-            var statusText = document.getElementById('status-text');
+        // --- VIEW SWITCHER ---
+        function switchView(view) {
+            if(view === 'daily') {
+                document.getElementById('view-daily').classList.remove('hidden');
+                document.getElementById('view-monthly').classList.add('hidden');
+                document.getElementById('btn-tab-daily').className = "flex-1 py-2 text-xs font-black uppercase rounded-lg bg-blue-600 text-white shadow transition";
+                document.getElementById('btn-tab-monthly').className = "flex-1 py-2 text-xs font-black uppercase rounded-lg text-slate-500 hover:bg-slate-50 transition";
+            } else {
+                document.getElementById('view-daily').classList.add('hidden');
+                document.getElementById('view-monthly').classList.remove('hidden');
+                document.getElementById('btn-tab-daily').className = "flex-1 py-2 text-xs font-black uppercase rounded-lg text-slate-500 hover:bg-slate-50 transition";
+                document.getElementById('btn-tab-monthly').className = "flex-1 py-2 text-xs font-black uppercase rounded-lg bg-blue-600 text-white shadow transition";
+                // Tự động load nếu chưa có dữ liệu
+                if(document.getElementById('ts-body').innerHTML === "") loadTimesheet();
+            }
+        }
+
+        // --- LOGIC 1: DAILY REPORT (NHƯ CŨ + SORT) ---
+        async function loadDailyReport(db) {
+            var listEl = document.getElementById('report-list');
             var inputVal = document.getElementById('filter-date').value;
-            
             if(!inputVal) return;
+            
             var parts = inputVal.split('-');
             var startOfDay = new Date(parts[0], parts[1]-1, parts[2], 0, 0, 0);
             var endOfDay = new Date(parts[0], parts[1]-1, parts[2], 23, 59, 59);
 
-            statusText.innerText = "Đang tải: " + startOfDay.toLocaleDateString('vi-VN');
-            reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang truy xuất...</p>';
+            document.getElementById('status-text').innerText = "Đang tải: " + startOfDay.toLocaleDateString('vi-VN');
+            listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Đang truy xuất...</p>';
 
             try {
-                // 1. Get Users
                 var usersSnap = await db.collection("users").get();
                 var allUsers = [];
-                usersSnap.forEach(function(doc){ if(doc.data().name) allUsers.push({email:doc.id, name:doc.data().name}); });
+                usersSnap.forEach(d => { if(d.data().name) allUsers.push({email:d.id, name:d.data().name}); });
 
-                // 2. Get Reports
-                var reportsSnap = await db.collection("daily_reports")
-                                        .where("timestamp", ">=", startOfDay)
-                                        .where("timestamp", "<=", endOfDay)
-                                        .get();
-                var reportedEmails = [];
+                var reportSnap = await db.collection("daily_reports")
+                    .where("timestamp", ">=", startOfDay)
+                    .where("timestamp", "<=", endOfDay)
+                    .get();
+
                 var reports = [];
-                reportsSnap.forEach(function(doc){
-                    var d = doc.data();
-                    reportedEmails.push(d.email);
-                    reports.push({...d, id:doc.id});
+                var reportedEmails = [];
+                reportSnap.forEach(doc => {
+                    reports.push({...doc.data(), id:doc.id});
+                    reportedEmails.push(doc.data().email);
                 });
 
-                // 3. Stats
-                var missingUsers = allUsers.filter(function(u){ return !reportedEmails.includes(u.email); });
+                // SORT: Mới nhất lên đầu (Timestamp giảm dần)
+                reports.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+
+                // Stats
+                var missing = allUsers.filter(u => !reportedEmails.includes(u.email));
                 document.getElementById('count-reported').innerText = reports.length;
-                document.getElementById('count-missing').innerText = missingUsers.length;
-                document.getElementById('list-count').innerText = reports.length;
+                document.getElementById('count-missing').innerText = missing.length;
+                
+                // Missing UI
+                var missEl = document.getElementById('missing-list');
+                var missSec = document.getElementById('missing-section');
+                if(missing.length > 0) {
+                    missSec.classList.remove('hidden');
+                    missEl.innerHTML = missing.map(u => `<span class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-sm">${u.name}</span>`).join('');
+                } else missSec.classList.add('hidden');
 
-                // 4. Missing List & Warning
-                var missingEl = document.getElementById('missing-list');
-                var missingSec = document.getElementById('missing-section');
-                missingEl.innerHTML = "";
-                if(missingUsers.length > 0) {
-                    missingSec.classList.remove('hidden');
-                    var now = new Date();
-                    var isToday = now.getDate() == startOfDay.getDate();
-                    var isLate = now.getHours() >= 19;
-                    var titleEl = document.getElementById('warning-title');
-                    
-                    if(isToday && isLate) {
-                        titleEl.innerText = "CẢNH BÁO: QUÁ 19H CHƯA BÁO CÁO";
-                        titleEl.className = "font-black text-red-600 text-xs uppercase animate-pulse";
-                    } else {
-                        titleEl.innerText = "Chưa báo cáo";
-                        titleEl.className = "font-black text-slate-600 text-xs uppercase";
-                    }
-                    missingEl.innerHTML = missingUsers.map(function(u){ return '<span class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-sm">'+u.name+'</span>'; }).join('');
-                } else { missingSec.classList.add('hidden'); }
-
-                // 5. Render Reports
-                if(reports.length === 0) reportListEl.innerHTML = '<p class="text-center text-xs text-slate-400 italic py-4">Chưa có dữ liệu</p>';
+                // Render List
+                if(reports.length === 0) listEl.innerHTML = '<p class="text-center text-xs text-slate-400 italic py-4">Chưa có báo cáo</p>';
                 else {
-                    reports.sort(function(a,b){ return (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0) });
-                    reportListEl.innerHTML = reports.map(function(r){
-                        var fileIcon = (r.files&&r.files.length>0) ? '<i class="fa fa-paperclip text-blue-500 ml-1"></i>' : "";
-                        var cleanContent = r.content.replace(/'/g, "\\'").replace(/\n/g, '<br>');
-                        return '<div class="bg-white p-4 rounded-[20px] shadow-sm border border-slate-50 cursor-pointer hover:bg-slate-50 transition" onclick="showContent(\''+r.worker+'\', \''+cleanContent+'\')"><div class="flex justify-between items-start mb-1"><h4 class="font-black text-xs text-[#1A479A] uppercase">'+r.worker+'</h4><span class="bg-blue-50 text-blue-600 text-[9px] font-bold px-2 py-0.5 rounded">'+r.reportType+'</span></div><p class="text-xs text-slate-600 line-clamp-2">'+r.content+'</p>'+(fileIcon?'<p class="text-[9px] text-slate-400 mt-1">'+fileIcon+' Có đính kèm file</p>':'')+'</div>';
+                    listEl.innerHTML = reports.map(r => {
+                        var fileIcon = (r.files && r.files.length) ? '<i class="fa fa-paperclip text-blue-500 ml-1"></i>' : '';
+                        var contentClean = r.content.replace(/'/g, "\\'").replace(/\n/g, '<br>');
+                        return `<div class="bg-white p-4 rounded-[20px] shadow-sm border border-slate-50 cursor-pointer hover:bg-slate-50 transition" onclick="showContent('${r.worker}','${contentClean}')">
+                            <div class="flex justify-between items-start mb-1">
+                                <h4 class="font-black text-xs text-[#1A479A] uppercase">${r.worker}</h4>
+                                <span class="bg-blue-50 text-blue-600 text-[9px] font-bold px-2 py-0.5 rounded">${r.reportType}</span>
+                            </div>
+                            <p class="text-xs text-slate-600 line-clamp-2">${r.content}</p>
+                            ${fileIcon ? `<p class="text-[9px] text-slate-400 mt-1">${fileIcon} Có file</p>` : ''}
+                        </div>`;
                     }).join('');
                 }
-                statusText.innerText = "Hoàn tất.";
+                document.getElementById('status-text').innerText = "Hoàn tất.";
 
-            } catch(e) { alert("Lỗi tải data: " + e.message); }
+            } catch(e) { console.error(e); }
         }
 
-        function showContent(w, c) { document.getElementById('modal-content').innerHTML = '<b>'+w+'</b><br><br>'+c; document.getElementById('detailModal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
-        
-        window.handleLogout = function() {
-            if(confirm("Đăng xuất?")) {
-                if(typeof firebase !== 'undefined') firebase.auth().signOut().then(function(){ window.location.href = "index.html"; });
-                else window.location.href = "index.html";
+        // --- LOGIC 2: TIMESHEET (16 prev -> 15 curr) ---
+        async function loadTimesheet() {
+            var db = window.dbInstance;
+            var monthVal = document.getElementById('filter-month').value; // YYYY-MM
+            if(!monthVal) return alert("Vui lòng chọn tháng!");
+
+            document.getElementById('ts-loading').classList.remove('hidden');
+            document.getElementById('ts-body').innerHTML = "";
+            document.getElementById('ts-head').innerHTML = "";
+
+            var parts = monthVal.split('-');
+            var year = parseInt(parts[0]);
+            var month = parseInt(parts[1]); // 1-12
+
+            // Tính toán ngày bắt đầu: Ngày 16 của tháng trước (month - 1)
+            // Lưu ý: JS Date month index 0-11. 
+            // Tháng trước: Index = month - 2.
+            var startDate = new Date(year, month - 2, 16, 0, 0, 0);
+            
+            // Tính toán ngày kết thúc: Ngày 15 của tháng hiện tại
+            var endDate = new Date(year, month - 1, 15, 23, 59, 59);
+
+            document.getElementById('timesheet-title').innerText = `Bảng công tháng ${month}/${year} (${startDate.getDate()}/${startDate.getMonth()+1} - ${endDate.getDate()}/${endDate.getMonth()+1})`;
+
+            try {
+                // 1. Lấy danh sách nhân viên
+                var usersSnap = await db.collection("users").orderBy("name").get();
+                var users = [];
+                usersSnap.forEach(d => { if(d.data().name) users.push({email:d.id, name:d.data().name}); });
+
+                // 2. Lấy dữ liệu báo cáo trong khoảng thời gian
+                var reportsSnap = await db.collection("daily_reports")
+                    .where("timestamp", ">=", startDate)
+                    .where("timestamp", "<=", endDate)
+                    .get();
+                
+                // Map dữ liệu: UserEmail -> { "dd/mm": true }
+                var dataMap = {};
+                reportsSnap.forEach(doc => {
+                    var d = doc.data();
+                    var email = d.email;
+                    if(!dataMap[email]) dataMap[email] = {};
+                    
+                    // Chuyển timestamp thành key ngày (D/M)
+                    var dateObj = d.timestamp.toDate();
+                    var key = dateObj.getDate() + "/" + (dateObj.getMonth() + 1);
+                    dataMap[email][key] = true;
+                });
+
+                // 3. Tạo Header bảng (Danh sách ngày)
+                var dateList = [];
+                var curr = new Date(startDate);
+                var headerHTML = "<tr><th class='col-name'>Họ và tên</th>";
+                
+                while(curr <= endDate) {
+                    var dStr = curr.getDate() + "/" + (curr.getMonth() + 1);
+                    dateList.push({ key: dStr, obj: new Date(curr) });
+                    
+                    // Style cho cuối tuần
+                    var dayWeek = curr.getDay(); // 0=CN, 6=T7
+                    var cls = (dayWeek===0 || dayWeek===6) ? "weekend" : "";
+                    
+                    headerHTML += `<th class="${cls}">${curr.getDate()}</th>`;
+                    curr.setDate(curr.getDate() + 1);
+                }
+                headerHTML += "</tr>";
+                document.getElementById('ts-head').innerHTML = headerHTML;
+
+                // 4. Tạo Body bảng
+                var bodyHTML = "";
+                users.forEach(u => {
+                    bodyHTML += `<tr><td class="col-name truncate">${u.name}</td>`;
+                    dateList.forEach(dateInfo => {
+                        var dayWeek = dateInfo.obj.getDay();
+                        var cls = (dayWeek===0 || dayWeek===6) ? "weekend" : "";
+                        
+                        var hasReport = dataMap[u.email] && dataMap[u.email][dateInfo.key];
+                        var cellContent = hasReport ? '<span class="check-ok">✔</span>' : '<span class="check-miss">-</span>';
+                        
+                        bodyHTML += `<td class="${cls}">${cellContent}</td>`;
+                    });
+                    bodyHTML += "</tr>";
+                });
+                document.getElementById('ts-body').innerHTML = bodyHTML;
+
+            } catch(e) {
+                console.error(e);
+                alert("Lỗi tạo bảng công: " + e.message);
+            } finally {
+                document.getElementById('ts-loading').classList.add('hidden');
             }
-        };
+        }
+
+        // --- UTILS ---
+        function showContent(w, c) { document.getElementById('modal-content').innerHTML = `<b>${w}</b><br><br>${c}`; document.getElementById('detailModal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
+        window.handleLogout = function() { if(confirm("Đăng xuất?")) auth.signOut().then(()=>window.location.href="index.html"); }
     </script>
 </body>
 </html>
