@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sổ tay công việc</title>
-    
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/180/power-plant.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -16,22 +14,36 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="pb-16">
+<body class="pb-16 bg-[#F4F7FA]">
 
     <div id="login-screen" class="login-overlay">
         <div class="text-center mb-10">
             <h1 class="text-3xl font-black italic uppercase tracking-tighter mb-2">Sổ tay công việc</h1>
             <p class="text-xs font-bold text-blue-200 uppercase tracking-widest">Đội quản lý lưới điện 2</p>
         </div>
-        <button onclick="handleLogin()" class="btn-google uppercase text-xs">
+        <button onclick="handleLogin()" class="btn-google uppercase text-xs" id="btn-login-google">
             <img src="https://img.icons8.com/color/48/000000/google-logo.png" class="w-5 h-5"/>
             Đăng nhập Gmail
         </button>
-        <p id="loading-text" class="mt-4 text-[10px] text-white/50 hidden font-bold">Đang kết nối hệ thống...</p>
+        <p id="loading-text" class="mt-4 text-[10px] text-white/50 hidden font-bold animate-pulse">Đang kết nối hệ thống...</p>
+    </div>
+
+    <div id="pending-screen" class="hidden fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mb-6 animate-pulse">
+            <i class="fa fa-clock text-4xl text-orange-500"></i>
+        </div>
+        <h2 class="text-xl font-black text-slate-800 uppercase mb-2">Đang chờ phê duyệt</h2>
+        <p class="text-sm text-slate-500 mb-6 leading-relaxed">
+            Tài khoản <b id="pending-email" class="text-blue-600">...</b> đã được ghi nhận.<br>
+            Vui lòng đợi <b>Lãnh đạo</b> hoặc <b>Admin</b> kích hoạt tài khoản của bạn.
+        </p>
+        <button onclick="window.location.reload()" class="bg-slate-100 text-slate-600 font-bold py-3 px-6 rounded-xl text-xs mb-4 hover:bg-slate-200">
+            <i class="fa fa-sync mr-1"></i> Kiểm tra lại
+        </button>
+        <button onclick="auth.signOut().then(()=>window.location.reload())" class="text-red-400 font-bold text-xs underline">Đăng xuất</button>
     </div>
 
     <div id="sidebar-container"></div>
-
     <div id="main-app" class="hidden">
         <div class="evn-header">
             <div class="max-w-md mx-auto flex items-center">
@@ -82,209 +94,133 @@
         </div>
     </div>
 
-    <div class="footer-evn"><p>Thiết kế bởi: Trần Công Đẹp | Phiên bản: 1.70</p></div>
+    <div class="footer-evn"><p>Phiên bản: 1.85 (Approval Mode)</p></div>
 
     <script>
-        // 1. CẤU HÌNH FIREBASE
         const firebaseConfig = { apiKey: "AIzaSyBlK2eFfv1Ca-3b_Ew1yXTG3GcWdYw_b5M", authDomain: "baocaongay-e73a2.firebaseapp.com", projectId: "baocaongay-e73a2", storageBucket: "baocaongay-e73a2.firebasestorage.app", messagingSenderId: "75165392007", appId: "1:75165392007:web:4ec22bb1612108b096ac22", measurementId: "G-TEGTD9KFCW" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
         const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbwanzWLo8PhCuOnTGrP-Ra_5rbYvkCgdgbIr-gSPMxbsXJ-5creXdid0_GYQM6AufT4rA/exec";
 
-        let selectedFiles = [];
-        let editingId = null;
-        let currentUser = null;
+        let selectedFiles = [], editingId = null, currentUser = null;
 
-        // 2. LOAD SIDEBAR
-        fetch('sidebar.html').then(r=>r.text()).then(d=>{
-            document.getElementById('sidebar-container').innerHTML=d;
-        });
+        fetch('sidebar.html').then(r=>r.text()).then(d=>{ document.getElementById('sidebar-container').innerHTML=d; });
 
-        // 3. AUTH & INIT DATA
-        auth.onAuthStateChanged(user => {
+        // --- AUTH LOGIC (QUAN TRỌNG: CHECK STATUS) ---
+        auth.onAuthStateChanged(async (user) => {
             if (user) {
-                currentUser = user;
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
-                document.getElementById('header-user-name').innerText = user.displayName;
+                document.getElementById('loading-text').classList.remove('hidden');
+                document.getElementById('btn-login-google').classList.add('hidden');
                 
-                // Cập nhật Sidebar & Quyền
-                updateSidebarInfo(user);
-                checkManagerRole(user.email);
-                
-                // Tải dữ liệu công việc
-                checkAssignedTasks(user.displayName);
-                loadHistory(user.email);
-                
-                // Đếm số thông báo/công việc mới cho Sidebar
-                countUnreadNotifications(user.email);
-                countNewTasks(user.displayName);
+                try {
+                    const userRef = db.collection("users").doc(user.email);
+                    const doc = await userRef.get();
 
-                // Kiểm tra xem có lệnh "Báo cáo ngay" từ trang Công việc không
-                const preTaskId = localStorage.getItem('preselect_task_id');
-                if(preTaskId) {
-                    document.getElementById('report-type').value = "Công việc được giao";
-                    handleTypeChange();
-                    setTimeout(() => {
-                        const select = document.getElementById('assigned-task-list');
-                        if(select) select.value = preTaskId;
-                        localStorage.removeItem('preselect_task_id');
-                    }, 1500);
+                    if (!doc.exists) {
+                        // 1. TÀI KHOẢN MỚI -> TẠO PENDING
+                        await userRef.set({
+                            name: user.displayName,
+                            email: user.email,
+                            photo: user.photoURL,
+                            position: "Chưa duyệt", // Mặc định
+                            unit: "Chờ xếp",
+                            status: "pending", // QUAN TRỌNG
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        showPendingScreen(user.email);
+                    } else {
+                        // 2. TÀI KHOẢN CŨ -> CHECK STATUS
+                        const data = doc.data();
+                        if (data.status === "pending") {
+                            showPendingScreen(user.email);
+                        } else if (data.status === "blocked") {
+                            alert("Tài khoản của bạn đã bị khóa.");
+                            await auth.signOut();
+                            window.location.reload();
+                        } else {
+                            // STATUS OK (hoặc undefined với user cũ) -> CHO VÀO
+                            enterApp(user);
+                        }
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Lỗi đăng nhập: " + e.message);
                 }
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('main-app').classList.add('hidden');
+                document.getElementById('pending-screen').classList.add('hidden');
             }
         });
 
-        // --- CÁC HÀM XỬ LÝ SIDEBAR & BADGE (Để trang chủ cũng hiện số) ---
+        function showPendingScreen(email) {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.add('hidden');
+            document.getElementById('pending-screen').classList.remove('hidden');
+            document.getElementById('pending-email').innerText = email;
+        }
+
+        function enterApp(user) {
+            currentUser = user;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('pending-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('header-user-name').innerText = user.displayName;
+            
+            updateSidebarInfo(user);
+            checkManagerRole(user.email);
+            checkAssignedTasks(user.displayName);
+            loadHistory(user.email);
+            countUnreadNotifications(user.email);
+            countNewTasks(user.displayName);
+        }
+
+        // --- CÁC HÀM APP ---
         async function countUnreadNotifications(email) {
-            try {
-                const snap = await db.collection("notifications").get();
-                let unreadCount = 0;
-                snap.forEach(doc => { const d = doc.data(); if(!d.read_by || !d.read_by.includes(email)) unreadCount++; });
-                const badge = document.getElementById('notif-badge');
-                if(badge) { if(unreadCount > 0) { badge.innerText = unreadCount > 99 ? '99+' : unreadCount; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); }
-            } catch(e) {}
+            try { const s = await db.collection("notifications").get(); let c=0; s.forEach(d=>{if(!d.data().read_by?.includes(email))c++}); 
+            const b=document.getElementById('notif-badge'); if(b){if(c>0){b.innerText=c>99?'99+':c;b.classList.remove('hidden')}else b.classList.add('hidden')} } catch(e){}
         }
-
-        async function countNewTasks(workerName) {
-            try {
-                const snap = await db.collection("tasks").where("assigned_leader", "==", workerName).where("status", "==", "assigned").get();
-                let count = 0;
-                snap.forEach(doc => { if(!doc.data().accepted_at) count++; });
-                const badge = document.getElementById('task-badge');
-                if(badge) { if(count > 0) { badge.innerText = count; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); }
-            } catch(e) {}
+        async function countNewTasks(name) {
+            try { const s = await db.collection("tasks").where("assigned_leader","==",name).where("status","==","assigned").get(); let c=0; s.forEach(d=>{if(!d.data().accepted_at)c++}); 
+            const b=document.getElementById('task-badge'); if(b){if(c>0){b.innerText=c;b.classList.remove('hidden')}else b.classList.add('hidden')} } catch(e){}
         }
-
         async function checkManagerRole(email) {
-            try {
-                const doc = await db.collection("users").doc(email).get();
-                if(doc.exists) {
-                    const role = doc.data().position || "";
-                    const allowed = ["Tổ trưởng", "Tổ phó", "Đội trưởng", "Đội phó", "Lãnh đạo"];
-                    if(allowed.includes(role)) setTimeout(() => document.querySelectorAll('.manager-only').forEach(el => el.classList.remove('hidden')), 500);
-                }
-            } catch(e) {}
+            try { const d = await db.collection("users").doc(email).get(); if(d.exists && ["Tổ trưởng","Tổ phó","Đội trưởng","Đội phó","Lãnh đạo"].includes(d.data().position)) setTimeout(()=>document.querySelectorAll('.manager-only').forEach(e=>e.classList.remove('hidden')),500); } catch(e){}
         }
-
-        function updateSidebarInfo(user) {
-            const nameEl = document.getElementById('sidebar-user-name');
-            const emailEl = document.getElementById('sidebar-user-email');
-            if(nameEl && emailEl) { nameEl.innerText = user.displayName; emailEl.innerText = user.email; }
-        }
-
-        // --- MENU NAVIGATION (ROUTER) ---
+        function updateSidebarInfo(u) { const n=document.getElementById('sidebar-user-name'), e=document.getElementById('sidebar-user-email'); if(n&&e){n.innerText=u.displayName; e.innerText=u.email;} }
+        
         window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('active');
-        window.menuAction = (action) => {
-            toggleSidebar();
-            if (action === 'report') {
-                window.scrollTo({top:0,behavior:'smooth'}); resetForm();
-            } else if (action === 'assigned') {
-                window.location.href = "congvieccuatoi.html";
-            } else if (action === 'notification') {
-                window.location.href = "xemthongbao.html";
-            } else if (action === 'profile') {
-                window.location.href = "thongtincanhan.html";
-            } else if (action === 'guide') {
-                window.location.href = "huongdan.html";
-            } else if (action === 'send-notify') {
-                window.location.href = "guithongbao.html";
-            } else if (action === 'assign-task') {
-                window.location.href = "giaocongviec.html";
-            } else if (action === 'view-reports') {
-                window.location.href = "xembaocao.html";
-            } else {
-                alert("Tính năng đang phát triển!");
-            }
-        };
-
-        // --- LOGIC BÁO CÁO ---
-        async function checkAssignedTasks(workerName) {
-            const taskOpt = document.getElementById('opt-assigned');
-            const taskList = document.getElementById('assigned-task-list');
-            try {
-                const snap = await db.collection("tasks").where("assigned_leader", "==", workerName).where("status", "==", "assigned").get();
-                if (!snap.empty) {
-                    taskOpt.classList.remove('hidden');
-                    taskList.innerHTML = snap.docs.map(doc => `<option value="${doc.id}">${doc.data().don_vi_de_nghi}</option>`).join('');
-                } else { taskOpt.classList.add('hidden'); }
-            } catch (e) {}
-        }
-
-        window.handleTypeChange = () => {
-            const type = document.getElementById('report-type').value;
-            document.getElementById('assigned-tasks-container').classList.toggle('hidden', type !== 'Công việc được giao');
-        };
-
-        // Xử lý file
-        document.getElementById('file-in').onchange = (e) => {
-            Array.from(e.target.files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (ev) => { selectedFiles.push({ name: file.name, type: file.type, data: ev.target.result.split(',')[1] }); renderFileList(); };
-                reader.readAsDataURL(file);
-            });
-        };
-        function renderFileList() { document.getElementById('file-list-container').innerHTML = selectedFiles.map((f, i) => `<div class="file-item"><span class="truncate"><i class="fa fa-file-image mr-2 text-blue-500"></i>${f.name}</span><i class="fa fa-trash-alt text-red-500 cursor-pointer" onclick="removeFile(${i})"></i></div>`).join(''); }
-        window.removeFile = (i) => { selectedFiles.splice(i, 1); renderFileList(); };
+        window.menuAction = (a) => { toggleSidebar(); if(a=='report'){window.scrollTo({top:0,behavior:'smooth'});resetForm()}else if(a=='assigned')window.location.href="congvieccuatoi.html";else if(a=='notification')window.location.href="xemthongbao.html";else if(a=='profile')window.location.href="thongtincanhan.html";else if(a=='guide')window.location.href="huongdan.html";else if(a=='send-notify')window.location.href="guithongbao.html";else if(a=='assign-task')window.location.href="giaocongviec.html";else if(a=='view-reports')window.location.href="xembaocao.html"; };
+        
+        async function checkAssignedTasks(name) { try{ const s=await db.collection("tasks").where("assigned_leader","==",name).where("status","==","assigned").get(); if(!s.empty){document.getElementById('opt-assigned').classList.remove('hidden'); document.getElementById('assigned-task-list').innerHTML=s.docs.map(d=>`<option value="${d.id}">${d.data().don_vi_de_nghi}</option>`).join('')} }catch(e){} }
+        window.handleTypeChange = () => { document.getElementById('assigned-tasks-container').classList.toggle('hidden', document.getElementById('report-type').value !== 'Công việc được giao'); };
+        
+        document.getElementById('file-in').onchange = (e) => { Array.from(e.target.files).forEach(f => { const r=new FileReader(); r.onload=(v)=>{ selectedFiles.push({name:f.name,type:f.type,data:v.target.result.split(',')[1]}); renderFileList(); }; r.readAsDataURL(f); }); };
+        function renderFileList() { document.getElementById('file-list-container').innerHTML = selectedFiles.map((f,i)=>`<div class="file-item"><span class="truncate"><i class="fa fa-file-image mr-2 text-blue-500"></i>${f.name}</span><i class="fa fa-trash-alt text-red-500 cursor-pointer" onclick="removeFile(${i})"></i></div>`).join(''); }
+        window.removeFile = (i) => { selectedFiles.splice(i,1); renderFileList(); };
 
         window.submitReport = async () => {
-            const u = auth.currentUser;
-            const content = document.getElementById('job-content').value;
-            if (!content) return alert("Chưa nhập nội dung!");
-            const btn = document.getElementById('btn-submit'); btn.disabled = true; btn.innerText = "ĐANG GỬI...";
-
+            const u=auth.currentUser, c=document.getElementById('job-content').value; if(!c) return alert("Thiếu nội dung!");
+            const btn=document.getElementById('btn-submit'); btn.disabled=true; btn.innerText="ĐANG GỬI...";
             try {
-                const type = document.getElementById('report-type').value;
-                const taskId = type === 'Công việc được giao' ? document.getElementById('assigned-task-list').value : null;
-                
-                // Gửi file qua AppScript (nếu có)
-                if (selectedFiles.length > 0) fetch(APPSCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ files: selectedFiles, user: u.email }) });
-
-                const reportData = {
-                    worker: u.displayName, email: u.email, reportType: type, assignedTaskId: taskId, 
-                    reportTitle: `Báo cáo ngày ${new Date().toLocaleDateString('vi-VN')}`,
-                    content: content, note: document.getElementById('job-note').value, 
-                    files: selectedFiles.map(f => ({name: f.name})), // Lưu tên file để hiển thị bên Admin
-                    status: "pending",
-                    date: new Date().toLocaleDateString('vi-VN'), 
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                };
-
-                if (editingId) await db.collection("daily_reports").doc(editingId).update(reportData);
-                else await db.collection("daily_reports").add(reportData);
-
-                alert("Gửi báo cáo thành công!"); resetForm(); setTimeout(() => loadHistory(u.email), 800);
-            } catch (e) { alert("Lỗi: " + e.message); } finally { btn.disabled = false; btn.innerText = "Gửi báo cáo"; }
+                const t=document.getElementById('report-type').value; const tid=t==='Công việc được giao'?document.getElementById('assigned-task-list').value:null;
+                if(selectedFiles.length) fetch(APPSCRIPT_URL, {method:"POST", mode:"no-cors", body:JSON.stringify({files:selectedFiles, user:u.email})});
+                const d={ worker:u.displayName, email:u.email, reportType:t, assignedTaskId:tid, reportTitle:`Báo cáo ngày ${new Date().toLocaleDateString('vi-VN')}`, content:c, note:document.getElementById('job-note').value, files:selectedFiles.map(f=>({name:f.name})), status:"pending", date:new Date().toLocaleDateString('vi-VN'), timestamp:firebase.firestore.FieldValue.serverTimestamp() };
+                if(editingId) await db.collection("daily_reports").doc(editingId).update(d); else await db.collection("daily_reports").add(d);
+                alert("Thành công!"); resetForm(); setTimeout(()=>loadHistory(u.email),800);
+            } catch(e){ alert("Lỗi: "+e.message); } finally { btn.disabled=false; btn.innerText="Gửi báo cáo"; }
         };
 
         async function loadHistory(email) {
-            const list = document.getElementById('history-list');
-            const today = new Date().toLocaleDateString('vi-VN');
-            try {
-                let snap = await db.collection("daily_reports").where("email", "==", email).where("date", "==", today).orderBy("timestamp", "desc").get();
-                if (snap.empty) { list.innerHTML = `<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Chưa có báo cáo</p>`; return; }
-                list.innerHTML = snap.docs.map(doc => {
-                    const d = doc.data(); const canEdit = d.status === "pending";
-                    return `<div class="card-history"><div class="flex justify-between mb-2"><span class="text-[8px] font-black px-2 py-0.5 rounded ${canEdit ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'} uppercase">${d.reportType}</span>${canEdit ? `<i class="fa fa-edit text-blue-600 cursor-pointer" onclick="editReport('${doc.id}')"></i>` : ''}</div><p class="text-[9px] font-black text-blue-800 uppercase">${d.reportTitle}</p><p class="text-xs text-slate-600 font-bold mt-2">${d.content}</p></div>`;
-                }).join('');
-            } catch (e) { console.error(e); }
+            try { const s=await db.collection("daily_reports").where("email","==",email).where("date","==",new Date().toLocaleDateString('vi-VN')).orderBy("timestamp","desc").get(); 
+            const l=document.getElementById('history-list'); if(s.empty) l.innerHTML='<p class="text-center py-10 text-slate-300 text-[10px] font-black uppercase">Chưa có báo cáo</p>';
+            else l.innerHTML=s.docs.map(d=>{ const v=d.data(), e=v.status==='pending'; return `<div class="card-history"><div class="flex justify-between mb-2"><span class="text-[8px] font-black px-2 py-0.5 rounded ${e?'bg-orange-50 text-orange-600':'bg-green-50 text-green-600'} uppercase">${v.reportType}</span>${e?`<i class="fa fa-edit text-blue-600 cursor-pointer" onclick="editReport('${d.id}')"></i>`:''}</div><p class="text-[9px] font-black text-blue-800 uppercase">${v.reportTitle}</p><p class="text-xs text-slate-600 font-bold mt-2">${v.content}</p></div>` }).join(''); } catch(e){}
         }
 
-        window.editReport = async (id) => {
-            const doc = await db.collection("daily_reports").doc(id).get();
-            const d = doc.data(); editingId = id;
-            document.getElementById('job-content').value = d.content; document.getElementById('job-note').value = d.note; document.getElementById('report-type').value = d.reportType;
-            if(d.reportType === 'Công việc được giao') { document.getElementById('assigned-tasks-container').classList.remove('hidden'); document.getElementById('assigned-task-list').value = d.assignedTaskId; }
-            document.getElementById('form-title').innerText = "Sửa báo cáo"; document.getElementById('btn-cancel-edit').classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-        
-        window.resetForm = () => { editingId = null; document.getElementById('job-content').value = ""; document.getElementById('job-note').value = ""; document.getElementById('report-type').value = "Báo cáo ngày"; document.getElementById('assigned-tasks-container').classList.add('hidden'); document.getElementById('form-title').innerText = "Gửi báo cáo"; document.getElementById('btn-cancel-edit').classList.add('hidden'); selectedFiles = []; renderFileList(); };
-        window.handleLogin = () => { document.getElementById('loading-text').classList.remove('hidden'); auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>alert(e.message)); };
-        window.handleLogout = () => confirm("Đăng xuất?") && auth.signOut();
+        window.editReport = async (id) => { const d=(await db.collection("daily_reports").doc(id).get()).data(); editingId=id; document.getElementById('job-content').value=d.content; document.getElementById('job-note').value=d.note; document.getElementById('report-type').value=d.reportType; if(d.reportType==='Công việc được giao'){document.getElementById('assigned-tasks-container').classList.remove('hidden');document.getElementById('assigned-task-list').value=d.assignedTaskId} document.getElementById('form-title').innerText="Sửa báo cáo"; document.getElementById('btn-cancel-edit').classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'}); };
+        window.resetForm = () => { editingId=null; document.getElementById('job-content').value=""; document.getElementById('job-note').value=""; document.getElementById('report-type').value="Báo cáo ngày"; document.getElementById('assigned-tasks-container').classList.add('hidden'); document.getElementById('form-title').innerText="Gửi báo cáo"; document.getElementById('btn-cancel-edit').classList.add('hidden'); selectedFiles=[]; renderFileList(); };
+        window.handleLogin = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>alert(e.message));
     </script>
 </body>
 </html>
