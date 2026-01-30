@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Xuất Phiếu Hỗ Trợ - Lưới Điện Cao Thế TP.HCM v1.2</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .container { max-width: 1200px; margin-top: 30px; margin-bottom: 50px; }
+        .card-header { background-color: #0056b3; color: white; font-weight: bold; }
+        .btn-primary { background-color: #0056b3; border-color: #004494; }
+        .table-responsive { max-height: 600px; overflow-y: auto; background: white; border: 1px solid #dee2e6; }
+        thead th { position: sticky; top: 0; background-color: #e9ecef; z-index: 1; }
+        .loading-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); z-index: 9999; text-align: center; padding-top: 20%;
+        }
+        .editable-cell { border: 1px solid transparent; padding: 4px; width: 100%; }
+        .editable-cell:focus { border: 1px solid #86b7fe; outline: none; background-color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card shadow">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-bolt me-2"></i>TOOL XUẤT PHIẾU HỖ TRỢ (v1.2)</span>
+            <span class="badge bg-light text-dark">User: Trần Công Đẹp</span>
+        </div>
+        <div class="card-body">
+            
+            <div class="alert alert-info py-2" role="alert">
+                <small><i class="fas fa-info-circle"></i> <strong>Hướng dẫn:</strong>
+                1. Chọn file Mẫu Word (chứa tag <code>{TenDonVi}</code>, <code>{NoiDung}</code>).<br>
+                2. Dữ liệu Phường/Xã đã được nạp sẵn. Anh có thể sửa trực tiếp hoặc upload file Excel mới.
+                </small>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-danger">1. Chọn file Mẫu Word (.docx) *</label>
+                    <input type="file" class="form-control" id="templateFile" accept=".docx">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">2. Upload file Excel dữ liệu (Tùy chọn)</label>
+                    <div class="input-group">
+                        <input type="file" class="form-control" id="dataFile" accept=".xlsx, .xls, .csv">
+                        <button class="btn btn-outline-secondary" type="button" onclick="loadDefaultData()">
+                            <i class="fas fa-undo"></i> Dùng dữ liệu gốc
+                        </button>
+                    </div>
+                    <div class="form-text">Nếu không chọn file, hệ thống sẽ dùng danh sách 48 Phường/Xã mặc định.</div>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="fw-bold text-primary">Danh sách Đơn vị (<span id="rowCount">0</span>)</h5>
+                <div>
+                    <button class="btn btn-outline-secondary btn-sm me-2" onclick="toggleCheckAll()">
+                        <i class="fas fa-check-double"></i> Chọn/Bỏ chọn tất cả
+                    </button>
+                    <button class="btn btn-success" onclick="generateZip()">
+                        <i class="fas fa-download"></i> Xuất & Tải file ZIP
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle" id="dataTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center" width="40"><input type="checkbox" id="checkAllMaster" onclick="toggleCheckAll()"></th>
+                            <th class="text-center" width="50">STT</th>
+                            <th width="250">Tên Đơn Vị (UBND...)</th>
+                            <th>Nội dung (Đường dây/Ghi chú)</th>
+                            <th width="250">Tên file xuất ra</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer text-center text-muted">
+            &copy; 2026 Công ty Lưới điện Cao thế TP.HCM - P.Kỹ thuật An toàn
+        </div>
+    </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+    <h4 class="mt-3">Đang xử lý, vui lòng chờ...</h4>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.5/dist/pizzip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.42.0/build/docxtemplater.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+    // Dữ liệu mặc định
+    const defaultData = [{"stt": 1, "TenDonVi": "Phường Tân Sơn Hòa", "NoiDung": ""}, {"stt": 2, "TenDonVi": "Phường Tân Thới Nhất", "NoiDung": ""}, {"stt": 3, "TenDonVi": "Phường Tân Hòa", "NoiDung": ""}, {"stt": 4, "TenDonVi": "Phường Bảy Hiền", "NoiDung": "Trường Đua – Chợ Lớn – Bà Quẹo"}, {"stt": 5, "TenDonVi": "Phường Tân Bình", "NoiDung": "Trường Đua – Chợ Lớn – Bà Quẹo"}, {"stt": 6, "TenDonVi": "Phường Tân Sơn", "NoiDung": ""}, {"stt": 7, "TenDonVi": "Phường Bình Tiên", "NoiDung": "Phú Lâm – Chợ Lớn"}, {"stt": 8, "TenDonVi": "Phường Bình Tây", "NoiDung": "Phú Lâm – Chợ Lớn"}, {"stt": 9, "TenDonVi": "Phường Bình Phú", "NoiDung": "Phú Lâm – Chợ Lớn, Phú Lâm – Bình Phú"}, {"stt": 10, "TenDonVi": "Phường Phú Lâm", "NoiDung": ""}, {"stt": 11, "TenDonVi": "Phường Vườn Lài", "NoiDung": "Tân Bình 2 – Bà Quẹo"}, {"stt": 12, "TenDonVi": "Phường Diên Hồng", "NoiDung": ""}, {"stt": 13, "TenDonVi": "Phường Hòa Hưng", "NoiDung": "Tao Đàn – Hòa Hưng, Tao Đàn – Trường Đua"}, {"stt": 14, "TenDonVi": "Phường Hòa Bình", "NoiDung": "Trường Đua – Chợ Lớn – Bà Quẹo"}, {"stt": 15, "TenDonVi": "Phường Phú Thọ", "NoiDung": "Trường Đua – Chợ Lớn – Bà Quẹo"}, {"stt": 16, "TenDonVi": "Phường Bình Thới", "NoiDung": "Trường Đua – Chợ Lớn – Bà Quẹo"}, {"stt": 17, "TenDonVi": "Phường Minh Phụng", "NoiDung": "Trường Đua – Chợ Lớn – Bà Quẹo"}, {"stt": 18, "TenDonVi": "Phường Tây Thạnh", "NoiDung": "Bình Tân – Tân Bình 1"}, {"stt": 19, "TenDonVi": "Phường Tân Sơn Nhì", "NoiDung": "Tân Bình 2 – Bà Quẹo"}, {"stt": 20, "TenDonVi": "Phường Phú Thọ Hòa", "NoiDung": "Tân Bình 2 – Bà Quẹo"}, {"stt": 21, "TenDonVi": "Phường Phú Thạnh", "NoiDung": "Tân Bình 2 – Bà Quẹo"}, {"stt": 22, "TenDonVi": "Phường Tân Phú", "NoiDung": ""}, {"stt": 23, "TenDonVi": "Phường An Lạc", "NoiDung": "Phú Lâm – Bình Phú, Phú Lâm – Tân Bình 2"}, {"stt": 24, "TenDonVi": "Phường Bình Tân", "NoiDung": "Hóc Môn – Bình Tân, Bình Tân – Bình Trị Đông, BÌnh Tân – Tân Bình 3"}, {"stt": 25, "TenDonVi": "Phường Tân Tạo", "NoiDung": "Phú Lâm – Tân Bình 2, Phú Lâm – Phú Định"}, {"stt": 26, "TenDonVi": "Phường Bình Hưng Hòa", "NoiDung": "Bình Tân – Bà Quẹo, Bình Tân – Bình Trị Đông"}, {"stt": 27, "TenDonVi": "Phường Bình Trị Đông", "NoiDung": "Phú Lâm – Tân Bình 2, Phú Lâm – Bình Trị Đông"}, {"stt": 28, "TenDonVi": "Phường Đông Hưng Thuận", "NoiDung": "Hóc Môn – Gò Vấp"}, {"stt": 29, "TenDonVi": "Phường Trung Mỹ Tây", "NoiDung": "Hóc Môn – Lưu động Bà Điểm – Bình Tân, Hóc Môn – Tham Lương"}, {"stt": 30, "TenDonVi": "Phường Tân Thới Hiệp", "NoiDung": "Hóc Môn – Lưu động Bà Điểm – Bình Tân, Hóc Môn – Tham Lương, Hóc Môn – Gò Vấp"}, {"stt": 31, "TenDonVi": "Phường Gò Vấp", "NoiDung": ""}, {"stt": 32, "TenDonVi": "Phường Thông Tây Hội", "NoiDung": "Hóc Môn – Gò Vấp"}, {"stt": 1, "TenDonVi": "Xã Tân Nhựt", "NoiDung": "Phú Lâm – Udico Hựu Thạnh"}, {"stt": 2, "TenDonVi": "Xã Bình Chánh", "NoiDung": "Phú Lâm – Bến Lức"}, {"stt": 3, "TenDonVi": "Xã Hưng Long", "NoiDung": ""}, {"stt": 4, "TenDonVi": "Xã Bình Hưng", "NoiDung": "Bình Chánh – Nam Sài Gòn 2"}, {"stt": 5, "TenDonVi": "Xã Vĩnh Lộc", "NoiDung": ""}, {"stt": 6, "TenDonVi": "Xã Bình Lợi", "NoiDung": ""}, {"stt": 7, "TenDonVi": "Xã Bà Điểm", "NoiDung": "Hóc Môn – Lưu động Bà Điểm – Bình Tân, Hóc Môn – Tham Lương"}, {"stt": 8, "TenDonVi": "Xã Đông Thạnh", "NoiDung": "Hóc Môn – Đông Nam, Hóc Môn – Đông Thạnh"}, {"stt": 9, "TenDonVi": "Xã Củ Chi", "NoiDung": "đường dây 220kV Cầu Bông – Củ Chi 2; Cầu Bông – Đức Hòa và đường dây 110kV Cầu Bông – Tân Phú Trung; Cầu Bông – Tân Quy; Cầu Bông – Củ Chi"}, {"stt": 10, "TenDonVi": "Xã Nhuận Đức", "NoiDung": "đường dây 220kV Cầu Bông – Củ Chi 2; Cầu Bông – Đức Hòa; Củ Chi 2 – Trảng Bàng; Củ Chi 2 – Tân Định; Củ Chi 2 – Uyên Hưng và đường dây 110kV Cầu Bông – Củ Chi; Phú Hòa Đông – Củ Chi 2; Củ Chi – Củ Chi 2; Củ Chi 2 – Bàu Đưng; Củ Chi 2 – KCN Trảng Bàng"}, {"stt": 11, "TenDonVi": "Xã Phú Hòa Đông", "NoiDung": "đường dây 220kV Cầu Bông – Củ Chi 2; Cầu Bông – Đức Hòa và đường dây 110kV Phú Hoà Đông – Tân Quy – Tân Định; Phú Hòa Đông – Củ Chi 2; Cầu Bông – Củ Chi; Cầu Bông – Tân Quy; Cầu Bông – Đông Nam – Gò Đậu; Cầu Bông – Tân Hiệp; Đông Thạnh – Tân Hiệp"}, {"stt": 12, "TenDonVi": "Xã Bình Mỹ", "NoiDung": "đường dây 110kV Cầu Bông – Đông Nam – Gò Đậu; Hóc Môn – Đông Nam; Phú Hòa Đông – Tân Quy – Tân Định; Cầu Bông – Tân Quy; Đông Thạnh – Tân Hiệp"}, {"stt": 13, "TenDonVi": "Xã An Nhơn Tây", "NoiDung": "đường dây 110kV Củ Chi 2 – Bàu Đưng"}, {"stt": 14, "TenDonVi": "Xã Tân An Hội", "NoiDung": "đường dây 110kV Cầu Bông – Củ Chi; Củ Chi – Củ Chi"}, {"stt": 15, "TenDonVi": "Xã Đông Thạnh", "NoiDung": "đường dây 110kV Đông Thạnh – Tân"}, {"stt": 16, "TenDonVi": "Xã Thái Mỹ", "NoiDung": "đường dây 110kV Củ Chi 2 – KCN Trảng Bàng"}];
+
+    let templateArrayBuffer = null;
+
+    // Khởi tạo
+    document.addEventListener("DOMContentLoaded", () => {
+        loadDefaultData();
+        // Kiểm tra thư viện
+        if (typeof window.PizZip === 'undefined' || typeof window.docxtemplater === 'undefined') {
+            alert("Lỗi: Không thể tải thư viện PizZip hoặc docxtemplater. Vui lòng kiểm tra kết nối mạng và tải lại trang.");
+        }
+    });
+
+    // 1. Xử lý file Template
+    document.getElementById('templateFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            templateArrayBuffer = evt.target.result;
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // 2. Xử lý Upload Excel (Nếu có)
+    document.getElementById('dataFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                // Chuyển đổi format dữ liệu user upload
+                const processedData = jsonData.map(row => {
+                    let px = row['PX'] || '';
+                    let ten = row['TenDonvi'] || row['TenDonVi'] || row['Tên Đơn Vị'] || '';
+                    let fullName = (px + " " + ten).trim();
+                    let noiDung = row['Noidung'] || row['NoiDung'] || row['Nội Dung'] || '';
+
+                    return {
+                        TenDonVi: fullName,
+                        NoiDung: noiDung
+                    };
+                });
+
+                renderTable(processedData);
+            } catch (err) {
+                alert("Lỗi đọc file Excel: " + err.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    function loadDefaultData() {
+        document.getElementById('dataFile').value = "";
+        renderTable(defaultData);
+    }
+
+    // 3. Render Table
+    function renderTable(data) {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        document.getElementById('rowCount').innerText = data.length;
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">Không có dữ liệu.</td></tr>';
+            return;
+        }
+
+        data.forEach((row, index) => {
+            let cleanName = removeVietnameseTones(row.TenDonVi).replace(/ /g, '_');
+            let fileName = `Phieu_Ho_Tro_${cleanName}.docx`;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-center"><input type="checkbox" class="row-checkbox" checked></td>
+                <td class="text-center text-muted">${index + 1}</td>
+                <td><input type="text" class="form-control form-control-sm border-0 bg-transparent row-name" value="${row.TenDonVi}"></td>
+                <td><textarea class="form-control form-control-sm row-content" rows="1" style="resize:vertical; min-height: 30px;">${row.NoiDung}</textarea></td>
+                <td><input type="text" class="form-control form-control-sm row-filename" value="${fileName}"></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function removeVietnameseTones(str) {
+        str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g,"a"); 
+        str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g,"e"); 
+        str = str.replace(/ì|í|ị|ỉ|ĩ/g,"i"); 
+        str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g,"o"); 
+        str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g,"u"); 
+        str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g,"y"); 
+        str = str.replace(/đ/g,"d");
+        str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+        str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+        str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+        str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+        str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+        str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+        str = str.replace(/Đ/g, "D");
+        return str;
+    }
+
+    function toggleCheckAll() {
+        const master = document.getElementById('checkAllMaster');
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        if (event.target.id !== 'checkAllMaster') {
+            master.checked = !master.checked;
+        }
+        checkboxes.forEach(cb => cb.checked = master.checked);
+    }
+
+    async function generateZip() {
+        if (!templateArrayBuffer) {
+            alert("⚠️ Vui lòng CHỌN FILE MẪU WORD (.docx) trước khi xuất!");
+            document.getElementById('templateFile').focus();
+            return;
+        }
+
+        const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+        if (checkboxes.length === 0) {
+            alert("Vui lòng chọn ít nhất một dòng để xuất file.");
+            return;
+        }
+
+        // Kiểm tra lại thư viện trước khi chạy
+        if (typeof window.PizZip === 'undefined' || typeof window.docxtemplater === 'undefined') {
+             alert("Lỗi: Thư viện PizZip chưa được tải. Vui lòng refresh (F5) lại trang web.");
+             return;
+        }
+
+        document.getElementById('loadingOverlay').style.display = 'block';
+
+        const zip = new JSZip();
+        let count = 0;
+
+        try {
+            await new Promise(r => setTimeout(r, 100)); // Delay UI
+
+            for (let i = 0; i < checkboxes.length; i++) {
+                const row = checkboxes[i].closest('tr');
+                
+                const tenDonVi = row.querySelector('.row-name').value;
+                const noiDung = row.querySelector('.row-content').value;
+                const fileName = row.querySelector('.row-filename').value;
+
+                // Sử dụng window.PizZip để đảm bảo gọi đúng constructor toàn cục
+                const PizZip = window.PizZip;
+                const zipDoc = new PizZip(templateArrayBuffer);
+                
+                const doc = new window.docxtemplater(zipDoc, {
+                    paragraphLoop: true,
+                    linebreaks: true,
+                });
+
+                doc.render({
+                    TenDonVi: tenDonVi,
+                    NoiDung: noiDung,
+                    Ngay: new Date().getDate(),
+                    Thang: new Date().getMonth() + 1,
+                    Nam: new Date().getFullYear()
+                });
+
+                const out = doc.getZip().generate({
+                    type: "blob",
+                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                });
+
+                zip.file(fileName, out);
+                count++;
+            }
+
+            const content = await zip.generateAsync({type: "blob"});
+            const zipName = `Ho_So_Ho_Tro_PX_${new Date().toISOString().slice(0,10)}.zip`;
+            saveAs(content, zipName);
+            
+            alert(`✅ Đã xuất thành công ${count} file!`);
+
+        } catch (error) {
+            console.error(error);
+            alert("Lỗi khi tạo file: " + error.message);
+        } finally {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+    }
+</script>
+
+</body>
+</html>
