@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản lý Văn bản Doffice - v1.1</title>
+    <title>Quản lý Văn bản Doffice - v2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -16,49 +16,52 @@
 </head>
 <body class="bg-gray-50 p-4">
     <div class="max-w-6xl mx-auto">
-        <header class="bg-indigo-700 text-white p-4 rounded-t-xl shadow-lg flex justify-between items-center">
+        <header class="bg-slate-800 text-white p-5 rounded-t-xl shadow-lg flex justify-between items-center border-b-4 border-blue-500">
             <div>
-                <h1 class="text-xl font-bold">HỆ THỐNG THEO DÕI VĂN BẢN DOFFICE</h1>
-                <p class="text-xs opacity-80">Quản lý nội bộ - Chào anh Trần Công Đẹp</p>
+                <h1 class="text-2xl font-black tracking-tighter">DOFFICE TRACKER</h1>
+                <p class="text-xs opacity-70 uppercase">Người dùng: Trần Công Đẹp | VDC Southern Branch</p>
             </div>
-            <span class="text-sm bg-indigo-800 px-3 py-1 rounded-full font-mono">v1.1</span>
+            <div class="text-right">
+                <span class="bg-blue-600 px-3 py-1 rounded text-sm font-bold">VERSION 2.0</span>
+                <p class="text-[10px] mt-1 opacity-50">Cập nhật: 31/01/2026</p>
+            </div>
         </header>
 
         <div class="bg-white p-6 shadow-md mb-6 border-x border-b rounded-b-xl">
-            <h2 class="text-sm font-bold mb-2 text-gray-600 uppercase tracking-wider">Dán nội dung từ Doffice:</h2>
-            <textarea id="smartInput" class="w-full h-40 p-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-0 outline-none mb-3 transition-all" 
-                placeholder="Dán dữ liệu thô tại đây..."></textarea>
-            <div class="flex gap-2">
-                <button onclick="processData()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-sm transition-all transform active:scale-95">
-                    Trích xuất & Lưu trữ
+            <label class="block text-sm font-bold text-gray-700 mb-2">DÁN DỮ LIỆU TỪ DOFFICE VÀO ĐÂY:</label>
+            <textarea id="smartInput" class="w-full h-48 p-4 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-0 outline-none mb-4 transition-all bg-gray-50 font-mono text-sm" 
+                placeholder="Dán toàn bộ nội dung copy từ Doffice..."></textarea>
+            
+            <div class="flex items-center gap-4">
+                <button onclick="processData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition-all active:scale-95">
+                    TRÍCH XUẤT DỮ LIỆU
                 </button>
-                <button onclick="document.getElementById('smartInput').value=''" class="bg-gray-200 hover:bg-gray-300 text-gray-600 font-semibold py-2.5 px-4 rounded-lg transition-all">
-                    Xóa ô nhập
+                <button onclick="document.getElementById('smartInput').value=''" class="text-gray-400 hover:text-red-500 text-sm font-semibold">
+                    Xóa nội dung
                 </button>
             </div>
         </div>
 
-        <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
+        <div class="bg-white shadow-2xl rounded-xl overflow-hidden border border-gray-200">
             <table class="w-full text-left">
                 <thead>
-                    <tr class="bg-gray-100 text-gray-600 uppercase text-xs font-bold">
+                    <tr class="bg-slate-100 text-slate-600 uppercase text-[11px] font-bold tracking-widest">
                         <th class="p-4 border-b">Số VB</th>
                         <th class="p-4 border-b">Nội dung / Người gửi</th>
-                        <th class="p-4 border-b">Ngày gửi</th>
-                        <th class="p-4 border-b">Hạn hoàn thành</th>
+                        <th class="p-4 border-b text-center">Ngày gửi</th>
+                        <th class="p-4 border-b text-center">Hạn HT</th>
                         <th class="p-4 border-b">Chủ trì</th>
                         <th class="p-4 border-b text-center">Trạng thái</th>
                         <th class="p-4 border-b text-center">Thao tác</th>
                     </tr>
                 </thead>
-                <tbody id="documentTableBody" class="text-sm text-gray-700">
+                <tbody id="documentTableBody" class="text-sm">
                     </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // Cấu hình Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCzWjfcD5Dgq7V-i2izb9tKLR6QM6qWPQo",
             authDomain: "tavietnam-78ae8.firebaseapp.com",
@@ -77,45 +80,47 @@
 
             const lines = rawText.split('\n').map(l => l.trim()).filter(l => l !== "");
             
-            let docData = {
-                soVB: "Chưa xác định",
+            let result = {
+                soVB: "",
                 noiDung: "",
                 ngayGui: "",
-                hanHoanThanh: "",
-                chuTri: "Chưa phân công",
+                hanHT: "",
+                chuTri: "",
                 ngayTao: new Date().getTime()
             };
 
-            // 1. Tìm Số VB (Dạng có dấu /)
-            const soVBIndex = lines.findIndex(l => l.includes('/'));
-            if (soVBIndex !== -1) docData.soVB = lines[soVBIndex];
+            // 1. Lấy Số VB (Thường là dòng đầu tiên)
+            result.soVB = lines[0];
 
-            // 2. Tìm các mốc ngày (DD/MM/YYYY)
+            // 2. Tìm tất cả các ngày định dạng DD/MM/YYYY
             const datePattern = /\d{2}\/\d{2}\/\d{4}/g;
-            const allDates = rawText.match(datePattern) || [];
-            
-            if (allDates.length >= 1) docData.ngayGui = allDates[0];
-            if (allDates.length >= 2) docData.hanHoanThanh = allDates[1];
+            const datesFound = rawText.match(datePattern) || [];
+
+            // Dựa trên yêu cầu của bạn:
+            // Ngày gởi là ngày 20/02/2026 (trong mẫu là ngày cuối cùng trước đoạn Mã Tài)
+            // Ta sẽ lấy ngày thứ 2 tìm thấy trong đoạn text làm ngày gửi
+            if (datesFound.length >= 2) {
+                result.ngayGui = datesFound[1]; 
+            }
 
             // 3. Tìm Chủ trì
-            const chuTriLine = lines.find(l => l.toLowerCase().includes("chủ trì:"));
-            if (chuTriLine) {
-                docData.chuTri = chuTriLine.split(':')[1].trim();
-            }
+            const ctLine = lines.find(l => l.toUpperCase().includes("CHỦ TRÌ:"));
+            if (ctLine) result.chuTri = ctLine.split(':')[1].trim();
 
-            // 4. Tìm Nội dung (Thường là dòng chữ dài không chứa ngày tháng hoặc số VB)
-            // Lấy dòng sau Số VB nếu không phải là ngày
-            if (lines[soVBIndex + 1] && !lines[soVBIndex + 1].match(datePattern)) {
-                docData.noiDung = lines[soVBIndex + 1];
-                // Nếu dòng tiếp theo cũng là chữ, cộng dồn vào nội dung
-                if (lines[soVBIndex + 2] && !lines[soVBIndex + 2].match(datePattern) && !lines[soVBIndex + 2].toLowerCase().includes("chủ trì")) {
-                    docData.noiDung += " - " + lines[soVBIndex + 2];
-                }
+            // 4. Trích xuất Nội dung / Người gửi
+            // Gom các dòng từ sau ngày đầu tiên (dòng 2) cho đến trước ngày gửi (datesFound[1])
+            let startIndex = 2; // Bắt đầu sau dòng Số VB và dòng ngày 30/01
+            let contentParts = [];
+            
+            for (let i = startIndex; i < lines.length; i++) {
+                if (lines[i].includes(result.ngayGui)) break;
+                contentParts.push(lines[i]);
             }
+            result.noiDung = contentParts.join(" ").replace(/\s+/g, ' ');
 
-            db.ref('van_ban_doffice').push(docData).then(() => {
+            db.ref('van_ban_doffice').push(result).then(() => {
                 document.getElementById('smartInput').value = "";
-                alert("Đã trích xuất và thêm văn bản!");
+                alert("Đã lưu văn bản v2.0 thành công!");
             });
         }
 
@@ -123,56 +128,46 @@
             const tbody = document.getElementById('documentTableBody');
             tbody.innerHTML = "";
             const data = snapshot.val();
-
             if (!data) return;
 
-            // Chuyển object thành array và đảo ngược để hiện mới nhất lên đầu
-            const sortedKeys = Object.keys(data).reverse();
-
-            sortedKeys.forEach(id => {
+            Object.keys(data).reverse().forEach(id => {
                 const vb = data[id];
-                const status = getStatus(vb.hanHoanThanh);
+                const status = getStatus(vb.hanHT);
                 
-                const row = `
-                    <tr class="hover:bg-indigo-50 border-b transition-colors">
-                        <td class="p-4 font-bold text-indigo-900">${vb.soVB}</td>
-                        <td class="p-4 max-w-xs">${vb.noiDung}</td>
-                        <td class="p-4 text-gray-500">${vb.ngayGui}</td>
-                        <td class="p-4 font-semibold text-orange-600">${vb.hanHoanThanh || '---'}</td>
-                        <td class="p-4 font-medium">${vb.chuTri}</td>
+                tbody.insertAdjacentHTML('beforeend', `
+                    <tr class="hover:bg-blue-50 border-b border-gray-100 transition-colors">
+                        <td class="p-4 font-bold text-blue-900">${vb.soVB}</td>
+                        <td class="p-4 max-w-md text-gray-600 leading-relaxed">${vb.noiDung}</td>
+                        <td class="p-4 text-center text-gray-500 font-mono">${vb.ngayGui}</td>
+                        <td class="p-4 text-center font-bold text-red-500 font-mono">${vb.hanHT || '---'}</td>
+                        <td class="p-4 font-semibold text-slate-700">${vb.chuTri}</td>
                         <td class="p-4 text-center ${status.class}">${status.text}</td>
                         <td class="p-4 text-center">
-                            <button onclick="deleteDoc('${id}')" class="text-red-400 hover:text-red-700 font-bold px-2 py-1">Xóa</button>
+                            <button onclick="deleteDoc('${id}')" class="text-gray-300 hover:text-red-600 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
                         </td>
                     </tr>
-                `;
-                tbody.insertAdjacentHTML('beforeend', row);
+                `);
             });
         });
 
         function getStatus(deadlineStr) {
-            if (!deadlineStr || deadlineStr === "") return { text: "Chờ cập nhật hạn", class: "status-none" };
-            
-            try {
-                const parts = deadlineStr.split('/');
-                const deadline = new Date(parts[2], parts[1] - 1, parts[0]);
-                const today = new Date();
-                today.setHours(0,0,0,0);
-
-                const diffDays = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
-
-                if (diffDays < 0) return { text: "Quá hạn", class: "status-late" };
-                if (diffDays <= 3) return { text: "Sắp đến hạn", class: "status-near" };
-                return { text: "Đang xử lý", class: "status-ok" };
-            } catch (e) {
-                return { text: "Lỗi ngày", class: "status-late" };
-            }
+            if (!deadlineStr) return { text: "Chờ hạn", class: "status-none" };
+            const parts = deadlineStr.split('/');
+            const deadline = new Date(parts[2], parts[1] - 1, parts[0]);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const diff = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+            if (diff < 0) return { text: "Quá hạn", class: "status-late" };
+            if (diff <= 3) return { text: "Sắp hạn", class: "status-near" };
+            return { text: "Bình thường", class: "status-ok" };
         }
 
         function deleteDoc(id) {
-            if (confirm("Xác nhận xóa bản ghi này?")) {
-                db.ref('van_ban_doffice/' + id).remove();
-            }
+            if (confirm("Xóa dòng này?")) db.ref('van_ban_doffice/' + id).remove();
         }
     </script>
 </body>
