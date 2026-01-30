@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Văn bản Doffice - v1.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        .status-late { color: #ef4444; font-weight: bold; }
+        .status-near { color: #f59e0b; font-weight: bold; }
+        .status-ok { color: #10b981; }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-6xl mx-auto">
+        <header class="bg-blue-700 text-white p-4 rounded-t-lg shadow-md flex justify-between items-center">
+            <h1 class="text-xl font-bold">HỆ THỐNG THEO DÕI VĂN BẢN DOFFICE</h1>
+            <span class="text-sm bg-blue-800 px-2 py-1 rounded">Version 1.0</span>
+        </header>
+
+        <div class="bg-white p-6 shadow-md mb-6 border-x border-b rounded-b-lg">
+            <h2 class="text-lg font-semibold mb-3 text-gray-700">Dán thông tin từ Doffice vào đây:</h2>
+            <textarea id="smartInput" class="w-full h-32 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-3" placeholder="Ví dụ: 66/LĐ2 30/01/2026..."></textarea>
+            <button onclick="processData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition">
+                Xử lý & Thêm mới
+            </button>
+        </div>
+
+        <div class="bg-white p-4 shadow-md rounded-lg overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-200 text-gray-700">
+                        <th class="p-3 border">Số VB</th>
+                        <th class="p-3 border">Nội dung / Người gửi</th>
+                        <th class="p-3 border">Ngày thực hiện</th>
+                        <th class="p-3 border">Hạn hoàn thành</th>
+                        <th class="p-3 border">Chủ trì</th>
+                        <th class="p-3 border">Trạng thái</th>
+                        <th class="p-3 border">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="documentTableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Cấu hình Firebase của bạn
+        const firebaseConfig = {
+            apiKey: "AIzaSyCzWjfcD5Dgq7V-i2izb9tKLR6QM6qWPQo",
+            authDomain: "tavietnam-78ae8.firebaseapp.com",
+            projectId: "tavietnam-78ae8",
+            storageBucket: "tavietnam-78ae8.firebasestorage.app",
+            messagingSenderId: "670121705534",
+            appId: "1:670121705534:web:1027ad98550573ad37116f"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Xử lý dữ liệu thô từ Doffice
+        function processData() {
+            const rawText = document.getElementById('smartInput').value;
+            if (!rawText.trim()) return;
+
+            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
+            
+            // Logic tách chuỗi thô (Dựa trên cấu trúc bạn cung cấp)
+            const docData = {
+                soVB: lines[0] || "N/A",
+                ngayThucHien: lines[1] ? lines[1].substring(0, 10) : "",
+                hanHoanThanh: lines[2] || "",
+                noiDung: lines[3] || "",
+                chuTri: "",
+                ngayTao: new Date().getTime()
+            };
+
+            // Tìm dòng Chủ trì
+            const chuTriLine = lines.find(l => l.includes("Chủ trì:"));
+            if (chuTriLine) {
+                docData.chuTri = chuTriLine.replace("Chủ trì:", "").trim();
+            }
+
+            db.ref('van_ban_doffice').push(docData).then(() => {
+                document.getElementById('smartInput').value = "";
+                alert("Đã thêm văn bản thành công!");
+            });
+        }
+
+        // Tải dữ liệu và hiển thị
+        db.ref('van_ban_doffice').on('value', (snapshot) => {
+            const tbody = document.getElementById('documentTableBody');
+            tbody.innerHTML = "";
+            const data = snapshot.val();
+
+            for (let id in data) {
+                const vb = data[id];
+                const statusClass = getStatus(vb.hanHoanThanh);
+                
+                const row = `
+                    <tr class="hover:bg-gray-50 border-b">
+                        <td class="p-3 border font-medium">${vb.soVB}</td>
+                        <td class="p-3 border">${vb.noiDung}</td>
+                        <td class="p-3 border text-center">${vb.ngayThucHien}</td>
+                        <td class="p-3 border text-center font-bold">${vb.hanHoanThanh}</td>
+                        <td class="p-3 border font-semibold text-blue-800">${vb.chuTri}</td>
+                        <td class="p-3 border ${statusClass.class}">${statusClass.text}</td>
+                        <td class="p-3 border text-center">
+                            <button onclick="deleteDoc('${id}')" class="text-red-500 hover:underline">Xóa</button>
+                        </td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', row);
+            }
+        });
+
+        function getStatus(deadlineStr) {
+            if (!deadlineStr) return { text: "N/A", class: "" };
+            
+            const parts = deadlineStr.split('/');
+            const deadline = new Date(parts[2], parts[1] - 1, parts[0]);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            const diffTime = deadline - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) return { text: "Quá hạn", class: "status-late" };
+            if (diffDays <= 3) return { text: "Sắp đến hạn", class: "status-near" };
+            return { text: "Đang thực hiện", class: "status-ok" };
+        }
+
+        function deleteDoc(id) {
+            if (confirm("Xóa văn bản này?")) {
+                db.ref('van_ban_doffice/' + id).remove();
+            }
+        }
+    </script>
+</body>
+</html>
