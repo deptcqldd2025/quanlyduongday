@@ -3,73 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản lý Văn bản Doffice - v2.0</title>
+    <title>Quản lý Văn bản Doffice - v2.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         .status-late { color: #ef4444; font-weight: bold; }
         .status-near { color: #f59e0b; font-weight: bold; }
         .status-ok { color: #10b981; }
-        .status-none { color: #9ca3af; font-style: italic; }
-        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .accordion-open { max-height: 500px; }
     </style>
 </head>
-<body class="bg-gray-100 p-4">
+<body class="bg-slate-50 p-4">
     <div class="max-w-7xl mx-auto">
         <header class="bg-slate-900 text-white p-5 rounded-t-xl shadow-lg flex justify-between items-center border-b-4 border-blue-500">
             <div>
-                <h1 class="text-2xl font-black tracking-tighter">DOFFICE TRACKER</h1>
-                <p class="text-xs opacity-70 uppercase">Người dùng: Trần Công Đẹp | VDC Southern Branch</p>
+                <h1 class="text-2xl font-black tracking-tighter flex items-center gap-2">
+                    <i data-lucide="file-text" class="text-blue-400"></i> DOFFICE TRACKER
+                </h1>
+                <p class="text-xs opacity-70 uppercase font-medium">Chief Trainer: Trần Công Đẹp | VDC Southern Branch</p>
             </div>
             <div class="text-right">
-                <span class="bg-blue-600 px-3 py-1 rounded text-sm font-bold tracking-widest">VER 2.0</span>
+                <span class="bg-blue-600 px-3 py-1 rounded text-sm font-bold tracking-widest">VER 2.1</span>
+                <p class="text-[10px] mt-1 opacity-50">Cập nhật: 31/01/2026</p>
             </div>
         </header>
 
-        <div class="bg-white p-6 shadow-md mb-6 border-x border-b rounded-b-xl">
-            <label class="block text-sm font-bold text-gray-700 mb-2">DÁN DỮ LIỆU THÔ TỪ DOFFICE:</label>
-            <textarea id="smartInput" class="w-full h-40 p-4 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-0 outline-none mb-4 transition-all bg-gray-50 font-mono text-sm" placeholder="Dán nội dung tại đây..."></textarea>
-            <button onclick="processData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition-all active:scale-95">
-                TRÍCH XUẤT & LƯU
+        <div class="bg-white shadow-md mb-6 border-x border-b rounded-b-xl overflow-hidden">
+            <button onclick="toggleAccordion()" class="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition-colors">
+                <span class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-blue-600"></i> NHẬP VĂN BẢN MỚI
+                </span>
+                <i id="accIcon" data-lucide="chevron-down" class="w-5 h-5 transition-transform"></i>
             </button>
+            <div id="accordionBox" class="accordion-content px-6">
+                <div class="py-4">
+                    <textarea id="smartInput" class="w-full h-32 p-4 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-0 outline-none mb-3 bg-slate-50 font-mono text-xs" placeholder="Dán dữ liệu thô từ Doffice..."></textarea>
+                    <div class="flex gap-2 pb-4">
+                        <button onclick="processData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95 text-sm">
+                            <i data-lucide="wand-2" class="w-4 h-4"></i> TRÍCH XUẤT & LƯU
+                        </button>
+                        <button onclick="document.getElementById('smartInput').value=''" class="text-gray-400 hover:text-red-500 text-xs font-semibold">Xóa ô nhập</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="bg-white shadow-2xl rounded-xl overflow-hidden border border-gray-200">
-            <table class="w-full text-left">
-                <thead>
-                    <tr class="bg-slate-100 text-slate-600 uppercase text-[11px] font-bold tracking-widest">
-                        <th class="p-4 border-b">Số VB</th>
-                        <th class="p-4 border-b">Người gửi</th>
-                        <th class="p-4 border-b">Nội dung</th>
-                        <th class="p-4 border-b text-center">Ngày gửi</th>
-                        <th class="p-4 border-b text-center">Hạn HT</th>
-                        <th class="p-4 border-b text-center">Trạng thái</th>
-                        <th class="p-4 border-b text-center">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody id="documentTableBody" class="text-sm"></tbody>
-            </table>
+        <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-slate-800 text-white uppercase text-[10px] font-bold tracking-widest">
+                            <th class="p-4">Số VB</th>
+                            <th class="p-4">Người gửi</th>
+                            <th class="p-4">Nội dung</th>
+                            <th class="p-4 text-center">Ngày gửi</th>
+                            <th class="p-4 text-center">Hạn HT</th>
+                            <th class="p-4 text-center">Trạng thái</th>
+                            <th class="p-4 text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="documentTableBody" class="text-sm"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <div id="editModal" class="modal flex items-center justify-center">
-        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h2 class="text-xl font-bold mb-4">Cập nhật thông tin</h2>
-            <input type="hidden" id="editId">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase">Hạn hoàn thành (DD/MM/YYYY)</label>
-                    <input type="text" id="editHanHT" class="w-full p-2 border rounded mt-1">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase">Chủ trì</label>
-                    <input type="text" id="editChuTri" class="w-full p-2 border rounded mt-1">
-                </div>
+    <div id="editModal" class="modal flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="bg-slate-800 p-4 text-white flex justify-between">
+                <h2 class="font-bold flex items-center gap-2"><i data-lucide="edit-3" class="w-4 h-4"></i> Cập nhật thông tin</h2>
+                <button onclick="closeModal()"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <div class="mt-6 flex justify-end gap-2">
-                <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded">Hủy</button>
-                <button onclick="saveEdit()" class="px-4 py-2 bg-blue-600 text-white rounded font-bold">Lưu thay đổi</button>
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="editId">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase">Hạn hoàn thành (Ngày/Tháng/Năm)</label>
+                    <input type="text" id="editHanHT" class="w-full p-2.5 border-2 border-gray-100 rounded-lg mt-1 focus:border-blue-500 outline-none" placeholder="VD: 25/02/2026">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase">Chủ trì xử lý</label>
+                    <input type="text" id="editChuTri" class="w-full p-2.5 border-2 border-gray-100 rounded-lg mt-1 focus:border-blue-500 outline-none">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="saveEdit()" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-all">LƯU CẬP NHẬT</button>
+                </div>
             </div>
         </div>
     </div>
@@ -85,49 +106,62 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        let existingDocs = [];
+
+        // Khởi tạo Lucide Icons
+        lucide.createIcons();
+
+        function toggleAccordion() {
+            const box = document.getElementById('accordionBox');
+            const icon = document.getElementById('accIcon');
+            box.classList.toggle('accordion-open');
+            icon.style.transform = box.classList.contains('accordion-open') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
 
         function processData() {
             const rawText = document.getElementById('smartInput').value;
             if (!rawText.trim()) return;
 
-            // Xử lý dính chữ với ngày (Ví dụ TPHCM20/02/2026 -> TPHCM 20/02/2026)
             const cleanText = rawText.replace(/([a-zA-Z])(\d{2}\/\d{2}\/\d{4})/g, '$1 $2');
             const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l !== "");
             
+            const dates = cleanText.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
+            const soVB = lines[0] || "N/A";
+            const ngayGui = dates.length >= 2 ? dates[1] : "Chưa rõ";
+
+            // Kiểm tra trùng lắp
+            const isDuplicate = existingDocs.some(doc => doc.soVB === soVB && doc.ngayGui === ngayGui);
+            if (isDuplicate) {
+                if (!confirm("CẢNH BÁO: Văn bản này đã tồn tại trong hệ thống. Bạn có muốn tiếp tục lưu trùng không?")) return;
+            }
+
             let result = {
-                soVB: lines[0] || "",
+                soVB: soVB,
                 nguoiGui: "",
                 noiDung: "",
-                ngayGui: "",
+                ngayGui: ngayGui,
                 hanHT: "",
                 chuTri: "",
                 ngayTao: new Date().getTime()
             };
 
-            // Tìm ngày gửi (Ngày thứ 2 xuất hiện trong văn bản)
-            const dates = cleanText.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
-            if (dates.length >= 2) result.ngayGui = dates[1];
-
-            // Tìm Chủ trì
             const ctLine = lines.find(l => l.toUpperCase().includes("CHỦ TRÌ:"));
             if (ctLine) result.chuTri = ctLine.split(':')[1].trim();
 
-            // Tách Người gửi và Nội dung
-            // Ghép các dòng từ dòng 3 (index 2) đến trước dòng "Mã Tài"
             let middleText = "";
-            let collecting = false;
             for (let i = 2; i < lines.length; i++) {
                 if (lines[i].includes("Mã Tài")) break;
                 middleText += lines[i] + " ";
             }
-            middleText = middleText.replace(result.ngayGui, " SPLIT_HERE ").trim();
-            const parts = middleText.split(" SPLIT_HERE ");
-            
-            result.nguoiGui = parts[0] ? parts[0].trim() : "Chưa rõ";
-            result.noiDung = parts[1] ? parts[1].trim() : "Chưa rõ";
+            middleText = middleText.replace(result.ngayGui, " SPLIT ").trim();
+            const parts = middleText.split(" SPLIT ");
+            result.nguoiGui = parts[0]?.trim() || "Chưa rõ";
+            result.noiDung = parts[1]?.trim() || "Chưa rõ";
 
             db.ref('van_ban_doffice').push(result).then(() => {
                 document.getElementById('smartInput').value = "";
+                toggleAccordion();
+                alert("Đã thêm thành công!");
             });
         }
 
@@ -135,38 +169,47 @@
             const tbody = document.getElementById('documentTableBody');
             tbody.innerHTML = "";
             const data = snapshot.val();
+            existingDocs = [];
             if (!data) return;
 
             Object.keys(data).reverse().forEach(id => {
                 const vb = data[id];
+                existingDocs.push(vb);
                 const status = getStatus(vb.hanHT);
+                
                 tbody.insertAdjacentHTML('beforeend', `
-                    <tr class="hover:bg-blue-50 border-b border-gray-100 transition-colors">
-                        <td class="p-4 font-bold text-blue-900">${vb.soVB}</td>
-                        <td class="p-4 text-gray-700 font-medium">${vb.nguoiGui}</td>
-                        <td class="p-4 text-gray-600 italic">${vb.noiDung}</td>
-                        <td class="p-4 text-center font-mono">${vb.ngayGui}</td>
-                        <td class="p-4 text-center font-bold text-orange-600 font-mono">${vb.hanHT || '---'}</td>
-                        <td class="p-4 text-center ${status.class}">${status.text}</td>
-                        <td class="p-4 text-center space-x-2">
-                            <button onclick="openEdit('${id}', '${vb.hanHT || ''}', '${vb.chuTri || ''}')" class="text-blue-600 hover:underline font-bold">Sửa</button>
-                            <button onclick="deleteDoc('${id}')" class="text-red-400 hover:text-red-600">Xóa</button>
+                    <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
+                        <td class="p-4 font-bold text-slate-800">${vb.soVB}</td>
+                        <td class="p-4 text-slate-600 font-medium">${vb.nguoiGui}</td>
+                        <td class="p-4 text-slate-500 text-xs italic leading-relaxed">${vb.noiDung}</td>
+                        <td class="p-4 text-center font-mono text-xs">${vb.ngayGui}</td>
+                        <td class="p-4 text-center font-bold text-blue-600 font-mono text-xs">${vb.hanHT || '---'}</td>
+                        <td class="p-4 text-center ${status.class} text-[10px]">${status.text}</td>
+                        <td class="p-4 text-center">
+                            <div class="flex justify-center gap-3">
+                                <button onclick="openEdit('${id}', '${vb.hanHT || ''}', '${vb.chuTri || ''}')" class="text-blue-500 hover:text-blue-700 transition-transform active:scale-125" title="Sửa">
+                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteDoc('${id}')" class="text-slate-300 hover:text-red-500 transition-transform active:scale-125" title="Xóa">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `);
             });
+            lucide.createIcons(); // Vẽ lại icon sau khi render table
         });
 
         function getStatus(deadlineStr) {
-            if (!deadlineStr) return { text: "Chờ hạn", class: "status-none" };
+            if (!deadlineStr) return { text: "CHỜ HẠN", class: "text-slate-400 font-normal italic" };
             const parts = deadlineStr.split('/');
             const deadline = new Date(parts[2], parts[1] - 1, parts[0]);
-            const today = new Date();
-            today.setHours(0,0,0,0);
+            const today = new Date(); today.setHours(0,0,0,0);
             const diff = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
-            if (diff < 0) return { text: "Quá hạn", class: "status-late" };
-            if (diff <= 3) return { text: "Sắp hạn", class: "status-near" };
-            return { text: "Đang làm", class: "status-ok" };
+            if (diff < 0) return { text: "QUÁ HẠN", class: "status-late" };
+            if (diff <= 3) return { text: "SẮP HẠN", class: "status-near" };
+            return { text: "ĐANG LÀM", class: "status-ok" };
         }
 
         function openEdit(id, han, ct) {
@@ -174,6 +217,7 @@
             document.getElementById('editHanHT').value = han;
             document.getElementById('editChuTri').value = ct;
             document.getElementById('editModal').style.display = 'flex';
+            lucide.createIcons();
         }
 
         function closeModal() { document.getElementById('editModal').style.display = 'none'; }
@@ -183,12 +227,12 @@
             db.ref('van_ban_doffice/' + id).update({
                 hanHT: document.getElementById('editHanHT').value,
                 chuTri: document.getElementById('editChuTri').value
-            }).then(() => {
-                closeModal();
-            });
+            }).then(() => closeModal());
         }
 
-        function deleteDoc(id) { if (confirm("Xóa dòng này?")) db.ref('van_ban_doffice/' + id).remove(); }
+        function deleteDoc(id) {
+            if (confirm("Xác nhận xóa văn bản này?")) db.ref('van_ban_doffice/' + id).remove();
+        }
     </script>
 </body>
 </html>
