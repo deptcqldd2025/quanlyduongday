@@ -12,34 +12,27 @@
         .status-near { color: #f59e0b; font-weight: bold; }
         .status-ok { color: #10b981; }
         .status-none { color: #9ca3af; font-style: italic; }
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
     </style>
 </head>
-<body class="bg-gray-50 p-4">
-    <div class="max-w-6xl mx-auto">
-        <header class="bg-slate-800 text-white p-5 rounded-t-xl shadow-lg flex justify-between items-center border-b-4 border-blue-500">
+<body class="bg-gray-100 p-4">
+    <div class="max-w-7xl mx-auto">
+        <header class="bg-slate-900 text-white p-5 rounded-t-xl shadow-lg flex justify-between items-center border-b-4 border-blue-500">
             <div>
                 <h1 class="text-2xl font-black tracking-tighter">DOFFICE TRACKER</h1>
                 <p class="text-xs opacity-70 uppercase">Người dùng: Trần Công Đẹp | VDC Southern Branch</p>
             </div>
             <div class="text-right">
-                <span class="bg-blue-600 px-3 py-1 rounded text-sm font-bold">VERSION 2.0</span>
-                <p class="text-[10px] mt-1 opacity-50">Cập nhật: 31/01/2026</p>
+                <span class="bg-blue-600 px-3 py-1 rounded text-sm font-bold tracking-widest">VER 2.0</span>
             </div>
         </header>
 
         <div class="bg-white p-6 shadow-md mb-6 border-x border-b rounded-b-xl">
-            <label class="block text-sm font-bold text-gray-700 mb-2">DÁN DỮ LIỆU TỪ DOFFICE VÀO ĐÂY:</label>
-            <textarea id="smartInput" class="w-full h-48 p-4 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-0 outline-none mb-4 transition-all bg-gray-50 font-mono text-sm" 
-                placeholder="Dán toàn bộ nội dung copy từ Doffice..."></textarea>
-            
-            <div class="flex items-center gap-4">
-                <button onclick="processData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition-all active:scale-95">
-                    TRÍCH XUẤT DỮ LIỆU
-                </button>
-                <button onclick="document.getElementById('smartInput').value=''" class="text-gray-400 hover:text-red-500 text-sm font-semibold">
-                    Xóa nội dung
-                </button>
-            </div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">DÁN DỮ LIỆU THÔ TỪ DOFFICE:</label>
+            <textarea id="smartInput" class="w-full h-40 p-4 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-0 outline-none mb-4 transition-all bg-gray-50 font-mono text-sm" placeholder="Dán nội dung tại đây..."></textarea>
+            <button onclick="processData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition-all active:scale-95">
+                TRÍCH XUẤT & LƯU
+            </button>
         </div>
 
         <div class="bg-white shadow-2xl rounded-xl overflow-hidden border border-gray-200">
@@ -47,17 +40,37 @@
                 <thead>
                     <tr class="bg-slate-100 text-slate-600 uppercase text-[11px] font-bold tracking-widest">
                         <th class="p-4 border-b">Số VB</th>
-                        <th class="p-4 border-b">Nội dung / Người gửi</th>
+                        <th class="p-4 border-b">Người gửi</th>
+                        <th class="p-4 border-b">Nội dung</th>
                         <th class="p-4 border-b text-center">Ngày gửi</th>
                         <th class="p-4 border-b text-center">Hạn HT</th>
-                        <th class="p-4 border-b">Chủ trì</th>
                         <th class="p-4 border-b text-center">Trạng thái</th>
                         <th class="p-4 border-b text-center">Thao tác</th>
                     </tr>
                 </thead>
-                <tbody id="documentTableBody" class="text-sm">
-                    </tbody>
+                <tbody id="documentTableBody" class="text-sm"></tbody>
             </table>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal flex items-center justify-center">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4">Cập nhật thông tin</h2>
+            <input type="hidden" id="editId">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Hạn hoàn thành (DD/MM/YYYY)</label>
+                    <input type="text" id="editHanHT" class="w-full p-2 border rounded mt-1">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Chủ trì</label>
+                    <input type="text" id="editChuTri" class="w-full p-2 border rounded mt-1">
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded">Hủy</button>
+                <button onclick="saveEdit()" class="px-4 py-2 bg-blue-600 text-white rounded font-bold">Lưu thay đổi</button>
+            </div>
         </div>
     </div>
 
@@ -70,7 +83,6 @@
             messagingSenderId: "670121705534",
             appId: "1:670121705534:web:1027ad98550573ad37116f"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
@@ -78,10 +90,13 @@
             const rawText = document.getElementById('smartInput').value;
             if (!rawText.trim()) return;
 
-            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l !== "");
+            // Xử lý dính chữ với ngày (Ví dụ TPHCM20/02/2026 -> TPHCM 20/02/2026)
+            const cleanText = rawText.replace(/([a-zA-Z])(\d{2}\/\d{2}\/\d{4})/g, '$1 $2');
+            const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l !== "");
             
             let result = {
-                soVB: "",
+                soVB: lines[0] || "",
+                nguoiGui: "",
                 noiDung: "",
                 ngayGui: "",
                 hanHT: "",
@@ -89,38 +104,30 @@
                 ngayTao: new Date().getTime()
             };
 
-            // 1. Lấy Số VB (Thường là dòng đầu tiên)
-            result.soVB = lines[0];
+            // Tìm ngày gửi (Ngày thứ 2 xuất hiện trong văn bản)
+            const dates = cleanText.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
+            if (dates.length >= 2) result.ngayGui = dates[1];
 
-            // 2. Tìm tất cả các ngày định dạng DD/MM/YYYY
-            const datePattern = /\d{2}\/\d{2}\/\d{4}/g;
-            const datesFound = rawText.match(datePattern) || [];
-
-            // Dựa trên yêu cầu của bạn:
-            // Ngày gởi là ngày 20/02/2026 (trong mẫu là ngày cuối cùng trước đoạn Mã Tài)
-            // Ta sẽ lấy ngày thứ 2 tìm thấy trong đoạn text làm ngày gửi
-            if (datesFound.length >= 2) {
-                result.ngayGui = datesFound[1]; 
-            }
-
-            // 3. Tìm Chủ trì
+            // Tìm Chủ trì
             const ctLine = lines.find(l => l.toUpperCase().includes("CHỦ TRÌ:"));
             if (ctLine) result.chuTri = ctLine.split(':')[1].trim();
 
-            // 4. Trích xuất Nội dung / Người gửi
-            // Gom các dòng từ sau ngày đầu tiên (dòng 2) cho đến trước ngày gửi (datesFound[1])
-            let startIndex = 2; // Bắt đầu sau dòng Số VB và dòng ngày 30/01
-            let contentParts = [];
-            
-            for (let i = startIndex; i < lines.length; i++) {
-                if (lines[i].includes(result.ngayGui)) break;
-                contentParts.push(lines[i]);
+            // Tách Người gửi và Nội dung
+            // Ghép các dòng từ dòng 3 (index 2) đến trước dòng "Mã Tài"
+            let middleText = "";
+            let collecting = false;
+            for (let i = 2; i < lines.length; i++) {
+                if (lines[i].includes("Mã Tài")) break;
+                middleText += lines[i] + " ";
             }
-            result.noiDung = contentParts.join(" ").replace(/\s+/g, ' ');
+            middleText = middleText.replace(result.ngayGui, " SPLIT_HERE ").trim();
+            const parts = middleText.split(" SPLIT_HERE ");
+            
+            result.nguoiGui = parts[0] ? parts[0].trim() : "Chưa rõ";
+            result.noiDung = parts[1] ? parts[1].trim() : "Chưa rõ";
 
             db.ref('van_ban_doffice').push(result).then(() => {
                 document.getElementById('smartInput').value = "";
-                alert("Đã lưu văn bản v2.0 thành công!");
             });
         }
 
@@ -133,21 +140,17 @@
             Object.keys(data).reverse().forEach(id => {
                 const vb = data[id];
                 const status = getStatus(vb.hanHT);
-                
                 tbody.insertAdjacentHTML('beforeend', `
                     <tr class="hover:bg-blue-50 border-b border-gray-100 transition-colors">
                         <td class="p-4 font-bold text-blue-900">${vb.soVB}</td>
-                        <td class="p-4 max-w-md text-gray-600 leading-relaxed">${vb.noiDung}</td>
-                        <td class="p-4 text-center text-gray-500 font-mono">${vb.ngayGui}</td>
-                        <td class="p-4 text-center font-bold text-red-500 font-mono">${vb.hanHT || '---'}</td>
-                        <td class="p-4 font-semibold text-slate-700">${vb.chuTri}</td>
+                        <td class="p-4 text-gray-700 font-medium">${vb.nguoiGui}</td>
+                        <td class="p-4 text-gray-600 italic">${vb.noiDung}</td>
+                        <td class="p-4 text-center font-mono">${vb.ngayGui}</td>
+                        <td class="p-4 text-center font-bold text-orange-600 font-mono">${vb.hanHT || '---'}</td>
                         <td class="p-4 text-center ${status.class}">${status.text}</td>
-                        <td class="p-4 text-center">
-                            <button onclick="deleteDoc('${id}')" class="text-gray-300 hover:text-red-600 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
+                        <td class="p-4 text-center space-x-2">
+                            <button onclick="openEdit('${id}', '${vb.hanHT || ''}', '${vb.chuTri || ''}')" class="text-blue-600 hover:underline font-bold">Sửa</button>
+                            <button onclick="deleteDoc('${id}')" class="text-red-400 hover:text-red-600">Xóa</button>
                         </td>
                     </tr>
                 `);
@@ -163,12 +166,29 @@
             const diff = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
             if (diff < 0) return { text: "Quá hạn", class: "status-late" };
             if (diff <= 3) return { text: "Sắp hạn", class: "status-near" };
-            return { text: "Bình thường", class: "status-ok" };
+            return { text: "Đang làm", class: "status-ok" };
         }
 
-        function deleteDoc(id) {
-            if (confirm("Xóa dòng này?")) db.ref('van_ban_doffice/' + id).remove();
+        function openEdit(id, han, ct) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editHanHT').value = han;
+            document.getElementById('editChuTri').value = ct;
+            document.getElementById('editModal').style.display = 'flex';
         }
+
+        function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+
+        function saveEdit() {
+            const id = document.getElementById('editId').value;
+            db.ref('van_ban_doffice/' + id).update({
+                hanHT: document.getElementById('editHanHT').value,
+                chuTri: document.getElementById('editChuTri').value
+            }).then(() => {
+                closeModal();
+            });
+        }
+
+        function deleteDoc(id) { if (confirm("Xóa dòng này?")) db.ref('van_ban_doffice/' + id).remove(); }
     </script>
 </body>
 </html>
