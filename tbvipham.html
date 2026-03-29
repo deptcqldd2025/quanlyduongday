@@ -1,0 +1,237 @@
+her<!-- Version: 1.0 -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông Báo - Vi Phạm Hành Lang An Toàn Lưới Điện</title>
+    <style>
+        :root {
+            --editable-bg: #fdfd96; /* Màu nền nhẹ để nhận biết vùng có thể nhập liệu */
+        }
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 14pt;
+            line-height: 1.5;
+            background-color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .page-container {
+            width: 210mm;
+            min-height: 297mm;
+            background-color: #fff;
+            padding: 20mm 20mm 20mm 25mm;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+            position: relative;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .header-left {
+            flex: 1;
+        }
+        .header-right {
+            flex: 1;
+            font-weight: bold;
+        }
+        .line-solid {
+            border-top: 1px solid black;
+            width: 150px;
+            margin: 5px auto;
+        }
+        .date-section {
+            text-align: right;
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+        .title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 16pt;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .content {
+            text-align: justify;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        .footer-left {
+            flex: 1;
+            font-size: 12pt;
+        }
+        .footer-left p {
+            margin: 2px 0;
+        }
+        .footer-right {
+            flex: 1;
+            text-align: center;
+            font-weight: bold;
+        }
+        .signature-space {
+            height: 100px;
+        }
+        .images-section {
+            margin-top: 20px;
+            text-align: center;
+            page-break-inside: avoid;
+        }
+        .images-section img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 10px;
+        }
+        .image-caption {
+            font-style: italic;
+            font-size: 12pt;
+            margin-top: 5px;
+        }
+        
+        /* Chỉnh sửa input trực tiếp trên trang */
+        .editable {
+            background-color: var(--editable-bg);
+            border-bottom: 1px dashed #333;
+            min-width: 30px;
+            display: inline-block;
+            outline: none;
+            padding: 0 5px;
+        }
+
+        .btn-print {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+
+        .btn-print:hover {
+            background-color: #004494;
+        }
+
+        /* Tùy chỉnh khi in PDF */
+        @media print {
+            body {
+                background-color: transparent;
+                padding: 0;
+            }
+            .page-container {
+                box-shadow: none;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .btn-print {
+                display: none;
+            }
+            .editable {
+                background-color: transparent;
+                border-bottom: none;
+                padding: 0;
+            }
+            @page {
+                size: A4;
+                margin: 20mm 20mm 20mm 25mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="btn-print" onclick="window.print()">🖨️ In ra PDF / File Word</button>
+
+    <div class="page-container">
+        <div class="header">
+            <div class="header-left">
+                TỔNG CÔNG TY<br>ĐIỆN LỰC TP HỒ CHÍ MINH<br>
+                <strong>CÔNG TY LƯỚI ĐIỆN CAO THẾ<br>THÀNH PHỐ HỒ CHÍ MINH</strong>
+                <div class="line-solid"></div>
+                Số: <span class="editable" contenteditable="true">....</span> /LĐCT-ĐQLLĐ2
+            </div>
+            <div class="header-right">
+                CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br>
+                Độc lập – Tự do – Hạnh phúc
+                <div class="line-solid"></div>
+            </div>
+        </div>
+
+        <div class="date-section">
+            Tân Sơn Hòa, ngày <span class="editable" contenteditable="true">...</span> tháng <span class="editable" contenteditable="true">...</span> năm <span class="editable" contenteditable="true">2026</span>
+        </div>
+
+        <div class="title">THÔNG BÁO</div>
+        <div class="subtitle">Về việc có khả năng xâm phạm công trình lưới điện cao áp<br>
+            <div class="line-solid" style="width: 250px;"></div>
+        </div>
+
+        <div class="content">
+            <p><strong>Kính gửi:</strong> <span class="editable" contenteditable="true">Công ty truyền thông ViNaMa</span></p>
+            <p>Địa chỉ: <span class="editable" contenteditable="true">9A</span>, Đường: <span class="editable" contenteditable="true">Tôn Đức Thắng</span>, Phường: <span class="editable" contenteditable="true">Sài Gòn</span>, Thành Phố Hồ Chí Minh.</p>
+            
+            <p>Căn cứ Luật Điện lực số 61/2024/QH11 của Quốc hội nước Cộng Hòa Xã Hội Chủ Nghĩa Việt Nam;</p>
+            <p>Căn cứ Nghị định số 62/2025/NĐ-CP ngày 04/3/2025 của Chính Phủ về việc Quy định chi tiết thi hành Luật điện lực về bảo vệ công trình điện lực và an toàn trong lĩnh vực điện lực;</p>
+            <p>Căn cứ Thông tư 02/2025/TT-BCT ngày 01/02/2025 của Bộ Công thương Quy định về bảo vệ công trình điện lực và an toàn trong lĩnh vực điện lực;</p>
+            
+            <p>Ngày <span class="editable" contenteditable="true">28/3/2026</span> Công ty Lưới điện cao thế TP.HCM (Công ty LĐCT) tiến hành kiểm tra hành lang bảo vệ an toàn lưới điện cao áp (HLBVATLĐCA) đường dây 110kV <span class="editable" contenteditable="true">Trường Đua – Chợ Lớn</span>. Trong quá trình kiểm tra đã phát hiện anh <span class="editable" contenteditable="true">Lê Hoài Tâm</span> là công nhân của <span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> đang thi công thay bảng hiệu quảng cáo tọa lạc tại <span class="editable" contenteditable="true">vòng xoay Lê Đại Hành thuộc phường Hòa Bình, Tp.HCM</span>. Bảng quảng cáo trên nằm trong hành lang an toàn và nằm dưới đường dây điện cao thế 110kV <span class="editable" contenteditable="true">Trường Đua – Chợ Lớn</span>. Trong quá trình thi công có khả năng vi phạm khoảng cách an toàn đường dây dẫn điện 110kV gây sự cố phóng điện. Nội dung vi phạm và đề nghị giải quyết như sau:</p>
+            
+            <p><strong>1. Nội dung vi phạm:</strong></p>
+            <p>Anh <span class="editable" contenteditable="true">Lê Hoài Tâm</span> là công nhân của <span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> đang thi công thay bảng hiệu quảng cáo tọa lạc tại <span class="editable" contenteditable="true">vòng xoay Lê Đại Hành, phường Hòa Bình, Tp.HCM</span>. Bảng quảng cáo trên nằm trong hành lang an toàn và nằm dưới đường dây điện cao thế 110kV <span class="editable" contenteditable="true">Trường Đua – Chợ Lớn</span>. Trong quá trình thi công có khả năng vi phạm khoảng cách an toàn đường dây dẫn điện 110kV gây sự cố phóng và ảnh hưởng đến sự vận hành của bình thường của lưới điện cao thế nhưng chưa có thỏa thuận với Công ty LĐCT.</p>
+            
+            <p>Hành vi này bị nghiêm cấm, được quy định tại các điều khoản sau:</p>
+            <p>- Khoản 8, Điều 4 Nghị định số 62/2025/NĐ-CP, cụ thể: “Khi tiến hành công việc gần hành lang hoặc trong hành lang bảo vệ đường dây dẫn điện trên không, tổ chức, cá nhân phải có biện pháp không để thiết bị, dụng cụ, phương tiện vi phạm khoảng cách an toàn phóng điện theo cấp điện áp 110kV là 3 mét, trừ trường hợp tổ chức, cá nhân thực hiện công việc áp dụng công nghệ phù hợp, hoặc do yêu cầu cấp bách của công tác quốc phòng, an ninh phải có sự thỏa thuận bằng văn bản với đơn vị điện lực về các biện pháp bảo đảm an toàn cần thiết”.</p>
+
+            <p><strong>2. Đề nghị giải quyết:</strong></p>
+            <p>Đề nghị <span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> tạm ngừng thi công khu vực trong hành lang an toàn lưới điện cao áp có khả năng ảnh hưởng đến sự vận hành của bình thường của lưới điện cao thế đồng thời liên hệ với Công ty LĐCT để được hướng dẫn thỏa thuận các biện pháp an toàn.</p>
+            <p>Địa chỉ liên hệ: <span class="editable" contenteditable="true">113 đường Phổ Quang, phường Tân Sơn Hòa, Tp.HCM</span>; điện thoại: <span class="editable" contenteditable="true">028.22.450.951</span> (Tổ Đường dây) hoặc anh <span class="editable" contenteditable="true">Trần Ngọc Lâm</span> (tổ trưởng Đường dây) điện thoại: <span class="editable" contenteditable="true">0776.319.391</span> hoặc anh <span class="editable" contenteditable="true">Trần Công Đẹp</span> - Đội phó Đội Quản lý Lưới điện 2 – số điện thoại: <span class="editable" contenteditable="true">0963.292.882</span>.</p>
+            <p>Nếu <span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> vẫn tiếp tục vi phạm, Công ty LĐCT sẽ báo cáo chính quyền địa phương tiến hành xử phạt theo đúng quy định.</p>
+            <p><span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> phải chịu hoàn toàn trách nhiệm trước pháp luật nếu có tai nạn, sự cố xảy ra trên đường dây điện 110kV, sự cố về công trình điện do hành vi vi phạm trên.</p>
+            <p>Trân trọng./.</p>
+        </div>
+
+        <div class="footer">
+            <div class="footer-left">
+                <strong><em>Nơi nhận:</em></strong><br>
+                - Như trên (để hỗ trợ xử lý);<br>
+                - UBND phường <span class="editable" contenteditable="true">Hòa Bình</span> (để hỗ trợ xử lý);<br>
+                - Ban Giám đốc Cty (để báo cáo);<br>
+                - Phòng An toàn (để biết);<br>
+                - Lưu: VT, ĐQLLĐ2.
+            </div>
+            <div class="footer-right">
+                KT. GIÁM ĐỐC<br>
+                PHÓ GIÁM ĐỐC<br>
+                <div class="signature-space"></div>
+                <span class="editable" contenteditable="true">Trương Lưu Phương</span>
+            </div>
+        </div>
+
+        <div class="images-section">
+            <p class="image-caption">Vật tư thi công | Đường dây điện cao thế | Công nhân đang thay bảng hiệu quảng cáo</p>
+            <img src="https://gokigendiet.com/wp-content/uploads/2021/05/1.jpg" alt="Hình ảnh hiện trường thi công">
+        </div>
+    </div>
+
+</body>
+</html>
