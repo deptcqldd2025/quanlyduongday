@@ -1,4 +1,4 @@
-her<!-- Version: 1.0 -->
+<!-- Version: 1.1 -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -7,27 +7,116 @@ her<!-- Version: 1.0 -->
     <title>Thông Báo - Vi Phạm Hành Lang An Toàn Lưới Điện</title>
     <style>
         :root {
-            --editable-bg: #fdfd96; /* Màu nền nhẹ để nhận biết vùng có thể nhập liệu */
+            --bg-color: #f0f2f5;
+            --form-bg: #ffffff;
+            --primary-color: #0056b3;
+            --doc-bg: #ffffff;
         }
         body {
-            font-family: "Times New Roman", Times, serif;
-            font-size: 14pt;
-            line-height: 1.5;
-            background-color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-color);
             margin: 0;
             padding: 20px;
+        }
+        
+        /* Bố cục chia 2 cột cho màn hình lớn */
+        .app-container {
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            align-items: flex-start;
+        }
+
+        /* --- STYLES CHO FORM NHẬP LIỆU --- */
+        .form-panel {
+            flex: 0 0 350px;
+            background: var(--form-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        .form-panel h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #333;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 13px;
+            color: #555;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        .form-group input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0,86,179,0.2);
+        }
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        .btn-print {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        .btn-print:hover {
+            background-color: #004494;
+        }
+
+        /* --- STYLES CHO BẢN XEM TRƯỚC (DOC) --- */
+        .preview-panel {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
         }
         .page-container {
             width: 210mm;
             min-height: 297mm;
-            background-color: #fff;
+            background-color: var(--doc-bg);
             padding: 20mm 20mm 20mm 25mm;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             box-sizing: border-box;
-            position: relative;
+            font-family: "Times New Roman", Times, serif;
+            font-size: 14pt;
+            line-height: 1.5;
+            color: #000;
+        }
+        .dyn-val {
+            font-weight: bold; /* Làm nổi bật nhẹ các trường dữ liệu động để dễ kiểm tra */
         }
         .header {
             display: flex;
@@ -35,13 +124,8 @@ her<!-- Version: 1.0 -->
             margin-bottom: 20px;
             text-align: center;
         }
-        .header-left {
-            flex: 1;
-        }
-        .header-right {
-            flex: 1;
-            font-weight: bold;
-        }
+        .header-left { flex: 1; }
+        .header-right { flex: 1; font-weight: bold; }
         .line-solid {
             border-top: 1px solid black;
             width: 150px;
@@ -63,79 +147,39 @@ her<!-- Version: 1.0 -->
             font-weight: bold;
             margin-bottom: 20px;
         }
-        .content {
-            text-align: justify;
-        }
+        .content { text-align: justify; }
         .footer {
             display: flex;
             justify-content: space-between;
             margin-top: 30px;
         }
-        .footer-left {
-            flex: 1;
-            font-size: 12pt;
-        }
-        .footer-left p {
-            margin: 2px 0;
-        }
-        .footer-right {
-            flex: 1;
-            text-align: center;
-            font-weight: bold;
-        }
-        .signature-space {
-            height: 100px;
-        }
+        .footer-left { flex: 1; font-size: 12pt; }
+        .footer-left p { margin: 2px 0; }
+        .footer-right { flex: 1; text-align: center; font-weight: bold; }
+        .signature-space { height: 100px; }
         .images-section {
             margin-top: 20px;
             text-align: center;
             page-break-inside: avoid;
         }
-        .images-section img {
-            max-width: 100%;
-            height: auto;
-            margin-top: 10px;
-        }
-        .image-caption {
-            font-style: italic;
-            font-size: 12pt;
-            margin-top: 5px;
-        }
-        
-        /* Chỉnh sửa input trực tiếp trên trang */
-        .editable {
-            background-color: var(--editable-bg);
-            border-bottom: 1px dashed #333;
-            min-width: 30px;
-            display: inline-block;
-            outline: none;
-            padding: 0 5px;
-        }
+        .images-section img { max-width: 100%; height: auto; margin-top: 10px; }
+        .image-caption { font-style: italic; font-size: 12pt; margin-top: 5px; }
 
-        .btn-print {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background-color: #0056b3;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            z-index: 1000;
-        }
-
-        .btn-print:hover {
-            background-color: #004494;
-        }
-
-        /* Tùy chỉnh khi in PDF */
+        /* --- TÙY CHỈNH KHI IN (PDF/WORD) --- */
         @media print {
             body {
                 background-color: transparent;
                 padding: 0;
+            }
+            .app-container {
+                display: block;
+            }
+            .form-panel {
+                display: none !important; /* Ẩn form khi in */
+            }
+            .preview-panel {
+                display: block;
+                width: 100%;
             }
             .page-container {
                 box-shadow: none;
@@ -143,95 +187,252 @@ her<!-- Version: 1.0 -->
                 margin: 0;
                 padding: 0;
             }
-            .btn-print {
-                display: none;
-            }
-            .editable {
-                background-color: transparent;
-                border-bottom: none;
-                padding: 0;
+            .dyn-val {
+                font-weight: normal; /* Đưa chữ về bình thường khi in */
             }
             @page {
                 size: A4;
                 margin: 20mm 20mm 20mm 25mm;
             }
         }
+        
+        /* Responsive cho màn hình nhỏ */
+        @media screen and (max-width: 1024px) {
+            .app-container { flex-direction: column; }
+            .form-panel { width: 100%; max-height: none; position: static; flex: none; box-sizing: border-box;}
+            .page-container { width: 100%; min-height: auto; }
+        }
     </style>
 </head>
 <body>
 
-    <button class="btn-print" onclick="window.print()">🖨️ In ra PDF / File Word</button>
-
-    <div class="page-container">
-        <div class="header">
-            <div class="header-left">
-                TỔNG CÔNG TY<br>ĐIỆN LỰC TP HỒ CHÍ MINH<br>
-                <strong>CÔNG TY LƯỚI ĐIỆN CAO THẾ<br>THÀNH PHỐ HỒ CHÍ MINH</strong>
-                <div class="line-solid"></div>
-                Số: <span class="editable" contenteditable="true">....</span> /LĐCT-ĐQLLĐ2
-            </div>
-            <div class="header-right">
-                CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br>
-                Độc lập – Tự do – Hạnh phúc
-                <div class="line-solid"></div>
-            </div>
-        </div>
-
-        <div class="date-section">
-            Tân Sơn Hòa, ngày <span class="editable" contenteditable="true">...</span> tháng <span class="editable" contenteditable="true">...</span> năm <span class="editable" contenteditable="true">2026</span>
-        </div>
-
-        <div class="title">THÔNG BÁO</div>
-        <div class="subtitle">Về việc có khả năng xâm phạm công trình lưới điện cao áp<br>
-            <div class="line-solid" style="width: 250px;"></div>
-        </div>
-
-        <div class="content">
-            <p><strong>Kính gửi:</strong> <span class="editable" contenteditable="true">Công ty truyền thông ViNaMa</span></p>
-            <p>Địa chỉ: <span class="editable" contenteditable="true">9A</span>, Đường: <span class="editable" contenteditable="true">Tôn Đức Thắng</span>, Phường: <span class="editable" contenteditable="true">Sài Gòn</span>, Thành Phố Hồ Chí Minh.</p>
+    <div class="app-container">
+        <!-- CỘT TRÁI: FORM NHẬP LIỆU -->
+        <div class="form-panel no-print">
+            <h2>📝 Nhập Thông Tin</h2>
             
-            <p>Căn cứ Luật Điện lực số 61/2024/QH11 của Quốc hội nước Cộng Hòa Xã Hội Chủ Nghĩa Việt Nam;</p>
-            <p>Căn cứ Nghị định số 62/2025/NĐ-CP ngày 04/3/2025 của Chính Phủ về việc Quy định chi tiết thi hành Luật điện lực về bảo vệ công trình điện lực và an toàn trong lĩnh vực điện lực;</p>
-            <p>Căn cứ Thông tư 02/2025/TT-BCT ngày 01/02/2025 của Bộ Công thương Quy định về bảo vệ công trình điện lực và an toàn trong lĩnh vực điện lực;</p>
-            
-            <p>Ngày <span class="editable" contenteditable="true">28/3/2026</span> Công ty Lưới điện cao thế TP.HCM (Công ty LĐCT) tiến hành kiểm tra hành lang bảo vệ an toàn lưới điện cao áp (HLBVATLĐCA) đường dây 110kV <span class="editable" contenteditable="true">Trường Đua – Chợ Lớn</span>. Trong quá trình kiểm tra đã phát hiện anh <span class="editable" contenteditable="true">Lê Hoài Tâm</span> là công nhân của <span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> đang thi công thay bảng hiệu quảng cáo tọa lạc tại <span class="editable" contenteditable="true">vòng xoay Lê Đại Hành thuộc phường Hòa Bình, Tp.HCM</span>. Bảng quảng cáo trên nằm trong hành lang an toàn và nằm dưới đường dây điện cao thế 110kV <span class="editable" contenteditable="true">Trường Đua – Chợ Lớn</span>. Trong quá trình thi công có khả năng vi phạm khoảng cách an toàn đường dây dẫn điện 110kV gây sự cố phóng điện. Nội dung vi phạm và đề nghị giải quyết như sau:</p>
-            
-            <p><strong>1. Nội dung vi phạm:</strong></p>
-            <p>Anh <span class="editable" contenteditable="true">Lê Hoài Tâm</span> là công nhân của <span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> đang thi công thay bảng hiệu quảng cáo tọa lạc tại <span class="editable" contenteditable="true">vòng xoay Lê Đại Hành, phường Hòa Bình, Tp.HCM</span>. Bảng quảng cáo trên nằm trong hành lang an toàn và nằm dưới đường dây điện cao thế 110kV <span class="editable" contenteditable="true">Trường Đua – Chợ Lớn</span>. Trong quá trình thi công có khả năng vi phạm khoảng cách an toàn đường dây dẫn điện 110kV gây sự cố phóng và ảnh hưởng đến sự vận hành của bình thường của lưới điện cao thế nhưng chưa có thỏa thuận với Công ty LĐCT.</p>
-            
-            <p>Hành vi này bị nghiêm cấm, được quy định tại các điều khoản sau:</p>
-            <p>- Khoản 8, Điều 4 Nghị định số 62/2025/NĐ-CP, cụ thể: “Khi tiến hành công việc gần hành lang hoặc trong hành lang bảo vệ đường dây dẫn điện trên không, tổ chức, cá nhân phải có biện pháp không để thiết bị, dụng cụ, phương tiện vi phạm khoảng cách an toàn phóng điện theo cấp điện áp 110kV là 3 mét, trừ trường hợp tổ chức, cá nhân thực hiện công việc áp dụng công nghệ phù hợp, hoặc do yêu cầu cấp bách của công tác quốc phòng, an ninh phải có sự thỏa thuận bằng văn bản với đơn vị điện lực về các biện pháp bảo đảm an toàn cần thiết”.</p>
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label>Số VB:</label>
+                    <input type="text" id="i-soVb" value="....">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Ngày:</label>
+                    <input type="text" id="i-ngay" value="...">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Tháng:</label>
+                    <input type="text" id="i-thang" value="...">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Năm:</label>
+                    <input type="text" id="i-nam" value="2026">
+                </div>
+            </div>
 
-            <p><strong>2. Đề nghị giải quyết:</strong></p>
-            <p>Đề nghị <span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> tạm ngừng thi công khu vực trong hành lang an toàn lưới điện cao áp có khả năng ảnh hưởng đến sự vận hành của bình thường của lưới điện cao thế đồng thời liên hệ với Công ty LĐCT để được hướng dẫn thỏa thuận các biện pháp an toàn.</p>
-            <p>Địa chỉ liên hệ: <span class="editable" contenteditable="true">113 đường Phổ Quang, phường Tân Sơn Hòa, Tp.HCM</span>; điện thoại: <span class="editable" contenteditable="true">028.22.450.951</span> (Tổ Đường dây) hoặc anh <span class="editable" contenteditable="true">Trần Ngọc Lâm</span> (tổ trưởng Đường dây) điện thoại: <span class="editable" contenteditable="true">0776.319.391</span> hoặc anh <span class="editable" contenteditable="true">Trần Công Đẹp</span> - Đội phó Đội Quản lý Lưới điện 2 – số điện thoại: <span class="editable" contenteditable="true">0963.292.882</span>.</p>
-            <p>Nếu <span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> vẫn tiếp tục vi phạm, Công ty LĐCT sẽ báo cáo chính quyền địa phương tiến hành xử phạt theo đúng quy định.</p>
-            <p><span class="editable" contenteditable="true">Công ty Truyền thông ViNaMa</span> phải chịu hoàn toàn trách nhiệm trước pháp luật nếu có tai nạn, sự cố xảy ra trên đường dây điện 110kV, sự cố về công trình điện do hành vi vi phạm trên.</p>
-            <p>Trân trọng./.</p>
+            <div class="form-group">
+                <label>Tên Công ty vi phạm:</label>
+                <input type="text" id="i-tenCty" value="Công ty Truyền thông ViNaMa">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Số nhà, đường:</label>
+                    <input type="text" id="i-diaChiCty" value="9A, Tôn Đức Thắng">
+                </div>
+                <div class="form-group">
+                    <label>Phường/Xã (Cty):</label>
+                    <input type="text" id="i-phuongCty" value="Sài Gòn">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Ngày phát hiện:</label>
+                    <input type="text" id="i-ngayPhatHien" value="28/3/2026">
+                </div>
+                <div class="form-group">
+                    <label>Đường dây 110kV:</label>
+                    <input type="text" id="i-duongDay" value="Trường Đua – Chợ Lớn">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Tên công nhân vi phạm:</label>
+                <input type="text" id="i-congNhan" value="Lê Hoài Tâm">
+            </div>
+
+            <div class="form-group">
+                <label>Vị trí vi phạm (Chi tiết):</label>
+                <input type="text" id="i-viTri" value="vòng xoay Lê Đại Hành thuộc phường Hòa Bình, Tp.HCM">
+            </div>
+            
+            <div class="form-group">
+                <label>Phường vi phạm (Gửi UBND):</label>
+                <input type="text" id="i-phuongViTri" value="Hòa Bình">
+            </div>
+
+            <hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">
+
+            <div class="form-group">
+                <label>Địa chỉ liên hệ LĐCT:</label>
+                <input type="text" id="i-dcLienHe" value="113 đường Phổ Quang, phường Tân Sơn Hòa, Tp.HCM">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>SĐT Tổ Đường dây:</label>
+                    <input type="text" id="i-sdtTo" value="028.22.450.951">
+                </div>
+                <div class="form-group">
+                    <label>Tên Tổ trưởng:</label>
+                    <input type="text" id="i-toTruong" value="Trần Ngọc Lâm">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>SĐT Tổ trưởng:</label>
+                    <input type="text" id="i-sdtToTruong" value="0776.319.391">
+                </div>
+                <div class="form-group">
+                    <label>Tên Đội phó:</label>
+                    <input type="text" id="i-doiPho" value="Trần Công Đẹp">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>SĐT Đội phó:</label>
+                    <input type="text" id="i-sdtDoiPho" value="0963.292.882">
+                </div>
+                <div class="form-group">
+                    <label>Người ký văn bản:</label>
+                    <input type="text" id="i-nguoiKy" value="Trương Lưu Phương">
+                </div>
+            </div>
+
+            <button class="btn-print" onclick="window.print()">🖨️ In ra PDF / File Word</button>
         </div>
 
-        <div class="footer">
-            <div class="footer-left">
-                <strong><em>Nơi nhận:</em></strong><br>
-                - Như trên (để hỗ trợ xử lý);<br>
-                - UBND phường <span class="editable" contenteditable="true">Hòa Bình</span> (để hỗ trợ xử lý);<br>
-                - Ban Giám đốc Cty (để báo cáo);<br>
-                - Phòng An toàn (để biết);<br>
-                - Lưu: VT, ĐQLLĐ2.
-            </div>
-            <div class="footer-right">
-                KT. GIÁM ĐỐC<br>
-                PHÓ GIÁM ĐỐC<br>
-                <div class="signature-space"></div>
-                <span class="editable" contenteditable="true">Trương Lưu Phương</span>
-            </div>
-        </div>
+        <!-- CỘT PHẢI: BẢN XEM TRƯỚC (DOC) -->
+        <div class="preview-panel">
+            <div class="page-container">
+                <div class="header">
+                    <div class="header-left">
+                        TỔNG CÔNG TY<br>ĐIỆN LỰC TP HỒ CHÍ MINH<br>
+                        <strong>CÔNG TY LƯỚI ĐIỆN CAO THẾ<br>THÀNH PHỐ HỒ CHÍ MINH</strong>
+                        <div class="line-solid"></div>
+                        Số: <span class="dyn-val dyn-soVb"></span> /LĐCT-ĐQLLĐ2
+                    </div>
+                    <div class="header-right">
+                        CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br>
+                        Độc lập – Tự do – Hạnh phúc
+                        <div class="line-solid"></div>
+                    </div>
+                </div>
 
-        <div class="images-section">
-            <p class="image-caption">Vật tư thi công | Đường dây điện cao thế | Công nhân đang thay bảng hiệu quảng cáo</p>
-            <img src="https://gokigendiet.com/wp-content/uploads/2021/05/1.jpg" alt="Hình ảnh hiện trường thi công">
+                <div class="date-section">
+                    Tân Sơn Hòa, ngày <span class="dyn-val dyn-ngay"></span> tháng <span class="dyn-val dyn-thang"></span> năm <span class="dyn-val dyn-nam"></span>
+                </div>
+
+                <div class="title">THÔNG BÁO</div>
+                <div class="subtitle">Về việc có khả năng xâm phạm công trình lưới điện cao áp<br>
+                    <div class="line-solid" style="width: 250px;"></div>
+                </div>
+
+                <div class="content">
+                    <p><strong>Kính gửi:</strong> <span class="dyn-val dyn-tenCty"></span></p>
+                    <p>Địa chỉ: <span class="dyn-val dyn-diaChiCty"></span>, Phường: <span class="dyn-val dyn-phuongCty"></span>, Thành Phố Hồ Chí Minh.</p>
+                    
+                    <p>Căn cứ Luật Điện lực số 61/2024/QH11 của Quốc hội nước Cộng Hòa Xã Hội Chủ Nghĩa Việt Nam;</p>
+                    <p>Căn cứ Nghị định số 62/2025/NĐ-CP ngày 04/3/2025 của Chính Phủ về việc Quy định chi tiết thi hành Luật điện lực về bảo vệ công trình điện lực và an toàn trong lĩnh vực điện lực;</p>
+                    <p>Căn cứ Thông tư 02/2025/TT-BCT ngày 01/02/2025 của Bộ Công thương Quy định về bảo vệ công trình điện lực và an toàn trong lĩnh vực điện lực;</p>
+                    
+                    <p>Ngày <span class="dyn-val dyn-ngayPhatHien"></span> Công ty Lưới điện cao thế TP.HCM (Công ty LĐCT) tiến hành kiểm tra hành lang bảo vệ an toàn lưới điện cao áp (HLBVATLĐCA) đường dây 110kV <span class="dyn-val dyn-duongDay"></span>. Trong quá trình kiểm tra đã phát hiện anh <span class="dyn-val dyn-congNhan"></span> là công nhân của <span class="dyn-val dyn-tenCty"></span> đang thi công thay bảng hiệu quảng cáo tọa lạc tại <span class="dyn-val dyn-viTri"></span>. Bảng quảng cáo trên nằm trong hành lang an toàn và nằm dưới đường dây điện cao thế 110kV <span class="dyn-val dyn-duongDay"></span>. Trong quá trình thi công có khả năng vi phạm khoảng cách an toàn đường dây dẫn điện 110kV gây sự cố phóng điện. Nội dung vi phạm và đề nghị giải quyết như sau:</p>
+                    
+                    <p><strong>1. Nội dung vi phạm:</strong></p>
+                    <p>Anh <span class="dyn-val dyn-congNhan"></span> là công nhân của <span class="dyn-val dyn-tenCty"></span> đang thi công thay bảng hiệu quảng cáo tọa lạc tại <span class="dyn-val dyn-viTri"></span>. Bảng quảng cáo trên nằm trong hành lang an toàn và nằm dưới đường dây điện cao thế 110kV <span class="dyn-val dyn-duongDay"></span>. Trong quá trình thi công có khả năng vi phạm khoảng cách an toàn đường dây dẫn điện 110kV gây sự cố phóng và ảnh hưởng đến sự vận hành của bình thường của lưới điện cao thế nhưng chưa có thỏa thuận với Công ty LĐCT.</p>
+                    
+                    <p>Hành vi này bị nghiêm cấm, được quy định tại các điều khoản sau:</p>
+                    <p>- Khoản 8, Điều 4 Nghị định số 62/2025/NĐ-CP, cụ thể: “Khi tiến hành công việc gần hành lang hoặc trong hành lang bảo vệ đường dây dẫn điện trên không, tổ chức, cá nhân phải có biện pháp không để thiết bị, dụng cụ, phương tiện vi phạm khoảng cách an toàn phóng điện theo cấp điện áp 110kV là 3 mét, trừ trường hợp tổ chức, cá nhân thực hiện công việc áp dụng công nghệ phù hợp, hoặc do yêu cầu cấp bách của công tác quốc phòng, an ninh phải có sự thỏa thuận bằng văn bản với đơn vị điện lực về các biện pháp bảo đảm an toàn cần thiết”.</p>
+
+                    <p><strong>2. Đề nghị giải quyết:</strong></p>
+                    <p>Đề nghị <span class="dyn-val dyn-tenCty"></span> tạm ngừng thi công khu vực trong hành lang an toàn lưới điện cao áp có khả năng ảnh hưởng đến sự vận hành của bình thường của lưới điện cao thế đồng thời liên hệ với Công ty LĐCT để được hướng dẫn thỏa thuận các biện pháp an toàn.</p>
+                    <p>Địa chỉ liên hệ: <span class="dyn-val dyn-dcLienHe"></span>; điện thoại: <span class="dyn-val dyn-sdtTo"></span> (Tổ Đường dây) hoặc anh <span class="dyn-val dyn-toTruong"></span> (tổ trưởng Đường dây) điện thoại: <span class="dyn-val dyn-sdtToTruong"></span> hoặc anh <span class="dyn-val dyn-doiPho"></span> - Đội phó Đội Quản lý Lưới điện 2 – số điện thoại: <span class="dyn-val dyn-sdtDoiPho"></span>.</p>
+                    <p>Nếu <span class="dyn-val dyn-tenCty"></span> vẫn tiếp tục vi phạm, Công ty LĐCT sẽ báo cáo chính quyền địa phương tiến hành xử phạt theo đúng quy định.</p>
+                    <p><span class="dyn-val dyn-tenCty"></span> phải chịu hoàn toàn trách nhiệm trước pháp luật nếu có tai nạn, sự cố xảy ra trên đường dây điện 110kV, sự cố về công trình điện do hành vi vi phạm trên.</p>
+                    <p>Trân trọng./.</p>
+                </div>
+
+                <div class="footer">
+                    <div class="footer-left">
+                        <strong><em>Nơi nhận:</em></strong><br>
+                        - Như trên (để hỗ trợ xử lý);<br>
+                        - UBND phường <span class="dyn-val dyn-phuongViTri"></span> (để hỗ trợ xử lý);<br>
+                        - Ban Giám đốc Cty (để báo cáo);<br>
+                        - Phòng An toàn (để biết);<br>
+                        - Lưu: VT, ĐQLLĐ2.
+                    </div>
+                    <div class="footer-right">
+                        KT. GIÁM ĐỐC<br>
+                        PHÓ GIÁM ĐỐC<br>
+                        <div class="signature-space"></div>
+                        <span class="dyn-val dyn-nguoiKy"></span>
+                    </div>
+                </div>
+
+                <div class="images-section">
+                    <p class="image-caption">Vật tư thi công | Đường dây điện cao thế | Công nhân đang thay bảng hiệu quảng cáo</p>
+                    <img src="https://gokigendiet.com/wp-content/uploads/2021/05/1.jpg" alt="Hình ảnh hiện trường thi công">
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- SCRIPT XỬ LÝ ĐỒNG BỘ DỮ LIỆU TỪ FORM SANG VĂN BẢN -->
+    <script>
+        function syncData() {
+            // Danh sách ánh xạ giữa ID của thẻ input và Class của thẻ span trong văn bản
+            const mapData = {
+                'i-soVb': 'dyn-soVb',
+                'i-ngay': 'dyn-ngay',
+                'i-thang': 'dyn-thang',
+                'i-nam': 'dyn-nam',
+                'i-tenCty': 'dyn-tenCty',
+                'i-diaChiCty': 'dyn-diaChiCty',
+                'i-phuongCty': 'dyn-phuongCty',
+                'i-ngayPhatHien': 'dyn-ngayPhatHien',
+                'i-duongDay': 'dyn-duongDay',
+                'i-congNhan': 'dyn-congNhan',
+                'i-viTri': 'dyn-viTri',
+                'i-phuongViTri': 'dyn-phuongViTri',
+                'i-dcLienHe': 'dyn-dcLienHe',
+                'i-sdtTo': 'dyn-sdtTo',
+                'i-toTruong': 'dyn-toTruong',
+                'i-sdtToTruong': 'dyn-sdtToTruong',
+                'i-doiPho': 'dyn-doiPho',
+                'i-sdtDoiPho': 'dyn-sdtDoiPho',
+                'i-nguoiKy': 'dyn-nguoiKy'
+            };
+
+            // Lặp qua từng input và cập nhật tất cả các vị trí tương ứng
+            for (let inputId in mapData) {
+                let value = document.getElementById(inputId).value;
+                let targets = document.querySelectorAll('.' + mapData[inputId]);
+                targets.forEach(element => {
+                    element.textContent = value;
+                });
+            }
+        }
+
+        // Gắn sự kiện lắng nghe mỗi khi người dùng gõ vào form
+        document.querySelectorAll('.form-panel input').forEach(input => {
+            input.addEventListener('input', syncData);
+        });
+
+        // Chạy lần đầu để nạp dữ liệu mặc định vào văn bản
+        syncData();
+    </script>
 </body>
 </html>
