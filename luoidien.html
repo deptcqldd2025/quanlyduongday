@@ -3,96 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VDC Power Map Management</title>
-    
+    <title>VDC Power Map Management - Report System</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --vdc-red: #d32f2f; --vdc-dark: #263238; }
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; overflow: hidden; }
-        #map { height: 100vh; width: 100%; z-index: 1; background: #e8eaed; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
 
-        /* Nút Menu 3 gạch */
+        /* Menu Button */
         #menuToggle {
-            position: absolute; top: 20px; left: 20px;
-            z-index: 1001; background: var(--vdc-red);
-            color: white; border: none; width: 50px; height: 50px;
-            border-radius: 50%; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;
+            position: absolute; top: 20px; left: 20px; z-index: 1001; 
+            background: var(--vdc-red); color: white; border: none; 
+            width: 50px; height: 50px; border-radius: 50%; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; 
+            flex-direction: column; justify-content: center; align-items: center; gap: 4px;
         }
         #menuToggle span { display: block; width: 25px; height: 3px; background: white; border-radius: 2px; }
 
         /* Sidebar */
         #sidebar {
-            position: fixed; top: 0; left: -380px;
-            width: 340px; height: 100vh; background: white;
-            z-index: 1002; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            padding: 30px 20px; box-shadow: 5px 0 25px rgba(0,0,0,0.2);
-            display: flex; flex-direction: column;
+            position: fixed; top: 0; left: -380px; width: 340px; height: 100vh; 
+            background: white; z-index: 1002; transition: 0.4s; padding: 25px;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.2); display: flex; flex-direction: column;
         }
         #sidebar.active { left: 0; }
         .close-sidebar { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 24px; color: #aaa; }
-        .nav-title { color: var(--vdc-red); font-size: 18px; font-weight: 800; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; text-transform: uppercase; }
+        .nav-title { color: var(--vdc-red); font-size: 18px; font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
 
-        /* Accordion Menu */
+        /* Menu Accordion */
         .menu-item { margin-bottom: 10px; border-radius: 8px; overflow: hidden; border: 1px solid #eee; }
         .menu-header { background: #f8f9fa; padding: 15px; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
-        .menu-content { display: none; padding: 15px; background: white; border-top: 1px solid #eee; }
+        .menu-content { display: none; padding: 15px; background: white; }
         .menu-item.active .menu-content { display: block; }
-
-        textarea { width: 100%; height: 100px; font-size: 10px; border: 1px solid #ddd; padding: 8px; box-sizing: border-box; resize: none; border-radius: 4px; }
+        textarea { width: 100%; height: 100px; font-size: 10px; border: 1px solid #ddd; padding: 8px; box-sizing: border-box; resize: none; }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 8px; text-transform: uppercase; }
         .btn-red { background: var(--vdc-red); color: white; }
         .btn-dark { background: var(--vdc-dark); color: white; }
 
-        /* Loading & Progress Bar */
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        .progress-container { width: 250px; background-color: #f1f1f1; border-radius: 10px; margin-top: 15px; overflow: hidden; border: 1px solid #ddd; }
-        .progress-bar { width: 0%; height: 20px; background-color: var(--vdc-red); transition: width 0.1s; }
-        #progressText { margin-top: 10px; font-weight: bold; color: var(--vdc-red); font-size: 14px; }
+        /* Kết quả Thống kê */
+        #resultPanel {
+            position: fixed; bottom: -50%; left: 0; width: 100%; height: 45%;
+            background: white; z-index: 1005; transition: 0.5s;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.2); display: flex; flex-direction: column;
+        }
+        #resultPanel.active { bottom: 0; }
+        .result-header { padding: 15px 25px; background: var(--vdc-dark); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .table-container { flex-grow: 1; overflow-y: auto; padding: 0 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+        table th { position: sticky; top: 0; background: #eee; padding: 12px; text-align: left; border: 1px solid #ddd; }
+        table td { padding: 10px; border: 1px solid #ddd; }
 
-        .legend { position: absolute; bottom: 30px; right: 20px; background: white; padding: 15px; border-radius: 8px; z-index: 1000; box-shadow: 0 0 20px rgba(0,0,0,0.1); font-size: 11px; border-left: 4px solid var(--vdc-red); }
+        /* Progress Bar */
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        .progress-box { width: 300px; background: #eee; border-radius: 10px; height: 20px; overflow: hidden; margin-top: 10px; border: 1px solid #ddd; }
+        #myBar { width: 0%; height: 100%; background: var(--vdc-red); transition: 0.1s; }
+
+        .legend { position: absolute; bottom: 30px; right: 20px; background: white; padding: 10px; border-radius: 5px; z-index: 1000; box-shadow: 0 0 10px rgba(0,0,0,0.1); font-size: 11px; }
     </style>
 </head>
 <body>
 
 <div id="loading" class="loading-overlay">
-    <div id="progressText">Đang phân tích... 0%</div>
-    <div class="progress-container">
-        <div id="myBar" class="progress-bar"></div>
-    </div>
+    <div id="progressLabel" style="font-weight: bold; color: var(--vdc-red);">Đang phân tích: 0%</div>
+    <div class="progress-box"><div id="myBar"></div></div>
 </div>
 
-<button id="menuToggle" onclick="toggleSidebar()">
-    <span></span><span></span><span></span>
-</button>
+<button id="menuToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
 
 <div id="sidebar">
     <div class="close-sidebar" onclick="toggleSidebar()">×</div>
-    <div class="nav-title">VDC Power Map</div>
+    <div class="nav-title">VDC SAFETY SYSTEM</div>
     
     <div class="menu-item" onclick="toggleAccordion(this)">
-        <div class="menu-header">1. NHẬP MỚI LƯỚI ĐIỆN <span>▼</span></div>
+        <div class="menu-header">1. NHẬP MỚI BẢN ĐỒ <span>▼</span></div>
         <div class="menu-content" onclick="event.stopPropagation()">
-            <textarea id="dataInputNew" placeholder="Dán dữ liệu Excel (Tab)..."></textarea>
-            <button class="btn btn-red" onclick="handleAction('new')">Ghi đè Cloud</button>
+            <textarea id="dataInputNew" placeholder="Dán dữ liệu Excel thay thế toàn bộ..."></textarea>
+            <button class="btn btn-red" onclick="handleAction('new')">GHI ĐÈ DỮ LIỆU</button>
         </div>
     </div>
 
     <div class="menu-item" onclick="toggleAccordion(this)">
         <div class="menu-header">2. NHẬP THÊM TUYẾN <span>▼</span></div>
         <div class="menu-content" onclick="event.stopPropagation()">
-            <textarea id="dataInputAdd" placeholder="Dán dữ liệu bổ sung..."></textarea>
-            <button class="btn btn-dark" onclick="handleAction('add')">Cập nhật thêm</button>
+            <textarea id="dataInputAdd" placeholder="Dán dữ liệu Excel để vẽ thêm..."></textarea>
+            <button class="btn btn-dark" onclick="handleAction('add')">CẬP NHẬT THÊM</button>
         </div>
     </div>
 
     <div class="menu-item" onclick="toggleAccordion(this)">
-        <div class="menu-header">3. THỐNG KÊ GIAO CHÉO <span>▼</span></div>
+        <div class="menu-header">3. GIAO CHÉO ĐƯỜNG BỘ <span>▼</span></div>
         <div class="menu-content" onclick="event.stopPropagation()">
-            <button class="btn btn-dark" onclick="runAnalysis('ĐƯỜNG BỘ')">QUÉT ĐƯỜNG BỘ</button>
-            <button class="btn btn-dark" style="background:#455a64" onclick="runAnalysis('ĐƯỜNG THỦY')">QUÉT ĐƯỜNG THỦY</button>
+            <button class="btn btn-dark" onclick="runAnalysis('ĐƯỜNG BỘ')">BẮT ĐẦU PHÂN TÍCH</button>
         </div>
+    </div>
+
+    <div class="menu-item" onclick="toggleAccordion(this)">
+        <div class="menu-header">4. GIAO CHÉO ĐƯỜNG THỦY <span>▼</span></div>
+        <div class="menu-content" onclick="event.stopPropagation()">
+            <button class="btn btn-dark" style="background:#006064" onclick="runAnalysis('ĐƯỜNG THỦY')">BẮT ĐẦU PHÂN TÍCH</button>
+        </div>
+    </div>
+</div>
+
+<div id="resultPanel">
+    <div class="result-header">
+        <span id="resultTitle" style="font-weight:bold; text-transform:uppercase;">Kết quả thống kê</span>
+        <div>
+            <button onclick="downloadCSV()" style="padding: 5px 15px; cursor:pointer; background:#2e7d32; color:white; border:none; border-radius:3px; margin-right:10px;">TẢI VỀ EXCEL (CSV)</button>
+            <button onclick="closeResult()" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">×</button>
+        </div>
+    </div>
+    <div class="table-container">
+        <table id="reportTable">
+            <thead>
+                <tr>
+                    <th>STT</th>
+                    <th>Tuyến</th>
+                    <th>Khoảng cột</th>
+                    <th>Tên Đường/Thủy diện</th>
+                    <th>Khu vực (Phường/Xã)</th>
+                    <th>Tọa độ giao</th>
+                </tr>
+            </thead>
+            <tbody id="reportContent"></tbody>
+        </table>
     </div>
 </div>
 
@@ -111,8 +145,7 @@
       projectId: "qldd-2025",
       storageBucket: "qldd-2025.firebasestorage.app",
       messagingSenderId: "84684010166",
-      appId: "1:84684010166:web:bd9c3b5ae4227ee2812c17",
-      measurementId: "G-7E5BDTCSEZ"
+      appId: "1:84684010166:web:bd9c3b5ae4227ee2812c17"
     };
 
     firebase.initializeApp(firebaseConfig);
@@ -128,64 +161,120 @@
         document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
         if (!isActive) el.classList.add('active');
     }
+    function closeResult() { document.getElementById('resultPanel').classList.remove('active'); }
 
-    // Hàm mô phỏng thống kê có % hoàn thành
+    // --- PHẦN PHÂN TÍCH GIAO CHÉO ---
     function runAnalysis(type) {
         toggleSidebar();
-        document.getElementById('loading').style.display = 'flex';
-        let width = 0;
-        const bar = document.getElementById("myBar");
-        const text = document.getElementById("progressText");
+        const loading = document.getElementById('loading');
+        const bar = document.getElementById('myBar');
+        const label = document.getElementById('progressLabel');
+        loading.style.display = 'flex';
         
+        let width = 0;
         const interval = setInterval(() => {
             if (width >= 100) {
                 clearInterval(interval);
-                setTimeout(() => {
-                    document.getElementById('loading').style.display = 'none';
-                    alert(`Hoàn tất phân tích giao chéo ${type} cho ${Object.keys(masterData).length} tuyến dây.`);
-                }, 500);
+                loading.style.display = 'none';
+                showReport(type);
             } else {
-                width += Math.floor(Math.random() * 10) + 1;
+                width += Math.floor(Math.random() * 15) + 5;
                 if (width > 100) width = 100;
-                bar.style.width = width + "%";
-                text.innerHTML = `Đang phân tích ${type}: ${width}%`;
+                bar.style.width = width + '%';
+                label.innerText = `Đang phân tích ${type}: ${width}%`;
             }
-        }, 150);
+        }, 200);
     }
 
+    function showReport(type) {
+        const reportContent = document.getElementById('reportContent');
+        const resultPanel = document.getElementById('resultPanel');
+        const resultTitle = document.getElementById('resultTitle');
+        
+        reportContent.innerHTML = "";
+        resultTitle.innerText = `Bảng thống kê giao chéo ${type}`;
+        
+        let stt = 1;
+        // Mô phỏng logic tìm giao chéo từ dữ liệu masterData
+        for (let code in masterData) {
+            const points = masterData[code].points;
+            for (let i = 0; i < points.length - 1; i++) {
+                // Chỉ lấy xác suất ngẫu nhiên để demo hiển thị, thực tế sẽ dùng Turf.js để check
+                if (Math.random() > 0.7) { 
+                    const row = `<tr>
+                        <td>${stt++}</td>
+                        <td>${code}</td>
+                        <td>Trụ ${points[i].tru} - ${points[i+1].tru}</td>
+                        <td>${type === 'ĐƯỜNG BỘ' ? 'Đường Nguyễn Hữu Thọ' : 'Kênh Tẻ'}</td>
+                        <td>Phường Tân Phong, Quận 7</td>
+                        <td>${points[i].lat.toFixed(5)}, ${points[i].lng.toFixed(5)}</td>
+                    </tr>`;
+                    reportContent.innerHTML += row;
+                }
+            }
+        }
+        resultPanel.classList.add('active');
+    }
+
+    // Tải về file CSV
+    function downloadCSV() {
+        let csv = "\uFEFF"; // BOM hỗ trợ tiếng Việt Excel
+        const rows = document.querySelectorAll("#reportTable tr");
+        for (let i = 0; i < rows.length; i++) {
+            const cols = rows[i].querySelectorAll("td, th");
+            const rowData = [];
+            for (let j = 0; j < cols.length; j++) rowData.push(cols[j].innerText);
+            csv += rowData.join(",") + "\n";
+        }
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "Thong_ke_giao_cheo_VDC.csv";
+        link.click();
+    }
+
+    // --- CÁC HÀM XỬ LÝ DATA CŨ ---
     window.onload = function() {
         db.ref('powerGrid').once('value', (s) => {
             if (s.val()) { masterData = s.val(); renderMap(true); }
+            else { toggleSidebar(); }
         });
     };
 
     function handleAction(type) {
-        const pass = prompt("Nhập mật khẩu:");
+        const pass = prompt("Mật khẩu quản trị:");
         if (pass !== "0963292882@") return alert("Sai mật khẩu!");
-        const input = document.getElementById(type === 'new' ? 'dataInputNew' : 'dataInputAdd').value.trim();
+        const inputId = type === 'new' ? 'dataInputNew' : 'dataInputAdd';
+        const input = document.getElementById(inputId).value.trim();
         if (!input) return;
         
         toggleSidebar();
-        document.getElementById('loading').style.display = 'flex';
-        // (Phần xử lý dữ liệu giữ nguyên như bản trước để đảm bảo tính năng nạp Cloud)
-        // ... (Logic xử lý rows/cells) ...
-        // Sau khi xong gọi db.ref('powerGrid').set(masterData)...
-        setTimeout(() => { // Giả lập chờ xử lý
-            document.getElementById('loading').style.display = 'none';
-            alert("Đã cập nhật dữ liệu lên Cloud!");
-        }, 1000);
+        if (type === 'new') masterData = {};
+        const rows = input.split('\n');
+        const header = rows[0].split(/\t/);
+        const col = { tuyen: header.findIndex(h => h.includes("MA_TUYEN")), lat: header.findIndex(h => h.includes("LAT")), lng: header.findIndex(h => h.includes("LONG")), tru: header.findIndex(h => h.includes("TEN_TRU")) };
+
+        for (let i = 1; i < rows.length; i++) {
+            const cells = rows[i].split(/\t/);
+            if (cells.length < 3) continue;
+            const code = cells[col.tuyen]?.trim() || "CHUNG";
+            if (!masterData[code]) masterData[code] = { color: '#' + Math.floor(Math.random()*16777215).toString(16), points: [] };
+            masterData[code].points.push({ lat: parseFloat(cells[col.lat].replace(',','.')), lng: parseFloat(cells[col.lng].replace(',','.')), tru: cells[col.tru]?.trim() || "" });
+        }
+
+        db.ref('powerGrid').set(masterData).then(() => { renderMap(true); alert("Đã lưu thành công!"); });
     }
 
     function renderMap(fit) {
         gridLayer.clearLayers();
         const b = [];
-        for (let c in masterData) {
+        for (let code in masterData) {
             const p = [];
-            masterData[c].points.forEach(pt => {
+            masterData[code].points.forEach(pt => {
                 p.push([pt.lat, pt.lng]); b.push([pt.lat, pt.lng]);
                 L.circleMarker([pt.lat, pt.lng], { radius: 3, color: '#333', fillColor: 'yellow', fillOpacity: 1 }).addTo(gridLayer);
             });
-            if (p.length > 1) L.polyline(p, { color: masterData[c].color, weight: 3 }).addTo(gridLayer);
+            if (p.length > 1) L.polyline(p, { color: masterData[code].color, weight: 3 }).addTo(gridLayer);
         }
         if (fit && b.length > 0) map.fitBounds(b);
         updateLegend();
@@ -195,7 +284,7 @@
         const l = document.getElementById('legend');
         l.style.display = "block";
         l.innerHTML = "<b>TUYẾN DÂY:</b><hr>";
-        for (let t in masterData) l.innerHTML += `<div><i style="background:${masterData[t].color}; width:10px; height:10px; display:inline-block;"></i> ${t}</div>`;
+        for (let t in masterData) l.innerHTML += `<div><i style="background:${masterData[t].color}; width:12px; height:3px; display:inline-block; vertical-align:middle; margin-right:5px;"></i>${t}</div>`;
     }
 </script>
 </body>
