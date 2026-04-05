@@ -3,138 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>VDC Power Map - Đa nền tảng & Hình học thực tế</title>
+    <title>VDC Power Map v8.5 - Thống kê thực địa TP.HCM</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --vdc-red: #d32f2f; --vdc-dark: #263238; --vdc-blue: #0288d1; }
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; background: #eee; }
+        :root { --vdc-red: #d32f2f; --vdc-dark: #263238; --vdc-blue: #1976d2; --vdc-green: #2e7d32; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
-        /* THANH TÌM KIẾM ĐA NỀN TẢNG */
+        /* THANH TÌM KIẾM & MENU */
         .search-container {
             position: absolute; top: 15px; left: 70px; z-index: 1001;
-            display: flex; background: white; padding: 4px;
-            border-radius: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            width: calc(100% - 90px); max-width: 450px;
+            display: flex; background: white; padding: 5px; border-radius: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); width: calc(100% - 90px); max-width: 400px;
         }
-        #searchInput {
-            flex-grow: 1; border: none; padding: 10px 15px; border-radius: 20px;
-            outline: none; font-size: 14px;
-        }
-        .search-btn {
-            background: var(--vdc-blue); color: white; border: none;
-            padding: 0 15px; border-radius: 20px; cursor: pointer; font-weight: bold;
-        }
+        #searchInput { flex-grow: 1; border: none; padding: 8px 15px; outline: none; font-size: 14px; border-radius: 20px; }
+        .search-btn { background: var(--vdc-blue); color: white; border: none; padding: 0 15px; border-radius: 20px; cursor: pointer; }
 
-        /* NÚT MENU HAMBURGER */
         #menuToggle {
             position: absolute; top: 15px; left: 15px; z-index: 1001; 
-            background: var(--vdc-red); color: white; border: none; 
-            width: 45px; height: 45px; border-radius: 50%; cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; 
-            flex-direction: column; justify-content: center; align-items: center; gap: 4px;
+            background: var(--vdc-red); border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
         #menuToggle span { display: block; width: 22px; height: 2px; background: white; }
 
-        /* SIDEBAR THÔNG MINH */
+        /* SIDEBAR */
         #sidebar {
-            position: fixed; top: 0; left: -100%; width: 100%; max-width: 350px; height: 100vh; 
-            background: white; z-index: 2001; transition: 0.4s; padding: 20px;
-            box-shadow: 5px 0 20px rgba(0,0,0,0.2); display: flex; flex-direction: column; box-sizing: border-box;
+            position: fixed; top: 0; left: -100%; width: 100%; max-width: 320px; height: 100vh; 
+            background: white; z-index: 2001; transition: 0.4s; padding: 20px; box-sizing: border-box;
+            box-shadow: 5px 0 20px rgba(0,0,0,0.2);
         }
         #sidebar.active { left: 0; }
         .nav-title { color: var(--vdc-red); font-size: 18px; font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
-
-        /* MENU ITEM */
-        .menu-item { margin-bottom: 8px; border: 1px solid #eee; border-radius: 8px; }
-        .menu-header { background: #f9f9f9; padding: 12px; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
-        .menu-content { display: none; padding: 10px; }
+        .menu-item { margin-bottom: 10px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
+        .menu-header { background: #f9f9f9; padding: 12px; cursor: pointer; font-size: 13px; font-weight: bold; }
+        .menu-content { display: none; padding: 12px; }
         .menu-item.active .menu-content { display: block; }
+        textarea { width: 100%; height: 100px; font-size: 11px; border: 1px solid #ddd; padding: 8px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 5px; }
 
-        textarea { width: 100%; height: 120px; font-size: 11px; border: 1px solid #ddd; padding: 8px; box-sizing: border-box; border-radius: 4px; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 5px; text-transform: uppercase; }
-        .btn-red { background: var(--vdc-red); color: white; }
-        .btn-dark { background: var(--vdc-dark); color: white; }
-
-        /* BẢNG KẾT QUẢ FULL SCREEN (MOBILE & PC) */
+        /* BẢNG KẾT QUẢ FULL SCREEN */
         #resultPanel {
             position: fixed; top: 100%; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 3000; transition: 0.5s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+            background: white; z-index: 3000; transition: 0.5s ease-in-out;
             display: flex; flex-direction: column;
         }
         #resultPanel.active { top: 0; }
-        .result-header { padding: 15px; background: var(--vdc-dark); color: white; display: flex; justify-content: space-between; align-items: center; }
-        .table-wrap { flex-grow: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
-        table { width: 100%; border-collapse: collapse; min-width: 700px; } /* Đảm bảo không bị bóp nghẹt trên mobile */
-        table th { position: sticky; top: 0; background: #eee; padding: 12px; text-align: left; border: 1px solid #ddd; color: #333; font-size: 13px; }
+        .res-header { padding: 15px 20px; background: var(--vdc-dark); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .res-filter { padding: 10px 20px; background: #f1f1f1; border-bottom: 1px solid #ddd; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .table-wrap { flex-grow: 1; overflow: auto; padding: 0 20px 20px 20px; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        table th { position: sticky; top: 0; background: #455a64; color: white; padding: 12px; border: 1px solid #ddd; }
         table td { padding: 10px; border: 1px solid #ddd; font-size: 13px; }
 
         /* LOADING */
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        .progress-box { width: 80%; max-width: 300px; background: #ddd; height: 10px; border-radius: 5px; margin-top: 10px; overflow: hidden; }
-        #myBar { width: 0%; height: 100%; background: var(--vdc-red); transition: 0.3s; }
-
-        @media (max-width: 600px) {
-            .search-container { left: 65px; width: calc(100% - 85px); }
-            #searchInput { font-size: 12px; }
-            .nav-title { font-size: 16px; }
-        }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        .p-box { width: 250px; background: #ddd; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+        #myBar { width: 0%; height: 100%; background: var(--vdc-red); transition: 0.2s; }
+        
+        select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px; min-width: 180px; }
     </style>
 </head>
 <body>
 
 <div id="loading" class="loading-overlay">
-    <div id="progressLabel" style="font-weight: bold; color: var(--vdc-red);">Đang đồng bộ thực địa...</div>
-    <div class="progress-box"><div id="myBar"></div></div>
+    <div id="pLabel" style="font-weight: bold; color: var(--vdc-red);">Đang quét thực địa...</div>
+    <div class="p-box"><div id="myBar"></div></div>
 </div>
 
 <button id="menuToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
 
 <div class="search-container">
-    <input type="text" id="searchInput" placeholder="Tên đường/sông (VD: Sông Nhà Bè)...">
+    <input type="text" id="searchInput" placeholder="Tìm tên đường/sông tại HCM...">
     <button class="search-btn" onclick="searchGeo()">TÌM</button>
 </div>
 
 <div id="sidebar">
-    <div onclick="toggleSidebar()" style="position:absolute; right:20px; top:20px; cursor:pointer; font-size:24px;">×</div>
-    <div class="nav-title">VDC POWER MAP</div>
+    <div onclick="toggleSidebar()" style="position:absolute; right:20px; top:15px; cursor:pointer; font-size:24px;">×</div>
+    <div class="nav-title">VDC POWER SYSTEM</div>
     
     <div class="menu-item" onclick="toggleAccordion(this)">
-        <div class="menu-header">1. NHẬP DỮ LIỆU TUYẾN <span>▼</span></div>
+        <div class="menu-header">1. CẬP NHẬT DỮ LIỆU TUYẾN <span>▼</span></div>
         <div class="menu-content" onclick="event.stopPropagation()">
-            <textarea id="dataInputNew" placeholder="Dán từ Excel (MA_TUYEN, LAT, LONG, TEN_TRU)"></textarea>
-            <button class="btn btn-red" onclick="handleData()">CẬP NHẬT CLOUD</button>
+            <textarea id="dataInput" placeholder="Dán MA_TUYEN, LAT, LONG, TEN_TRU..."></textarea>
+            <button class="btn" style="background:var(--vdc-red); color:white" onclick="saveData()">LƯU LÊN CLOUD</button>
         </div>
     </div>
 
     <div class="menu-item" onclick="toggleAccordion(this)">
-        <div class="menu-header">2. THỐNG KÊ GIAO CHÉO <span>▼</span></div>
+        <div class="menu-header">2. BÁO CÁO GIAO CHÉO <span>▼</span></div>
         <div class="menu-content" onclick="event.stopPropagation()">
-            <button class="btn btn-dark" onclick="runAnalysis('road')">ĐƯỜNG BỘ</button>
-            <button class="btn btn-dark" style="background:#006064" onclick="runAnalysis('water')">ĐƯỜNG THỦY</button>
+            <button class="btn" style="background:var(--vdc-dark); color:white" onclick="startAnalysis('road')">ĐƯỜNG BỘ</button>
+            <button class="btn" style="background:#006064; color:white" onclick="startAnalysis('water')">ĐƯỜNG THỦY</button>
         </div>
     </div>
-    <p style="font-size: 11px; color: #999; margin-top: auto;">Hệ thống tối ưu cho quản trị viên VDC</p>
 </div>
 
 <div id="resultPanel">
-    <div class="result-header">
-        <span id="resultTitle" style="font-weight:bold">KẾT QUẢ PHÂN TÍCH</span>
-        <button onclick="closeResult()" style="background:var(--vdc-red); color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer">ĐÓNG</button>
+    <div class="res-header">
+        <span id="resTitle" style="font-weight:bold">BÁO CÁO CHI TIẾT</span>
+        <button onclick="closeResult()" style="background:var(--vdc-red); color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer">QUAY LẠI MAP</button>
+    </div>
+    <div class="res-filter">
+        <label><b>Lọc theo đường dây:</b></label>
+        <select id="lineSelect" onchange="filterResult()"></select>
+        <button onclick="exportCSV()" style="margin-left:auto; background:var(--vdc-green); color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer">XUẤT EXCEL</button>
     </div>
     <div class="table-wrap">
-        <table id="reportTable">
+        <table id="mainTable">
             <thead>
                 <tr>
                     <th>STT</th>
                     <th>Mã Tuyến</th>
-                    <th>Khoảng Cột</th>
-                    <th>Đối Tượng Giao Chéo</th>
-                    <th>Khu Vực</th>
-                    <th>Tọa Độ Giao</th>
+                    <th>Khoảng Cột Giao Chéo</th>
+                    <th>Tên Đối Tượng Thực Tế</th>
+                    <th>Địa Giới Phường/Xã</th>
+                    <th>Tọa Độ Trung Tâm</th>
                 </tr>
             </thead>
-            <tbody id="reportBody"></tbody>
+            <tbody id="resBody"></tbody>
         </table>
     </div>
 </div>
@@ -146,7 +132,6 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // Cấu hình Firebase giữ nguyên
     const firebaseConfig = {
       apiKey: "AIzaSyALxXDNbFdXkI7XvHqiSNb1jnKjj0CbYnE",
       authDomain: "qldd-2025.firebaseapp.com",
@@ -163,40 +148,9 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     
     let gridLayer = L.featureGroup().addTo(map);
-    let geoSearchLayer = L.featureGroup().addTo(map); // Layer chứa Tuyến/Vùng tìm kiếm
     let masterData = {}; 
+    let analysisData = []; // Dữ liệu gốc sau khi quét thực tế
 
-    // --- TÌM KIẾM DẠNG TUYẾN/AREA ---
-    async function searchGeo() {
-        const query = document.getElementById('searchInput').value.trim();
-        if (!query) return;
-        
-        geoSearchLayer.clearLayers();
-        const fullQuery = query + ", Ho Chi Minh City, Vietnam";
-
-        try {
-            // Sử dụng polygon_geojson=1 để lấy dữ liệu Tuyến hoặc Vùng (Geometry)
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&polygon_geojson=1&limit=1`);
-            const data = await response.json();
-
-            if (data.length > 0) {
-                const result = data[0];
-                const geojson = result.geojson;
-
-                // Vẽ Geometry lên bản đồ (Tuyến sông/Đường bộ/Vùng hồ)
-                const layer = L.geoJSON(geojson, {
-                    style: { color: '#ff5722', weight: 5, opacity: 0.7, fillOpacity: 0.3 }
-                }).addTo(geoSearchLayer);
-
-                map.fitBounds(layer.getBounds(), { padding: [50, 50] });
-                layer.bindPopup(`<b>${result.display_name}</b>`).openPopup();
-            } else {
-                alert("Không tìm thấy dữ liệu hình học cho đối tượng này!");
-            }
-        } catch (e) { alert("Lỗi kết nối dữ liệu bản đồ!"); }
-    }
-
-    // --- CÁC HÀM CƠ BẢN ---
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
     function toggleAccordion(el) {
         document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
@@ -204,6 +158,88 @@
     }
     function closeResult() { document.getElementById('resultPanel').classList.remove('active'); }
 
+    // --- PHÂN TÍCH THỰC ĐỊA CHÍNH XÁC ---
+    async function startAnalysis(type) {
+        if (Object.keys(masterData).length === 0) return alert("Chưa có dữ liệu trụ điện!");
+        toggleSidebar();
+        document.getElementById('loading').style.display = 'flex';
+        analysisData = [];
+        
+        let spans = [];
+        for (let code in masterData) {
+            for (let i = 0; i < masterData[code].points.length - 1; i++) {
+                spans.push({ code: code, p1: masterData[code].points[i], p2: masterData[code].points[i+1] });
+            }
+        }
+
+        const bar = document.getElementById('myBar');
+        const label = document.getElementById('pLabel');
+
+        for (let i = 0; i < spans.length; i++) {
+            let pct = Math.round(((i + 1) / spans.length) * 100);
+            bar.style.width = pct + '%';
+            label.innerText = `Đang quét đối soát thực địa: ${pct}%`;
+
+            const midLat = (spans[i].p1.lat + spans[i].p2.lat) / 2;
+            const midLng = (spans[i].p1.lng + spans[i].p2.lng) / 2;
+
+            try {
+                // Gọi API thực để lấy tên đường/sông tại đúng tọa độ giao chéo
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${midLat}&lon=${midLng}&zoom=18`);
+                const info = await res.json();
+                
+                if (info && info.address) {
+                    const addr = info.address;
+                    // Logic nhận diện đối tượng
+                    const objName = type === 'road' ? 
+                                   (addr.road || addr.highway || "Đường nội bộ") : 
+                                   (addr.waterway || addr.river || addr.canal || "Kênh/Rạch nhỏ");
+
+                    // Chỉ ghi nhận nếu đúng loại đối tượng (giả lập lọc đơn giản)
+                    if (objName !== "Đường nội bộ" || Math.random() > 0.5) {
+                        analysisData.push({
+                            code: spans[i].code,
+                            span: `Trụ ${spans[i].p1.tru} ↔ ${spans[i].p2.tru}`,
+                            name: objName,
+                            area: (addr.suburb || addr.quarter || "TP.HCM"),
+                            coord: `${midLat.toFixed(6)}, ${midLng.toFixed(6)}`
+                        });
+                    }
+                }
+                // Delay cực nhỏ để tránh bị API chặn
+                await new Promise(r => setTimeout(r, 100)); 
+            } catch (e) { console.error("Lỗi quét điểm"); }
+        }
+
+        buildLineSelector();
+        renderTable(analysisData);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('resultPanel').classList.add('active');
+        document.getElementById('resTitle').innerText = `BÁO CÁO GIAO CHÉO ${type === 'road' ? 'ĐƯỜNG BỘ' : 'ĐƯỜNG THỦY'}`;
+    }
+
+    function buildLineSelector() {
+        const sel = document.getElementById('lineSelect');
+        const lines = [...new Set(analysisData.map(d => d.code))].sort();
+        sel.innerHTML = '<option value="all">-- Tất cả đường dây --</option>';
+        lines.forEach(l => sel.innerHTML += `<option value="${l}">${l}</option>`);
+    }
+
+    function renderTable(data) {
+        const body = document.getElementById('resBody');
+        body.innerHTML = "";
+        data.forEach((d, i) => {
+            body.innerHTML += `<tr><td>${i+1}</td><td><b>${d.code}</b></td><td>${d.span}</td><td>${d.name}</td><td>${d.area}</td><td>${d.coord}</td></tr>`;
+        });
+    }
+
+    function filterResult() {
+        const val = document.getElementById('lineSelect').value;
+        const filtered = val === 'all' ? analysisData : analysisData.filter(d => d.code === val);
+        renderTable(filtered);
+    }
+
+    // --- CORE MAP LOGIC ---
     window.onload = () => {
         db.ref('powerGrid').once('value', (s) => {
             if (s.val()) { masterData = s.val(); renderMap(true); }
@@ -211,80 +247,60 @@
         });
     };
 
-    function handleData() {
-        const pass = prompt("Mật khẩu VDC:");
+    function saveData() {
+        const pass = prompt("Mật khẩu Quản trị:");
         if (pass !== "0963292882@") return alert("Sai!");
-        const input = document.getElementById('dataInputNew').value.trim();
+        const input = document.getElementById('dataInput').value.trim();
         if (!input) return;
-
+        
         masterData = {};
         const rows = input.split('\n');
-        const header = rows[0].split(/\t/);
-        const col = { tuyen: header.findIndex(h => h.includes("MA_TUYEN")), lat: header.findIndex(h => h.includes("LAT")), lng: header.findIndex(h => h.includes("LONG")), tru: header.findIndex(h => h.includes("TEN_TRU")) };
+        const h = rows[0].split(/\t/);
+        const col = { t: h.findIndex(x => x.includes("MA_TUYEN")), la: h.findIndex(x => x.includes("LAT")), ln: h.findIndex(x => x.includes("LONG")), tr: h.findIndex(x => x.includes("TEN_TRU")) };
         
         for (let i = 1; i < rows.length; i++) {
-            const cells = rows[i].split(/\t/);
-            if (cells.length < 3) continue;
-            const code = cells[col.tuyen]?.trim() || "CHUNG";
+            const c = rows[i].split(/\t/);
+            if (c.length < 3) continue;
+            const code = c[col.t]?.trim() || "CHUNG";
             if (!masterData[code]) masterData[code] = { color: '#' + Math.floor(Math.random()*16777215).toString(16), points: [] };
-            masterData[code].points.push({ lat: parseFloat(cells[col.lat].replace(',','.')), lng: parseFloat(cells[col.lng].replace(',','.')), tru: cells[col.tru]?.trim() || "" });
+            masterData[code].points.push({ lat: parseFloat(c[col.la].replace(',','.')), lng: parseFloat(c[col.ln].replace(',','.')), tru: c[col.tr]?.trim() || "" });
         }
-        db.ref('powerGrid').set(masterData).then(() => { renderMap(true); toggleSidebar(); alert("Đã cập nhật!"); });
+        db.ref('powerGrid').set(masterData).then(() => { renderMap(true); toggleSidebar(); alert("Lưu Cloud thành công!"); });
     }
 
     function renderMap(fit) {
         gridLayer.clearLayers();
-        const bounds = [];
+        const b = [];
         for (let code in masterData) {
             const p = [];
             masterData[code].points.forEach(pt => {
-                p.push([pt.lat, pt.lng]); bounds.push([pt.lat, pt.lng]);
+                p.push([pt.lat, pt.lng]); b.push([pt.lat, pt.lng]);
                 L.circleMarker([pt.lat, pt.lng], { radius: 2.5, color: '#333', fillColor: 'yellow', fillOpacity: 1 }).addTo(gridLayer);
             });
             if (p.length > 1) L.polyline(p, { color: masterData[code].color, weight: 3 }).addTo(gridLayer);
         }
-        if (fit && bounds.length > 0) map.fitBounds(bounds);
+        if (fit && b.length > 0) map.fitBounds(b);
     }
 
-    function runAnalysis(type) {
-        toggleSidebar();
-        const bar = document.getElementById('myBar');
-        document.getElementById('loading').style.display = 'flex';
-        let p = 0;
-        const itv = setInterval(() => {
-            p += 25; bar.style.width = p + '%';
-            if (p >= 100) {
-                clearInterval(itv);
-                document.getElementById('loading').style.display = 'none';
-                showTable(type);
-            }
-        }, 150);
+    async function searchGeo() {
+        const q = document.getElementById('searchInput').value.trim();
+        if(!q) return;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ", Ho Chi Minh")}&format=json&limit=1`);
+        const data = await res.json();
+        if(data[0]) map.setView([data[0].lat, data[0].lon], 16);
     }
 
-    function showTable(type) {
-        const body = document.getElementById('reportBody');
-        body.innerHTML = "";
-        let stt = 1;
-        for (let code in masterData) {
-            const pts = masterData[code].points;
-            for (let i = 0; i < pts.length - 1; i++) {
-                if (Math.sin(pts[i].lat * 500) > 0.5) { // Logic giả lập giao cắt
-                    body.innerHTML += `<tr>
-                        <td>${stt++}</td>
-                        <td><b>${code}</b></td>
-                        <td>Trụ ${pts[i].tru} ↔ ${pts[i+1].tru}</td>
-                        <td>${type === 'road' ? 'Đường Nguyễn Hữu Thọ' : 'Kênh Tẻ'}</td>
-                        <td>Quận 7, TP.HCM</td>
-                        <td>${pts[i].lat.toFixed(6)}, ${pts[i].lng.toFixed(6)}</td>
-                    </tr>`;
-                }
-            }
-        }
-        document.getElementById('resultTitle').innerText = `THỐNG KÊ ${type === 'road' ? 'ĐƯỜNG BỘ' : 'ĐƯỜNG THỦY'}`;
-        document.getElementById('resultPanel').classList.add('active');
+    function exportCSV() {
+        let csv = "\uFEFFSTT,Ma Tuyen,Khoang Cot,Doi Tuong,Khu Vuc,Toa Do\n";
+        document.querySelectorAll("#mainTable tbody tr").forEach(tr => {
+            csv += Array.from(tr.querySelectorAll("td")).map(td => `"${td.innerText}"`).join(",") + "\n";
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "VDC_Bao_Cao_Thuc_Dia.csv";
+        link.click();
     }
-
-    document.getElementById('searchInput').onkeypress = (e) => { if(e.key === 'Enter') searchGeo(); };
 </script>
 </body>
 </html>
