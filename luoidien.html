@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VDC - Bản đồ Lưới điện & Giao thông</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        #map { height: 100vh; width: 100%; }
+        .info-panel {
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px; border-radius: 8px;
+            z-index: 1000; box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            max-width: 250px;
+        }
+        h3 { margin: 0 0 10px 0; color: #d32f2f; font-size: 16px; }
+        .legend { font-size: 12px; line-height: 18px; }
+        .legend i { width: 18px; height: 18px; float: left; margin-right: 8px; opacity: 0.7; }
+    </style>
+</head>
+<body>
+
+<div class="info-panel">
+    <h3>HỆ THỐNG LƯỚI ĐIỆN VDC</h3>
+    <div class="legend">
+        <p>Giao diện hiển thị các tuyến dây chồng lên lớp đường bộ để kiểm tra giao chéo.</p>
+        <i style="background: blue; height: 3px; width: 20px; margin-top: 8px;"></i> Tuyến đường dây<br>
+        <i style="border: 2px solid red; border-radius: 50%; width: 10px; height: 10px;"></i> Vị trí trụ điện
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    // 1. Khởi tạo bản đồ
+    const map = L.map('map').setView([10.75, 106.7], 13);
+
+    // 2. Thêm lớp nền đường bộ (OpenStreetMap)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 3. Dữ liệu thô từ danh sách của bạn (Demo một vài tuyến tiêu biểu)
+    const rawData = [
+        {tuyen: "AKHTTN", tru: "1", lat: 10.745832, lng: 106.739254},
+        {tuyen: "AKHTTN", tru: "1A", lat: 10.745856, lng: 106.73982},
+        {tuyen: "AKHTTN", tru: "2", lat: 10.746594, lng: 106.739297},
+        {tuyen: "AKHTTN", tru: "3", lat: 10.746838, lng: 106.738653},
+        {tuyen: "AKHTTN", tru: "4", lat: 10.747969, lng: 106.738601},
+        // Thêm dữ liệu ANACGO (Tuyến dài)
+        {tuyen: "ANACGO", tru: "1", lat: 10.582589, lng: 106.825072},
+        {tuyen: "ANACGO", tru: "2", lat: 10.582078, lng: 106.82431},
+        {tuyen: "ANACGO", tru: "3", lat: 10.58075, lng: 106.824142},
+        // Bạn có thể dán toàn bộ dữ liệu Excel/Text vào đây theo định dạng này
+    ];
+
+    // 4. Hàm xử lý dữ liệu và vẽ bản đồ
+    function drawGrid(data) {
+        const groups = {};
+        const allPoints = [];
+
+        // Nhóm các trụ theo tuyến
+        data.forEach(item => {
+            if (!groups[item.tuyen]) groups[item.tuyen] = [];
+            groups[item.tuyen].push([item.lat, item.lng]);
+            
+            // Vẽ marker cho từng trụ
+            L.circleMarker([item.lat, item.lng], {
+                radius: 5,
+                fillColor: "#ff7800",
+                color: "#000",
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map)
+              .bindPopup(`<b>Tuyến:</b> ${item.tuyen}<br><b>Trụ:</b> ${item.tru}<br><b>Tọa độ:</b> ${item.lat}, ${item.lng}`);
+            
+            allPoints.push([item.lat, item.lng]);
+        });
+
+        // Vẽ đường dây nối các trụ trong cùng tuyến
+        for (let tuyen in groups) {
+            L.polyline(groups[tuyen], {
+                color: 'blue',
+                weight: 3,
+                opacity: 0.6,
+                smoothFactor: 1
+            }).addTo(map);
+        }
+
+        // Tự động căn chỉnh bản đồ để thấy hết các điểm
+        if (allPoints.length > 0) {
+            map.fitBounds(allPoints);
+        }
+    }
+
+    // Chạy hàm vẽ
+    drawGrid(rawData);
+
+    // Lưu ý: Để hiển thị toàn bộ 500+ trụ, bạn nên dùng 
+    // một file JSON riêng hoặc nạp từ Google Sheets thông qua Apps Script của bạn.
+</script>
+
+</body>
+</html>
