@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>VDC Power Map - SOL61.05 (Visual Scanner)</title>
+    <title>VDC Power Map - SOL61.06 (Advanced Radar)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --vdc-red: #d32f2f; --vdc-dark: #263238; --vdc-green: #2e7d32; --vdc-blue: #1976d2; }
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; background: #f4f4f4; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
-        .version-tag { position: absolute; bottom: 10px; left: 10px; z-index: 1001; background: rgba(0,0,0,0.8); color: #00ff41; padding: 5px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #00ff41; }
+        .version-tag { position: absolute; bottom: 10px; left: 10px; z-index: 1001; background: rgba(0,0,0,0.8); color: #00ff41; padding: 5px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; border: 1px solid #00ff41; }
 
         #menuToggle {
             position: absolute; top: 15px; left: 15px; z-index: 1001; 
@@ -29,17 +29,24 @@
         #sidebar.active { left: 0; }
         .nav-title { color: var(--vdc-red); font-size: 18px; font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
         .menu-item { margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #ccc; }
+        
+        /* Control Slider */
+        .config-box { margin-top: 10px; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 4px; }
+        .config-box label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #333; }
+        input[type=range] { width: 100%; }
+
         select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 8px; text-transform: uppercase; }
 
-        /* Scanner HUD */
+        /* Enhanced Radar HUD */
         #scannerHUD {
             position: fixed; bottom: 20px; right: 20px; width: 300px; 
-            background: rgba(0,0,0,0.85); color: #00ff41; font-family: 'Courier New', monospace;
+            background: rgba(0,0,0,0.9); color: #00ff41; font-family: 'Courier New', monospace;
             padding: 15px; border-radius: 8px; z-index: 2000; display: none;
-            border: 1px solid #333; font-size: 11px;
+            border: 1px solid #00ff41; box-shadow: 0 0 20px rgba(0,255,65,0.2);
         }
-        .hud-title { color: white; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 8px; font-weight: bold; }
+        .hud-title { color: white; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 8px; font-weight: bold; display: flex; justify-content: space-between; }
+        #stopBtn { background: #ff1744; color: white; border: none; padding: 2px 8px; border-radius: 3px; font-size: 10px; cursor: pointer; font-family: sans-serif; font-weight: bold; }
         
         #resultPanel { position: fixed; top: 100%; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; transition: 0.5s ease; display: flex; flex-direction: column; }
         #resultPanel.active { top: 0; }
@@ -52,48 +59,46 @@
 </head>
 <body>
 
-<div class="version-tag">SOL61.05 | VISUAL RADAR SCANNER</div>
+<div class="version-tag">SOL61.06 | RADAR STOP & DISTANCE CTRL</div>
 
 <div id="scannerHUD">
-    <div class="hud-title">QUÉT THỰC ĐỊA VDC</div>
-    <div id="hudStatus">Đang khởi tạo...</div>
-    <div id="hudDetail" style="margin-top:5px; color:#aaa;"></div>
+    <div class="hud-title">
+        <span>VDC RADAR ACTIVE</span>
+        <button id="stopBtn" onclick="stopScanning()">DỪNG QUÉT (STOP)</button>
+    </div>
+    <div id="hudStatus" style="font-size:12px;">Đang dò tìm...</div>
+    <div id="hudDetail" style="margin-top:5px; color:#00ff41; opacity:0.7; font-size:10px;"></div>
+    <div style="margin-top:10px; height:4px; background:#333; border-radius:2px; overflow:hidden;">
+        <div id="hudBar" style="width:0%; height:100%; background:#00ff41; transition:0.3s;"></div>
+    </div>
 </div>
 
 <button id="menuToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
 
 <div id="sidebar">
     <div onclick="toggleSidebar()" style="text-align:right; cursor:pointer; font-size:24px;">×</div>
-    <div class="nav-title">VDC Power SOL61.05</div>
+    <div class="nav-title">VDC Power SOL61.06</div>
     
     <div class="menu-item">
-        <h3>PHÂN TÍCH GIAO CHÉO</h3>
-        <p style="font-size:11px; color:#666;">Hệ thống sẽ Zoom và Marker từng điểm 5m.</p>
-        <select id="selectTuyen"><option value="">-- Đang tải dữ liệu --</option></select>
-        <button class="btn" style="background:var(--vdc-dark); color:white" onclick="runVisualScan('road')">QUÉT ĐƯỜNG BỘ</button>
-        <button class="btn" style="background:#006064; color:white" onclick="runVisualScan('water')">QUÉT SÔNG NGÒI</button>
+        <h3>CẤU HÌNH QUÉT</h3>
+        <div class="config-box">
+            <label>Khoảng cách mỗi điểm: <span id="distVal" style="color:var(--vdc-red)">10</span> m</label>
+            <input type="range" id="scanDistance" min="5" max="50" step="5" value="10" oninput="document.getElementById('distVal').innerText = this.value">
+        </div>
+        
+        <h3 style="margin-top:15px;">PHÂN TÍCH TUYẾN</h3>
+        <select id="selectTuyen"><option value="">-- Tải dữ liệu --</option></select>
+        <button class="btn" style="background:var(--vdc-dark); color:white" onclick="startRadar('road')">QUÉT ĐƯỜNG BỘ</button>
+        <button class="btn" style="background:#006064; color:white" onclick="startRadar('water')">QUÉT SÔNG NGÒI</button>
     </div>
 </div>
 
 <div id="resultPanel">
     <div class="res-header">
-        <span id="resTitle" style="font-weight:bold">KẾT QUẢ GIÁM SÁT ẢO</span>
+        <span id="resTitle" style="font-weight:bold">BÁO CÁO GIAO CHÉO</span>
         <button onclick="closeResult()" style="padding: 8px 15px; background:var(--vdc-red); color:white; border:none; border-radius:4px;">ĐÓNG</button>
     </div>
-    <div class="table-wrap">
-        <table id="reportTable">
-            <thead>
-                <tr>
-                    <th>STT</th>
-                    <th>Khoảng Cột</th>
-                    <th>Đối Tượng</th>
-                    <th>Khu Vực</th>
-                    <th>Tọa Độ</th>
-                </tr>
-            </thead>
-            <tbody id="reportBody"></tbody>
-        </table>
-    </div>
+    <div class="table-wrap"><table id="reportTable"><thead><tr><th>STT</th><th>Khoảng Cột</th><th>Đối Tượng</th><th>Khu Vực</th><th>Tọa Độ</th></tr></thead><tbody id="reportBody"></tbody></table></div>
 </div>
 
 <div id="map"></div>
@@ -108,19 +113,17 @@
       authDomain: "qldd-2025.firebaseapp.com",
       databaseURL: "https://qldd-2025-default-rtdb.firebaseio.com",
       projectId: "qldd-2025",
-      databaseURL: "https://qldd-2025-default-rtdb.firebaseio.com",
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const map = L.map('map', { zoomControl: false }).setView([10.75, 106.7], 13);
-    
-    // Sử dụng bản đồ Hybrid để thấy cả tên đường và ảnh vệ tinh (tùy chọn)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     
     let gridLayer = L.featureGroup().addTo(map);
-    let scanMarker = null; // Marker quét tạm thời
+    let radarMarker = null; 
     let masterData = {}; 
+    let isScanning = false; // Cờ kiểm soát dừng
 
     window.onload = () => {
         db.ref('powerGrid').on('value', (s) => {
@@ -131,6 +134,8 @@
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
     function closeResult() { document.getElementById('resultPanel').classList.remove('active'); }
+    function stopScanning() { isScanning = false; }
+
     function updateList() {
         const sel = document.getElementById('selectTuyen');
         const keys = Object.keys(masterData).sort();
@@ -143,21 +148,21 @@
         for (let code in masterData) {
             const p = masterData[code].points.map(pt => [pt.lat, pt.lng]);
             if (p.length > 1) L.polyline(p, { color: masterData[code].color, weight: 3 }).addTo(gridLayer);
-            masterData[code].points.forEach(pt => {
-                L.circleMarker([pt.lat, pt.lng], { radius: 2, color: '#333' }).addTo(gridLayer);
-            });
         }
     }
 
-    // --- CHẾ ĐỘ QUÉT THỊ GIÁC (VISUAL SCAN) ---
-    async function runVisualScan(type) {
+    async function startRadar(type) {
         const tuyenName = document.getElementById('selectTuyen').value;
+        const scanStep = parseInt(document.getElementById('scanDistance').value);
         if (!tuyenName) return alert("Chọn tuyến!");
 
+        isScanning = true;
         toggleSidebar();
+        
         const hud = document.getElementById('scannerHUD');
         const status = document.getElementById('hudStatus');
         const detail = document.getElementById('hudDetail');
+        const bar = document.getElementById('hudBar');
         const body = document.getElementById('reportBody');
         
         hud.style.display = 'block';
@@ -166,34 +171,37 @@
         const pts = masterData[tuyenName].points;
 
         for (let i = 0; i < pts.length - 1; i++) {
+            if (!isScanning) break; // Thoát nếu nhấn Dừng
+
             const p1 = pts[i];
             const p2 = pts[i+1];
             const dist = getDistance(p1.lat, p1.lng, p2.lat, p2.lng);
-            const stepCount = Math.max(1, Math.ceil(dist / 5));
+            const stepCount = Math.max(1, Math.ceil(dist / scanStep));
 
-            status.innerHTML = `ĐANG QUÉT: Trụ ${p1.tru} ↔ ${p2.tru}`;
-            
             for (let s = 1; s <= stepCount; s++) {
+                if (!isScanning) break;
+
                 const ratio = s / (stepCount + 1);
                 const curLat = p1.lat + (p2.lat - p1.lat) * ratio;
                 const curLng = p1.lng + (p2.lng - p1.lng) * ratio;
 
-                // 1. Zoom tới vị trí quét
-                map.flyTo([curLat, curLng], 18, { animate: true, duration: 0.5 });
+                // 1. Cập nhật giao diện HUD
+                const totalProgress = ((i + (s/stepCount)) / (pts.length-1)) * 100;
+                bar.style.width = totalProgress + '%';
+                status.innerHTML = `TRỤ ${p1.tru} ↔ ${p2.tru}`;
+                detail.innerHTML = `Bước: ${scanStep}m | Vị trí: ${Math.round(s*scanStep)}m / ${Math.round(dist)}m`;
 
-                // 2. Cắm Marker quét (màu đỏ rực)
-                if (scanMarker) map.removeLayer(scanMarker);
-                scanMarker = L.marker([curLat, curLng], {
+                // 2. Zoom & Marker
+                map.flyTo([curLat, curLng], 18, { animate: true, duration: 0.4 });
+                if (radarMarker) map.removeLayer(radarMarker);
+                radarMarker = L.marker([curLat, curLng], {
                     icon: L.divIcon({
-                        className: 'scan-icon',
-                        html: `<div style="width:12px; height:12px; background:red; border:2px solid white; border-radius:50%; box-shadow:0 0 10px red; animation: pulse 0.5s infinite;"></div>`
+                        className: 'radar-icon',
+                        html: `<div style="width:14px; height:14px; background:#00ff41; border:2px solid white; border-radius:50%; box-shadow:0 0 15px #00ff41; animation: blink 0.5s infinite;"></div>`
                     })
                 }).addTo(map);
 
-                detail.innerHTML = `Vị trí: ${s}/${stepCount} (Cách trụ ${p1.tru}: ${s*5}m)`;
-
-                // 3. Chờ 1 chút để người dùng nhìn thấy và tránh bị block API
-                await new Promise(r => setTimeout(r, 1500)); 
+                await new Promise(r => setTimeout(r, 1300)); 
 
                 try {
                     const filter = (type === 'road') ? '["highway"]' : '["natural"="water"],["waterway"]';
@@ -203,39 +211,33 @@
                     
                     if (data && data.elements.length > 0) {
                         const tags = data.elements[0].tags;
-                        const foundName = tags.name || (type === 'water' ? "Sông Sài Gòn/Vùng nước" : "Đường giao cắt");
+                        const foundName = tags.name || (type === 'water' ? "SÔNG/RẠCH" : "GIAO LỘ");
                         
-                        // Đổi màu Marker khi phát hiện
-                        scanMarker.getElement().firstChild.style.background = "#ffff00";
-                        scanMarker.getElement().firstChild.style.boxShadow = "0 0 15px #ffff00";
+                        radarMarker.getElement().firstChild.style.background = "#ffeb3b";
+                        radarMarker.getElement().firstChild.style.boxShadow = "0 0 20px #ffeb3b";
                         
                         findings.push({
-                            stt: findings.length + 1,
-                            span: `${p1.tru}-${p2.tru}`,
-                            name: foundName,
-                            area: "TP.HCM",
-                            coord: `${curLat.toFixed(6)}, ${curLng.toFixed(6)}`
+                            stt: findings.length + 1, span: `${p1.tru}-${p2.tru}`,
+                            name: foundName, area: "TP.HCM", coord: `${curLat.toFixed(6)}, ${curLng.toFixed(6)}`
                         });
-                        
-                        status.innerHTML = `<span style="color:yellow">! PHÁT HIỆN: ${foundName}</span>`;
-                        await new Promise(r => setTimeout(r, 1000));
+                        status.innerHTML = `<span style="color:#ffeb3b">! PHÁT HIỆN: ${foundName}</span>`;
+                        await new Promise(r => setTimeout(r, 800));
                     }
-                } catch (e) { console.log("Skip point"); }
+                } catch (e) { console.log("Radar skip"); }
             }
         }
 
-        // Dọn dẹp sau khi quét xong
-        if (scanMarker) map.removeLayer(scanMarker);
+        if (radarMarker) map.removeLayer(radarMarker);
         hud.style.display = 'none';
+        isScanning = false;
         
-        // Hiển thị bảng kết quả
         if (findings.length > 0) {
             findings.forEach(d => {
                 body.innerHTML += `<tr><td>${d.stt}</td><td>${d.span}</td><td><b>${d.name}</b></td><td>${d.area}</td><td>${d.coord}</td></tr>`;
             });
             document.getElementById('resultPanel').classList.add('active');
         } else {
-            alert("Quét hoàn tất. Không tìm thấy điểm giao cắt nào.");
+            alert("Quét hoàn tất hoặc đã dừng.");
         }
     }
 
@@ -249,9 +251,10 @@
 </script>
 
 <style>
-@keyframes pulse {
+@keyframes blink {
     0% { transform: scale(1); opacity: 1; }
-    100% { transform: scale(1.5); opacity: 0; }
+    50% { transform: scale(1.3); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
 }
 </style>
 </body>
