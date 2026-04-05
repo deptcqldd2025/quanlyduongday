@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>VDC Power Map v10.1 - Phân tích thực địa chính xác</title>
+    <title>VDC Power Map v10.2 - Chống chặn API tuyệt đối</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --vdc-red: #d32f2f; --vdc-dark: #263238; --vdc-green: #2e7d32; --vdc-blue: #1976d2; }
+        :root { --vdc-red: #d32f2f; --vdc-dark: #263238; --vdc-green: #2e7d32; }
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; background: #f4f4f4; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
@@ -40,14 +40,14 @@
         /* Loading & Live Log Overlay */
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
         .progress-box { width: 80%; max-width: 400px; background: #ddd; height: 12px; border-radius: 6px; overflow: hidden; margin-bottom: 15px; }
-        #myBar { width: 0%; height: 100%; background: var(--vdc-red); transition: 0.3s; }
+        #myBar { width: 0%; height: 100%; background: var(--vdc-red); transition: 0.5s; }
         #liveLog { 
             width: 85%; max-width: 500px; height: 250px; background: #121212; color: #00ff41; 
             font-family: 'Courier New', monospace; font-size: 11px; padding: 15px; 
             border-radius: 8px; overflow-y: auto; box-shadow: 0 5px 20px rgba(0,0,0,0.4);
         }
 
-        /* Full Screen Result Table */
+        /* Result Panel */
         #resultPanel {
             position: fixed; top: 100%; left: 0; width: 100%; height: 100%;
             background: white; z-index: 3000; transition: 0.5s ease-in-out;
@@ -59,50 +59,44 @@
         table { width: 100%; border-collapse: collapse; min-width: 800px; }
         table th { position: sticky; top: 0; background: #f1f1f1; padding: 12px; border: 1px solid #ddd; color: #333; }
         table td { padding: 10px; border: 1px solid #ddd; font-size: 13px; }
-        tr:nth-child(even) { background: #fafafa; }
-
-        @media (max-width: 600px) {
-            #liveLog { height: 150px; font-size: 10px; }
-            .nav-title { font-size: 16px; }
-        }
     </style>
 </head>
 <body>
 
 <div id="loading" class="loading-overlay">
-    <div id="pLabel" style="font-weight: bold; color: var(--vdc-red); margin-bottom: 10px; font-size: 18px;">ĐANG QUÉT THỰC ĐỊA...</div>
+    <div id="pLabel" style="font-weight: bold; color: var(--vdc-red); margin-bottom: 10px; font-size: 18px;">ĐANG QUÉT VỚI ĐỘ TRỄ AN TOÀN...</div>
     <div class="progress-box"><div id="myBar"></div></div>
-    <div id="liveLog"><div>> Chờ lệnh phân tích...</div></div>
-    <p style="font-size: 11px; color: #777; margin-top: 10px; text-align: center; padding: 0 20px;">Hệ thống đang gọi API bản đồ. Vui lòng không đóng trang.</p>
+    <div id="liveLog"><div>> Chế độ tránh chặn API đang bật...</div></div>
+    <p style="font-size: 11px; color: #d32f2f; margin-top: 10px; font-weight: bold;">HỆ THỐNG NGHỈ 1.5 GIÂY/ĐIỂM ĐỂ TRÁNH BỊ CHẶN.</p>
 </div>
 
 <button id="menuToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
 
 <div id="sidebar">
-    <div onclick="toggleSidebar()" style="text-align:right; cursor:pointer; font-size:24px; padding-bottom:10px;">×</div>
+    <div onclick="toggleSidebar()" style="text-align:right; cursor:pointer; font-size:24px;">×</div>
     <div class="nav-title">VDC SAFETY SYSTEM</div>
     
     <div class="menu-item">
-        <h3>1. QUẢN LÝ DỮ LIỆU</h3>
-        <textarea id="dataInput" placeholder="Dán dữ liệu MA_TUYEN, LAT, LONG..."></textarea>
-        <button class="btn btn-red" onclick="saveToCloud()">LƯU LÊN CLOUD</button>
+        <h3>1. DỮ LIỆU CLOUD</h3>
+        <textarea id="dataInput" placeholder="MA_TUYEN, LAT, LONG..."></textarea>
+        <button class="btn btn-red" onclick="saveToCloud()">LƯU LÊN FIREBASE</button>
     </div>
 
     <div class="menu-item">
-        <h3>2. PHÂN TÍCH THEO TUYẾN</h3>
+        <h3>2. PHÂN TÍCH TUYẾN</h3>
         <select id="selectTuyen"><option value="">-- Tải danh sách --</option></select>
         <div style="display:flex; gap:5px">
-            <button class="btn btn-dark" onclick="runAnalysis('road')">ĐƯỜNG BỘ</button>
-            <button class="btn btn-dark" style="background:#006064" onclick="runAnalysis('water')">ĐƯỜNG THỦY</button>
+            <button class="btn btn-dark" onclick="runAnalysis('road')">QUÉT ĐƯỜNG</button>
+            <button class="btn btn-dark" style="background:#006064" onclick="runAnalysis('water')">QUÉT SÔNG</button>
         </div>
     </div>
 </div>
 
 <div id="resultPanel">
     <div class="res-header">
-        <span id="resTitle" style="font-weight:bold">BÁO CÁO GIAO CHÉO</span>
+        <span id="resTitle" style="font-weight:bold">BÁO CÁO THỰC ĐỊA</span>
         <div>
-            <button onclick="downloadCSV()" style="padding: 8px 15px; background:var(--vdc-green); color:white; border:none; border-radius:4px; cursor:pointer; margin-right:10px; font-weight:bold;">XUẤT EXCEL</button>
+            <button onclick="downloadCSV()" style="padding: 8px 15px; background:var(--vdc-green); color:white; border:none; border-radius:4px; cursor:pointer; margin-right:10px; font-weight:bold;">TẢI CSV</button>
             <button onclick="closeResult()" style="padding: 8px 15px; background:var(--vdc-red); color:white; border:none; border-radius:4px; cursor:pointer">ĐÓNG</button>
         </div>
     </div>
@@ -113,9 +107,9 @@
                     <th>STT</th>
                     <th>Mã Tuyến</th>
                     <th>Khoảng Cột</th>
-                    <th>Đối Tượng Phân Tích</th>
+                    <th>Đối Tượng</th>
                     <th>Khu Vực (Phường/Xã)</th>
-                    <th>Tọa Độ Giao</th>
+                    <th>Tọa Độ</th>
                 </tr>
             </thead>
             <tbody id="reportBody"></tbody>
@@ -130,6 +124,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+    // Config Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyALxXDNbFdXkI7XvHqiSNb1jnKjj0CbYnE",
       authDomain: "qldd-2025.firebaseapp.com",
@@ -150,19 +145,12 @@
     window.onload = () => {
         db.ref('powerGrid').on('value', (s) => {
             const data = s.val();
-            if (data) { 
-                masterData = data; 
-                renderMap(); 
-                updateList();
-            } else {
-                toggleSidebar();
-            }
+            if (data) { masterData = data; renderMap(); updateList(); }
         });
     };
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
     function closeResult() { document.getElementById('resultPanel').classList.remove('active'); }
-    
     function updateList() {
         const sel = document.getElementById('selectTuyen');
         const keys = Object.keys(masterData).sort();
@@ -170,19 +158,18 @@
         keys.forEach(k => sel.innerHTML += `<option value="${k}">${k} (${masterData[k].points.length} trụ)</option>`);
     }
 
-    // --- HÀM QUÉT CHI TIẾT (XỬ LÝ LỖI KẾT NỐI) ---
+    // --- HÀM QUÉT GIA CỐ DELAY CHẶN LIMIT ---
     async function runAnalysis(type) {
         const tuyen = document.getElementById('selectTuyen').value;
         if (!tuyen) return alert("Chọn tuyến dây!");
 
         toggleSidebar();
-        const loading = document.getElementById('loading');
+        document.getElementById('loading').style.display = 'flex';
         const log = document.getElementById('liveLog');
         const bar = document.getElementById('myBar');
         const label = document.getElementById('pLabel');
         const body = document.getElementById('reportBody');
         
-        loading.style.display = 'flex';
         log.innerHTML = `<div>> Khởi tạo Tuyến: ${tuyen}</div>`;
         body.innerHTML = "";
         
@@ -190,68 +177,73 @@
         let findings = [];
 
         for (let i = 0; i < pts.length - 1; i++) {
+            // 1. TÍNH TOÁN % VÀ HIỂN THỊ LOG
             let pct = Math.round(((i + 1) / (pts.length - 1)) * 100);
             bar.style.width = pct + '%';
-            label.innerText = `Đang quét: ${pct}%`;
-
-            const midLat = (pts[i].lat + pts[i+1].lat) / 2;
-            const midLng = (pts[i].lng + pts[i+1].lng) / 2;
+            label.innerText = `Tiến độ: ${pct}%`;
             
             let logMsg = document.createElement('div');
-            logMsg.innerHTML = `> Kiểm tra Trụ ${pts[i].tru}-${pts[i+1].tru}...`;
+            logMsg.innerHTML = `> Đang phân tích Trụ ${pts[i].tru}-${pts[i+1].tru}...`;
             log.appendChild(logMsg);
             log.scrollTop = log.scrollHeight;
 
-            let success = false;
-            let retry = 0;
+            const midLat = (pts[i].lat + pts[i+1].lat) / 2;
+            const midLng = (pts[i].lng + pts[i+1].lng) / 2;
 
-            while (!success && retry < 3) {
-                try {
-                    // GIÃN CÁCH 1.2 GIÂY ĐỂ KHÔNG BỊ CHẶN (RATE LIMIT)
-                    await new Promise(r => setTimeout(r, 1200));
+            // 2. CHẶN CỨNG DELAY 1.5 GIÂY (Đây là phần quan trọng nhất)
+            await new Promise(resolve => setTimeout(resolve, 1500));
 
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${midLat}&lon=${midLng}&zoom=18`, {
-                        headers: { 'User-Agent': 'VDC_Safety_App' }
-                    });
+            try {
+                // 3. GỌI API VỚI USER AGENT ĐỂ ĐƯỢC ƯU TIÊN
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${midLat}&lon=${midLng}&zoom=18`, {
+                    headers: { 'User-Agent': 'VDC_Safety_Monitor_v102' }
+                });
 
-                    if (res.status === 429) throw new Error("API Limit");
-
-                    const data = await res.json();
-                    if (data && data.address) {
-                        const addr = data.address;
-                        let objName = (type === 'road') ? 
-                            (addr.road || addr.highway || addr.street || "") : 
-                            (addr.waterway || addr.river || addr.canal || addr.stream || addr.natural || "");
-
-                        if (objName) {
-                            let fLog = document.createElement('div');
-                            fLog.style.color = "#ffff00";
-                            fLog.innerHTML = `[!] PHÁT HIỆN: ${objName}`;
-                            log.appendChild(fLog);
-                            
-                            findings.push({
-                                stt: findings.length + 1, code: tuyen,
-                                span: `Trụ ${pts[i].tru} ↔ ${pts[i+1].tru}`,
-                                name: objName,
-                                area: (addr.suburb || addr.quarter || addr.town || "TP.HCM"),
-                                coord: `${midLat.toFixed(6)}, ${midLng.toFixed(6)}`
-                            });
-                        }
-                    }
-                    success = true;
-                } catch (e) {
-                    retry++;
-                    let eLog = document.createElement('div');
-                    eLog.style.color = "orange";
-                    eLog.innerHTML = `> Thử lại lần ${retry} do mạng bận...`;
-                    log.appendChild(eLog);
-                    await new Promise(r => setTimeout(r, 2000));
+                if (res.status === 429) {
+                    let errLog = document.createElement('div');
+                    errLog.style.color = "red";
+                    errLog.innerHTML = `> BỊ CHẶN (429). Đang nghỉ 5 giây rồi thử lại...`;
+                    log.appendChild(errLog);
+                    await new Promise(r => setTimeout(r, 5000));
+                    i--; // Lùi lại 1 bước để quét lại trụ này
+                    continue;
                 }
+
+                const data = await res.json();
+                if (data && data.address) {
+                    const addr = data.address;
+                    let objName = (type === 'road') ? 
+                        (addr.road || addr.highway || addr.suburb || "") : 
+                        (addr.waterway || addr.river || addr.canal || addr.stream || addr.natural || "");
+
+                    if (objName) {
+                        let fLog = document.createElement('div');
+                        fLog.style.color = "#ffff00";
+                        fLog.innerHTML = `[!] PHÁT HIỆN GIAO CHÉO: ${objName}`;
+                        log.appendChild(fLog);
+                        
+                        findings.push({
+                            stt: findings.length + 1, code: tuyen,
+                            span: `Trụ ${pts[i].tru} ↔ ${pts[i+1].tru}`,
+                            name: objName,
+                            area: (addr.suburb || addr.quarter || addr.town || "TP.HCM"),
+                            coord: `${midLat.toFixed(6)}, ${midLng.toFixed(6)}`
+                        });
+                    }
+                }
+            } catch (e) {
+                let eLog = document.createElement('div');
+                eLog.style.color = "orange";
+                eLog.innerHTML = `> Lỗi mạng, đang kết nối lại...`;
+                log.appendChild(eLog);
+                await new Promise(r => setTimeout(r, 3000));
+                i--; // Thử lại
             }
         }
 
+        // KẾT THÚC VÀ HIỂN THỊ
         if (findings.length === 0) {
-            body.innerHTML = "<tr><td colspan='6' style='text-align:center'>Không tìm thấy giao cắt nào phù hợp trên đoạn này.</td></tr>";
+            body.innerHTML = "<tr><td colspan='6' style='text-align:center'>Không tìm thấy giao cắt. Hãy thử chuyển sang chế độ Quét Sông/Đường.</td></tr>";
         } else {
             findings.forEach(d => {
                 body.innerHTML += `<tr><td>${d.stt}</td><td><b>${d.code}</b></td><td>${d.span}</td><td>${d.name}</td><td>${d.area}</td><td>${d.coord}</td></tr>`;
@@ -263,16 +255,15 @@
         document.getElementById('resTitle').innerText = `KẾT QUẢ QUÉT ${tuyen} - ${type.toUpperCase()}`;
     }
 
-    // --- CÁC HÀM CƠ BẢN GIỮ NGUYÊN ---
     function saveToCloud() {
         const pass = prompt("Mật khẩu:");
         if (pass !== "0963292882@") return alert("Sai!");
         const input = document.getElementById('dataInput').value.trim();
         if (!input) return;
-        masterData = {};
         const rows = input.split('\n');
         const h = rows[0].split(/\t/);
         const col = { t: h.findIndex(x => x.includes("MA_TUYEN")), la: h.findIndex(x => x.includes("LAT")), ln: h.findIndex(x => x.includes("LONG")), tr: h.findIndex(x => x.includes("TEN_TRU")) };
+        masterData = {};
         for (let i = 1; i < rows.length; i++) {
             const c = rows[i].split(/\t/); if (c.length < 3) continue;
             const code = c[col.t]?.trim() || "CHUNG";
@@ -304,7 +295,7 @@
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `VDC_Crossing_Report.csv`;
+        link.download = `VDC_Analysis_${document.getElementById('selectTuyen').value}.csv`;
         link.click();
     }
 </script>
