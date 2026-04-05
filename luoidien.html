@@ -3,95 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VDC - Bản đồ Giao chéo Lưới điện</title>
+    <title>VDC - Bản đồ Giao chéo Tuyến dây</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; font-family: sans-serif; }
+        body { margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Tahoma, sans-serif; }
         
-        /* Sidebar có thể thu gọn */
         #sidebar { 
-            width: 350px; background: #fff; padding: 20px; 
-            box-shadow: 2px 0 10px rgba(0,0,0,0.2); 
-            z-index: 2000; transition: all 0.4s ease;
+            width: 380px; background: #ffffff; padding: 20px; 
+            box-shadow: 4px 0 15px rgba(0,0,0,0.3); 
+            z-index: 2000; transition: all 0.3s ease-in-out;
             display: flex; flex-direction: column;
             position: relative;
         }
-        #sidebar.collapsed { margin-left: -350px; }
+        #sidebar.collapsed { margin-left: -380px; }
 
-        /* Nút đóng/mở sidebar */
         #toggleBtn {
-            position: absolute; right: -45px; top: 10px;
-            width: 35px; height: 35px; background: #d32f2f;
-            color: white; border: none; border-radius: 4px;
+            position: absolute; right: -50px; top: 15px;
+            width: 40px; height: 40px; background: #d32f2f;
+            color: white; border: none; border-radius: 0 4px 4px 0;
             cursor: pointer; font-size: 20px; z-index: 2001;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.2);
         }
 
-        #map { flex-grow: 1; height: 100vh; transition: all 0.4s ease; }
-        textarea { width: 100%; height: 60%; margin-top: 10px; font-family: monospace; font-size: 11px; }
+        #map { flex-grow: 1; height: 100vh; background: #e5e5e5; }
+        textarea { width: 100%; flex-grow: 1; margin-top: 10px; font-family: 'Courier New', monospace; font-size: 11px; padding: 10px; border: 1px solid #ccc; resize: none; }
+        
+        .btn-container { margin-top: 15px; }
         button.main-btn { 
-            background: #d32f2f; color: white; border: none; 
-            padding: 15px; margin-top: 10px; cursor: pointer; 
-            font-weight: bold; border-radius: 4px; 
+            width: 100%; background: #d32f2f; color: white; border: none; 
+            padding: 15px; cursor: pointer; font-weight: bold; border-radius: 4px; 
+            text-transform: uppercase; letter-spacing: 1px;
         }
-        .status-msg { margin-top: 10px; color: #2e7d32; font-weight: bold; font-size: 13px; }
-        h2 { font-size: 18px; margin: 0; color: #d32f2f; }
+        button.main-btn:hover { background: #b71c1c; }
+        
+        .info { font-size: 12px; color: #555; margin-bottom: 5px; line-height: 1.4; }
+        h2 { font-size: 20px; margin: 0; color: #d32f2f; border-bottom: 2px solid #d32f2f; padding-bottom: 5px; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <button id="toggleBtn" onclick="toggleSidebar()">☰</button>
-    <h2>VDC SAFETY TOOL</h2>
-    <p style="font-size: 12px; color: #666;">Dán dữ liệu Excel (MA_TUYEN, LAT, LONG...) vào đây:</p>
-    <textarea id="dataInput" placeholder="Copy từ Excel và dán vào đây..."></textarea>
-    <button class="main-btn" onclick="processData()">VẼ & XEM BẢN ĐỒ</button>
-    <div id="status" class="status-msg"></div>
+    <button id="toggleBtn" title="Đóng/Mở bảng dữ liệu" onclick="toggleSidebar()">☰</button>
+    <h2>DỮ LIỆU LƯỚI ĐIỆN</h2>
+    <p class="info">Dán bảng tọa độ từ Excel vào đây (Yêu cầu có tiêu đề: <b>MA_TUYEN, LAT, LONG</b>):</p>
+    <textarea id="dataInput" placeholder="Ví dụ:
+MA_TUYEN	TEN_TRU	LAT	LONG
+AKHTTN	1	10.745832	106.739254
+AKHVTH	1	10.780675	106.729071..."></textarea>
+    <div class="btn-container">
+        <button class="main-btn" onclick="processData()">Vẽ & Chuyển Sang Map</button>
+    </div>
+    <div id="status" style="margin-top:10px; font-size: 13px; color: #2e7d32; font-weight: bold;"></div>
 </div>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Khởi tạo bản đồ
-    const map = L.map('map').setView([10.75, 106.7], 13);
-    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const map = L.map('map', { zoomControl: false }).setView([10.75, 106.7], 13);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    let layers = [];
+    let mapLayers = L.featureGroup().addTo(map);
 
     function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('collapsed');
-        // Cập nhật lại kích thước map sau khi sidebar ẩn
-        setTimeout(() => { map.invalidateSize(); }, 400);
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('collapsed');
+        setTimeout(() => { map.invalidateSize(); }, 350);
     }
 
     function processData() {
         const input = document.getElementById('dataInput').value.trim();
-        if (!input) {
-            alert("Vui lòng dán dữ liệu trước!");
-            return;
-        }
+        if (!input) return alert("Vui lòng dán dữ liệu!");
 
-        // Xóa dữ liệu cũ
-        layers.forEach(l => map.removeLayer(l));
-        layers = [];
-
+        mapLayers.clearLayers();
         const rows = input.split('\n');
         const header = rows[0].split(/\t|,/);
         
-        const idxTuyen = header.findIndex(h => h.toUpperCase().includes("TUYEN"));
-        const idxLat = header.findIndex(h => h.toUpperCase().includes("LAT"));
-        const idxLong = header.findIndex(h => h.toUpperCase().includes("LONG") || h.toUpperCase().includes("LNG"));
+        // Chuẩn hóa tìm cột
+        const findIdx = (names) => header.findIndex(h => names.some(n => h.toUpperCase().includes(n)));
+        const idxTuyen = findIdx(["MA_TUYEN", "TUYEN"]);
+        const idxLat = findIdx(["LAT", "VI_DO"]);
+        const idxLong = findIdx(["LONG", "LNG", "KINH_DO"]);
+        const idxTru = findIdx(["TEN_TRU", "TRU"]);
 
-        if (idxLat === -1 || idxLong === -1) {
-            alert("Không tìm thấy tiêu đề LAT, LONG trong dữ liệu!");
-            return;
-        }
+        if (idxLat === -1 || idxLong === -1) return alert("Dữ liệu thiếu cột LAT hoặc LONG!");
 
-        const groups = {};
-        const bounds = [];
+        const gridGroups = {};
+        const allPoints = [];
 
         for (let i = 1; i < rows.length; i++) {
             const cols = rows[i].split(/\t|,/);
@@ -99,33 +102,42 @@
 
             const lat = parseFloat(cols[idxLat]);
             const lng = parseFloat(cols[idxLong]);
-            const tuyen = cols[idxTuyen]?.trim() || "Chung";
+            const codeTuyen = cols[idxTuyen]?.trim() || "UNDEFINED";
+            const nameTru = cols[idxTru]?.trim() || "N/A";
 
             if (!isNaN(lat) && !isNaN(lng)) {
-                const pos = [lat, lng];
-                bounds.push(pos);
-                if (!groups[tuyen]) groups[tuyen] = [];
-                groups[tuyen].push(pos);
+                const point = [lat, lng];
+                allPoints.push(point);
 
-                const m = L.circleMarker(pos, {radius: 4, color: 'red'}).addTo(map);
-                layers.push(m);
+                // Vẽ marker cho từng trụ
+                L.circleMarker(point, {
+                    radius: 4, color: '#000', weight: 1, fillColor: '#ffeb3b', fillOpacity: 0.9
+                }).bindPopup(`<b>Tuyến:</b> ${codeTuyen}<br><b>Trụ:</b> ${nameTru}`).addTo(mapLayers);
+
+                // Gom nhóm CHÍNH XÁC theo mã tuyến
+                if (!gridGroups[codeTuyen]) gridGroups[codeTuyen] = [];
+                gridGroups[codeTuyen].push(point);
             }
         }
 
-        // Vẽ dây
-        for (let t in groups) {
-            const p = L.polyline(groups[t], {color: 'blue', weight: 3}).addTo(map);
-            layers.push(p);
+        // Vẽ đường nối: Chỉ nối trong nội bộ từng mã tuyến
+        for (const code in gridGroups) {
+            if (gridGroups[code].length > 1) {
+                L.polyline(gridGroups[code], {
+                    color: '#1a73e8',
+                    weight: 3,
+                    opacity: 0.8,
+                    dashArray: '5, 5' // Nét đứt để dễ phân biệt với đường bộ bên dưới
+                }).addTo(mapLayers);
+            }
         }
 
-        if (bounds.length > 0) {
-            map.fitBounds(bounds);
-            document.getElementById('status').innerText = `Đã hiển thị ${bounds.length} điểm!`;
+        if (allPoints.length > 0) {
+            map.fitBounds(allPoints, { padding: [50, 50] });
+            document.getElementById('status').innerText = `Thành công: Đã vẽ ${allPoints.length} trụ.`;
             
-            // TỰ ĐỘNG CHUYỂN VỀ HIỂN THỊ MAPS (Ẩn sidebar)
-            setTimeout(() => {
-                toggleSidebar();
-            }, 500); 
+            // Tự động thu gọn bảng để soi bản đồ
+            setTimeout(toggleSidebar, 600);
         }
     }
 </script>
