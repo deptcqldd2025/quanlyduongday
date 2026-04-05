@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản lý Lưới điện VDC</title>
+    <title>VDC Power Map Management</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --vdc-red: #d32f2f; --vdc-dark: #263238; --menu-bg: #ffffff; }
+        :root { --vdc-red: #d32f2f; --vdc-dark: #263238; }
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; overflow: hidden; }
-        
-        #map { height: 100vh; width: 100%; z-index: 1; }
+        #map { height: 100vh; width: 100%; z-index: 1; background: #e8eaed; }
 
         /* Menu Button */
         #menuToggle {
@@ -22,65 +21,36 @@
             display: flex; align-items: center; gap: 10px;
         }
 
-        /* Sidebar Menu */
+        /* Sidebar Sidebar */
         #sidebar {
             position: fixed; top: 0; left: -380px;
-            width: 340px; height: 100vh; background: var(--menu-bg);
+            width: 340px; height: 100vh; background: white;
             z-index: 1002; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             padding: 30px 20px; box-shadow: 5px 0 25px rgba(0,0,0,0.2);
-            display: flex; flex-direction: column;
+            display: flex; flex-direction: column; overflow-y: auto;
         }
         #sidebar.active { left: 0; }
-
         .close-sidebar { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 24px; color: #aaa; }
-        
         .nav-title { color: var(--vdc-red); font-size: 18px; font-weight: 800; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; text-transform: uppercase; }
 
-        .menu-list { list-style: none; padding: 0; margin: 0; }
-        .menu-item { margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #ccc; }
-        .menu-item:hover { border-left-color: var(--vdc-red); }
-        .menu-item h3 { margin: 0 0 10px 0; font-size: 13px; color: #333; }
-
-        textarea { 
-            width: 100%; height: 100px; font-family: monospace; font-size: 10px; 
-            border: 1px solid #ddd; padding: 8px; box-sizing: border-box; 
-            resize: none; border-radius: 4px; background: white;
-        }
+        .menu-item { margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #ccc; }
+        .menu-item h3 { margin: 0 0 10px 0; font-size: 12px; color: #555; text-transform: uppercase; }
+        textarea { width: 100%; height: 100px; font-family: monospace; font-size: 10px; border: 1px solid #ddd; padding: 8px; box-sizing: border-box; resize: none; border-radius: 4px; }
         
-        .btn { 
-            width: 100%; padding: 10px; border: none; border-radius: 4px; 
-            cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 8px;
-            text-transform: uppercase; transition: 0.2s;
-        }
+        .btn { width: 100%; padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 8px; text-transform: uppercase; }
         .btn-red { background: var(--vdc-red); color: white; }
         .btn-dark { background: var(--vdc-dark); color: white; }
         .btn-outline { background: white; color: #555; border: 1px solid #ddd; margin-top: 5px; }
-        .btn-outline:hover { background: #eee; }
 
-        /* Legend */
-        .legend { 
-            position: absolute; bottom: 30px; right: 20px; 
-            background: white; padding: 15px; border-radius: 8px; 
-            z-index: 1000; box-shadow: 0 0 20px rgba(0,0,0,0.1); 
-            font-size: 11px; max-height: 250px; overflow-y: auto;
-        }
-
-        /* Overlay */
-        .loading-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(255,255,255,0.9); z-index: 9999; 
-            display: none; flex-direction: column; justify-content: center; align-items: center; 
-        }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--vdc-red); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        .legend { position: absolute; bottom: 30px; right: 20px; background: white; padding: 15px; border-radius: 8px; z-index: 1000; box-shadow: 0 0 20px rgba(0,0,0,0.1); font-size: 11px; max-height: 250px; overflow-y: auto; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; color: var(--vdc-red); }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--vdc-red); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 10px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div id="loading" class="loading-overlay">
-    <div class="spinner"></div>
-    <p>ĐANG ĐỒNG BỘ DỮ LIỆU CLOUD...</p>
-</div>
+<div id="loading" class="loading-overlay"><div class="spinner"></div>ĐANG XỬ LÝ DỮ LIỆU...</div>
 
 <button id="menuToggle" onclick="toggleSidebar()">☰ MENU HỆ THỐNG</button>
 
@@ -88,30 +58,27 @@
     <div class="close-sidebar" onclick="toggleSidebar()">×</div>
     <div class="nav-title">VDC Power Map</div>
     
-    <div class="menu-list">
-        <div class="menu-item">
-            <h3>1. NHẬP MỚI BẢN ĐỒ</h3>
-            <textarea id="dataInputNew" placeholder="Dán dữ liệu Excel thay thế toàn bộ..."></textarea>
-            <button class="btn btn-red" onclick="handleAction('new')">Thực hiện nhập mới</button>
-        </div>
-
-        <div class="menu-item">
-            <h3>2. NHẬP THÊM BẢN ĐỒ</h3>
-            <textarea id="dataInputAdd" placeholder="Dán dữ liệu Excel để vẽ thêm..."></textarea>
-            <button class="btn btn-dark" onclick="handleAction('add')">Thực hiện nhập thêm</button>
-        </div>
-
-        <div class="menu-item">
-            <h3>3. THỐNG KÊ GIAO CHÉO ĐƯỜNG BỘ</h3>
-            <button class="btn btn-outline" onclick="alert('Đang quét dữ liệu đường bộ khu vực...')">Bắt đầu phân tích</button>
-        </div>
-
-        <div class="menu-item">
-            <h3>4. THỐNG KÊ GIAO CHÉO ĐƯỜNG THỦY</h3>
-            <button class="btn btn-outline" onclick="alert('Đang quét dữ liệu sông ngòi/kênh rạch...')">Bắt đầu phân tích</button>
-        </div>
+    <div class="menu-item">
+        <h3>1. Nhập mới bản đồ lưới điện</h3>
+        <textarea id="dataInputNew" placeholder="Dán dữ liệu Excel thay thế toàn bộ..."></textarea>
+        <button class="btn btn-red" onclick="handleAction('new')">Thực hiện nhập mới</button>
     </div>
-    <div id="status" style="font-size:11px; margin-top:10px; font-weight:bold;"></div>
+
+    <div class="menu-item">
+        <h3>2. Nhập thêm bản đồ lưới điện</h3>
+        <textarea id="dataInputAdd" placeholder="Dán dữ liệu Excel để vẽ thêm..."></textarea>
+        <button class="btn btn-dark" onclick="handleAction('add')">Thực hiện nhập thêm</button>
+    </div>
+
+    <div class="menu-item">
+        <h3>3. Thống kê giao chéo đường bộ</h3>
+        <button class="btn btn-outline" onclick="closeAndAnalyze('ĐƯỜNG BỘ')">Bắt đầu phân tích</button>
+    </div>
+
+    <div class="menu-item">
+        <h3>4. Thống kê giao chéo đường thủy</h3>
+        <button class="btn btn-outline" onclick="closeAndAnalyze('ĐƯỜNG THỦY')">Bắt đầu phân tích</button>
+    </div>
 </div>
 
 <div id="map"></div>
@@ -119,9 +86,9 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // --- FIREBASE CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyALxXDNbFdXkI7XvHqiSNb1jnKjj0CbYnE",
       authDomain: "qldd-2025.firebaseapp.com",
@@ -137,14 +104,10 @@
     const db = firebase.database();
 
     const map = L.map('map', { zoomControl: false }).setView([10.75, 106.7], 13);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
     let gridLayer = L.featureGroup().addTo(map);
     let masterData = {}; 
 
-    // Kiểm tra dữ liệu khi mở trang
     window.onload = function() {
         showLoading(true);
         db.ref('powerGrid').once('value', (snapshot) => {
@@ -153,10 +116,10 @@
             if (val) {
                 masterData = val;
                 renderMap(true);
-                setTimeout(() => { document.getElementById('sidebar').classList.remove('active'); }, 1000);
+                // Đảm bảo menu ẩn khi khởi động nếu có dữ liệu
+                document.getElementById('sidebar').classList.remove('active');
             } else {
                 document.getElementById('sidebar').classList.add('active');
-                document.getElementById('status').innerHTML = "<span style='color:orange'>Dữ liệu trống. Vui lòng nhập mục 1.</span>";
             }
         });
     };
@@ -164,19 +127,29 @@
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
 
+    // Hàm thực hiện thống kê và tự đóng menu
+    function closeAndAnalyze(type) {
+        toggleSidebar(); // Ẩn menu ngay lập tức
+        setTimeout(() => {
+            alert("Đang phân tích giao chéo " + type + " dựa trên dữ liệu lưới điện hiện tại...");
+        }, 300);
+    }
+
     function handleAction(type) {
         const pass = prompt("Vui lòng nhập mật khẩu xác thực:");
-        if (pass !== "0963292882") return alert("Sai mật khẩu!");
+        if (pass !== "0963292882@") return alert("Mật khẩu sai!");
 
         const inputId = type === 'new' ? 'dataInputNew' : 'dataInputAdd';
         const input = document.getElementById(inputId).value.trim();
-        if (!input) return alert("Chưa có dữ liệu dán vào!");
+        if (!input) return alert("Vui lòng dán dữ liệu!");
+
+        toggleSidebar(); // TỰ ĐỘNG ẨN MENU KHI BẮT ĐẦU XỬ LÝ
+        showLoading(true);
 
         if (type === 'new') masterData = {};
 
         const rows = input.split('\n');
         const header = rows[0].split(/\t/);
-        
         const col = {
             tuyen: header.findIndex(h => h.toUpperCase().includes("MA_TUYEN")),
             lat: header.findIndex(h => h.toUpperCase().includes("LAT")),
@@ -184,35 +157,22 @@
             tru: header.findIndex(h => h.toUpperCase().includes("TEN_TRU"))
         };
 
-        if (col.lat === -1 || col.lng === -1) return alert("Dữ liệu sai định dạng (Thiếu LAT/LONG)");
-
         for (let i = 1; i < rows.length; i++) {
             const cells = rows[i].split(/\t/);
             if (cells.length < 3) continue;
-
             const code = cells[col.tuyen]?.trim() || "CHUNG";
             const lat = parseFloat(cells[col.lat].replace(',', '.'));
             const lng = parseFloat(cells[col.lng].replace(',', '.'));
-            const tru = cells[col.tru]?.trim() || "";
-
             if (!isNaN(lat) && !isNaN(lng)) {
-                if (!masterData[code]) {
-                    masterData[code] = { 
-                        color: '#' + Math.floor(Math.random()*16777215).toString(16), 
-                        points: [] 
-                    };
-                }
-                masterData[code].points.push({ lat, lng, tru });
+                if (!masterData[code]) masterData[code] = { color: '#' + Math.floor(Math.random()*16777215).toString(16), points: [] };
+                masterData[code].points.push({ lat, lng, tru: cells[col.tru]?.trim() || "" });
             }
         }
 
-        showLoading(true);
         db.ref('powerGrid').set(masterData).then(() => {
-            showLoading(false);
             renderMap(true);
-            toggleSidebar();
+            showLoading(false);
             document.getElementById(inputId).value = "";
-            alert("Đã cập nhật hệ thống thành công!");
         });
     }
 
@@ -227,9 +187,7 @@
                 L.circleMarker([p.lat, p.lng], { radius: 3, color: '#333', fillColor: 'yellow', fillOpacity: 1 })
                  .bindPopup(`Tuyến: ${code}<br>Trụ: ${p.tru}`).addTo(gridLayer);
             });
-            if (pts.length > 1) {
-                L.polyline(pts, { color: masterData[code].color, weight: 3, opacity: 0.8 }).addTo(gridLayer);
-            }
+            if (pts.length > 1) L.polyline(pts, { color: masterData[code].color, weight: 3 }).addTo(gridLayer);
         }
         if (fit && bounds.length > 0) map.fitBounds(bounds, {padding: [50, 50]});
         updateLegend();
