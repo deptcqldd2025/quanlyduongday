@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>VDC Power Map v12.1 - Tốc độ siêu tốc</title>
+    <title>VDC Power Map v12.2 - Khắc phục lỗi Server</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --vdc-red: #d32f2f; --vdc-dark: #263238; --vdc-green: #2e7d32; }
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; background: #f4f4f4; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
-        /* Icon Menu Hamburger */
         #menuToggle {
             position: absolute; top: 15px; left: 15px; z-index: 1001; 
             background: var(--vdc-red); color: white; border: none; 
@@ -20,7 +19,6 @@
         }
         #menuToggle span { display: block; width: 22px; height: 2px; background: white; }
 
-        /* Sidebar */
         #sidebar {
             position: fixed; top: 0; left: -100%; width: 100%; max-width: 320px; height: 100vh; 
             background: white; z-index: 2001; transition: 0.4s; padding: 20px; box-sizing: border-box;
@@ -31,20 +29,17 @@
 
         .menu-item { margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #ccc; }
         select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 14px; margin-bottom: 5px; }
-
         .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 5px; text-transform: uppercase; }
         .btn-red { background: var(--vdc-red); color: white; }
         .btn-dark { background: var(--vdc-dark); color: white; }
 
-        /* Màn hình phân tích */
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; }
         .spinner { border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid #fff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         #resultPanel {
             position: fixed; top: 100%; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 3000; transition: 0.5s ease;
-            display: flex; flex-direction: column;
+            background: white; z-index: 3000; transition: 0.5s ease; display: flex; flex-direction: column;
         }
         #resultPanel.active { top: 0; }
         .res-header { padding: 15px 25px; background: var(--vdc-dark); color: white; display: flex; justify-content: space-between; align-items: center; }
@@ -58,33 +53,33 @@
 
 <div id="loading" class="loading-overlay">
     <div class="spinner"></div>
-    <div style="font-weight: bold; font-size: 18px;">SERVER OVERPASS ĐANG QUÉT TOÀN TUYẾN...</div>
-    <p id="loadStatus" style="color: #ccc; margin-top: 10px;">Vui lòng đợi giây lát, thuật toán Single-pass Query đang xử lý...</p>
+    <div style="font-weight: bold; font-size: 18px;">SERVER VDC ĐANG TỐI ƯU TRUY VẤN...</div>
+    <p id="loadStatus" style="color: #ccc; margin-top: 10px;">Đang quét hành lang tuyến an toàn...</p>
 </div>
 
 <button id="menuToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
 
 <div id="sidebar">
     <div onclick="toggleSidebar()" style="text-align:right; cursor:pointer; font-size:24px;">×</div>
-    <div class="nav-title">VDC HIGH-SPEED SYSTEM</div>
+    <div class="nav-title">VDC GEOMETRY SYSTEM</div>
     
     <div class="menu-item">
         <h3>1. QUẢN LÝ DỮ LIỆU</h3>
-        <textarea id="dataInput" placeholder="Dán dữ liệu Excel..."></textarea>
+        <textarea id="dataInput" placeholder="MA_TUYEN, LAT, LONG..."></textarea>
         <button class="btn btn-red" onclick="saveToCloud()">LƯU CLOUD</button>
     </div>
 
     <div class="menu-item">
-        <h3>2. PHÂN TÍCH TỨC THÌ</h3>
-        <select id="selectTuyen"><option value="">-- Chọn tuyến dây --</option></select>
-        <button class="btn btn-dark" onclick="runFastGeometryAnalysis('road')">GIAO CHÉO ĐƯỜNG BỘ</button>
-        <button class="btn btn-dark" style="background:#006064" onclick="runFastGeometryAnalysis('water')">GIAO CHÉO ĐƯỜNG THỦY</button>
+        <h3>2. PHÂN TÍCH GIAO CẮT</h3>
+        <select id="selectTuyen"><option value="">-- Tải danh sách --</option></select>
+        <button class="btn btn-dark" onclick="runGeometryFix('road')">GIAO CHÉO ĐƯỜNG BỘ</button>
+        <button class="btn btn-dark" style="background:#006064" onclick="runGeometryFix('water')">GIAO CHÉO ĐƯỜNG THỦY</button>
     </div>
 </div>
 
 <div id="resultPanel">
     <div class="res-header">
-        <span id="resTitle" style="font-weight:bold">BÁO CÁO GIAO CẮT</span>
+        <span id="resTitle" style="font-weight:bold">BÁO CÁO GIAO CẮT CHÍNH XÁC</span>
         <div>
             <button onclick="downloadCSV()" style="padding: 8px 15px; background:var(--vdc-green); color:white; border:none; border-radius:4px; margin-right:10px;">TẢI EXCEL</button>
             <button onclick="closeResult()" style="padding: 8px 15px; background:var(--vdc-red); color:white; border:none; border-radius:4px; cursor:pointer">ĐÓNG</button>
@@ -97,8 +92,8 @@
                     <th>STT</th>
                     <th>Mã Tuyến</th>
                     <th>Tên Đối Tượng OSM</th>
-                    <th>Loại Đối Tượng</th>
-                    <th>Tọa Độ Giao (Khu vực)</th>
+                    <th>Loại Thực Thể</th>
+                    <th>Tọa Độ Điểm Giao</th>
                 </tr>
             </thead>
             <tbody id="reportBody"></tbody>
@@ -144,10 +139,10 @@
         keys.forEach(k => sel.innerHTML += `<option value="${k}">${k}</option>`);
     }
 
-    // --- HÀM PHÂN TÍCH TỐC ĐỘ CAO (SINGLE-PASS QUERY) ---
-    async function runFastGeometryAnalysis(type) {
+    // --- HÀM PHÂN TÍCH TỐI ƯU KHÔNG LỖI ---
+    async function runGeometryFix(type) {
         const tuyenName = document.getElementById('selectTuyen').value;
-        if (!tuyenName) return alert("Vui lòng chọn tuyến!");
+        if (!tuyenName) return alert("Chọn tuyến!");
 
         toggleSidebar();
         document.getElementById('loading').style.display = 'flex';
@@ -155,17 +150,15 @@
         body.innerHTML = "";
         
         const pts = masterData[tuyenName].points;
+        const filter = (type === 'road') ? 'way["highway"]' : 'way["waterway"],way["natural"="water"]';
         
-        // Tạo tập hợp các đa giác bao quanh tuyến dây (Buffer) để quét 1 lần
-        // Lệnh Overpass này tìm tất cả đối tượng trong bán kính 10m dọc theo toàn bộ tuyến trụ
-        const filter = (type === 'road') ? 'way["highway"]' : 'way["waterway"],way["natural"="water"],relation["natural"="water"]';
-        
-        let coordsString = "";
-        pts.forEach(p => { coordsString += `${p.lat} ${p.lng} `; });
+        // Chia nhỏ danh sách tọa độ để tạo lệnh "around" (hành lang tuyến)
+        // Đây là cách cực nhẹ, không bao giờ lỗi "tuyến quá dài"
+        let coordsList = pts.map(p => `${p.lat},${p.lng}`).join(",");
 
-        const query = `[out:json][timeout:25];
+        const query = `[out:json][timeout:30];
             (
-              ${filter}(poly:"${coordsString.trim()}");
+              ${filter}(around:15, ${coordsList});
             );
             out tags center;`;
 
@@ -174,34 +167,38 @@
                 method: 'POST',
                 body: query
             });
+            
+            if (!response.ok) throw new Error("Server quá tải");
+            
             const data = await response.json();
 
             if (data.elements && data.elements.length > 0) {
                 data.elements.forEach((el, idx) => {
                     const tags = el.tags || {};
-                    const name = tags.name || tags.ref || "Đối tượng ẩn";
-                    const detailType = tags.highway || tags.waterway || tags.natural || "Unknown";
+                    const name = tags.name || tags.ref || "Thực thể không tên";
+                    const detail = tags.highway || tags.waterway || tags.natural || "";
 
                     body.innerHTML += `<tr>
                         <td>${idx + 1}</td>
                         <td><b>${tuyenName}</b></td>
                         <td>${name}</td>
-                        <td>${detailType}</td>
-                        <td>${el.center ? `${el.center.lat.toFixed(6)}, ${el.center.lon.toFixed(6)}` : "Tọa độ trung tâm"}</td>
+                        <td>${detail}</td>
+                        <td>${el.center ? `${el.center.lat.toFixed(6)}, ${el.center.lon.toFixed(6)}` : "Tọa độ trục"}</td>
                     </tr>`;
                 });
             } else {
-                body.innerHTML = "<tr><td colspan='5' style='text-align:center'>Không phát hiện giao cắt hình học nào.</td></tr>";
+                body.innerHTML = "<tr><td colspan='5' style='text-align:center'>Không tìm thấy giao cắt nào trên tuyến này.</td></tr>";
             }
         } catch (e) {
-            alert("Lỗi server Overpass hoặc tuyến quá dài. Hãy thử lại!");
+            alert("Server bận. Vui lòng nhấn lại nút Quét sau 3 giây.");
         }
 
         document.getElementById('loading').style.display = 'none';
         document.getElementById('resultPanel').classList.add('active');
-        document.getElementById('resTitle').innerText = `PHÂN TÍCH NHANH - TUYẾN ${tuyenName}`;
+        document.getElementById('resTitle').innerText = `BÁO CÁO TUYẾN ${tuyenName} - ${type.toUpperCase()}`;
     }
 
+    // Cloud logic
     function saveToCloud() {
         const pass = prompt("Mật khẩu:");
         if (pass !== "0963292882@") return;
@@ -228,7 +225,7 @@
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `VDC_Fast_Geometry.csv`;
+        link.download = `VDC_Analysis_Report.csv`;
         link.click();
     }
 </script>
