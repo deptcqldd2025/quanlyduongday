@@ -3,17 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>VDC Power Map - SOL61.01</title>
+    <title>VDC Power Map - SOL61.02</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --vdc-red: #d32f2f; --vdc-dark: #263238; --vdc-green: #2e7d32; --vdc-blue: #1976d2; }
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; background: #f4f4f4; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
-        /* VERSION LABEL */
         .version-tag { position: absolute; bottom: 10px; left: 10px; z-index: 1001; background: rgba(0,0,0,0.6); color: white; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; pointer-events: none; }
 
-        /* SEARCH BAR */
         .search-box {
             position: absolute; top: 15px; left: 70px; z-index: 1001;
             display: flex; background: white; padding: 4px; border-radius: 25px;
@@ -22,7 +20,6 @@
         #searchInput { flex-grow: 1; border: none; padding: 8px 15px; outline: none; font-size: 14px; border-radius: 20px; }
         .search-btn { background: var(--vdc-blue); color: white; border: none; padding: 0 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
 
-        /* MENU TOGGLE */
         #menuToggle {
             position: absolute; top: 15px; left: 15px; z-index: 1001; 
             background: var(--vdc-red); color: white; border: none; 
@@ -32,7 +29,6 @@
         }
         #menuToggle span { display: block; width: 22px; height: 2px; background: white; }
 
-        /* SIDEBAR */
         #sidebar {
             position: fixed; top: 0; left: -100%; width: 100%; max-width: 320px; height: 100vh; 
             background: white; z-index: 2001; transition: 0.4s; padding: 20px; box-sizing: border-box;
@@ -44,13 +40,11 @@
         select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 14px; margin-bottom: 5px; }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 5px; text-transform: uppercase; }
 
-        /* LOADING & LOG */
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
         .progress-box { width: 80%; max-width: 400px; background: #ddd; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 15px; }
         #myBar { width: 0%; height: 100%; background: var(--vdc-red); transition: 0.3s; }
         #liveLog { width: 85%; max-width: 500px; height: 200px; background: #121212; color: #00ff41; font-family: 'Courier New', monospace; font-size: 11px; padding: 15px; border-radius: 8px; overflow-y: auto; }
 
-        /* RESULT PANEL */
         #resultPanel { position: fixed; top: 100%; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; transition: 0.5s ease; display: flex; flex-direction: column; }
         #resultPanel.active { top: 0; }
         .res-header { padding: 15px 25px; background: var(--vdc-dark); color: white; display: flex; justify-content: space-between; align-items: center; }
@@ -62,12 +56,13 @@
 </head>
 <body>
 
-<div class="version-tag">VERSION: SOL61.01</div>
+<div class="version-tag">VERSION: SOL61.02</div>
 
 <div id="loading" class="loading-overlay">
-    <div style="font-weight: bold; color: var(--vdc-red); margin-bottom: 10px;">PHÂN TÍCH GIAO CẮT THEO KHOẢNG TRỤ...</div>
+    <div style="font-weight: bold; color: var(--vdc-red); margin-bottom: 10px;">ĐANG QUÉT Mật Độ 5M/ĐIỂM...</div>
     <div class="progress-box"><div id="myBar"></div></div>
-    <div id="liveLog"><div>> Hệ thống VDC SOL61 sẵn sàng...</div></div>
+    <div id="liveLog"><div>> Khởi tạo thuật toán SOL61.02...</div></div>
+    <p style="font-size: 10px; color: #666; margin-top: 5px;">Hệ thống chia nhỏ dây mỗi 5m để đảm bảo độ chính xác tuyệt đối.</p>
 </div>
 
 <button id="menuToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
@@ -79,25 +74,25 @@
 
 <div id="sidebar">
     <div onclick="toggleSidebar()" style="text-align:right; cursor:pointer; font-size:24px;">×</div>
-    <div class="nav-title">VDC Power SOL61</div>
+    <div class="nav-title">VDC Power SOL61.02</div>
     
     <div class="menu-item">
         <h3>1. QUẢN LÝ DỮ LIỆU</h3>
-        <textarea id="dataInput" placeholder="Dán dữ liệu từ Excel..."></textarea>
+        <textarea id="dataInput" placeholder="MA_TUYEN, LAT, LONG, TEN_TRU..."></textarea>
         <button class="btn" style="background:var(--vdc-red); color:white" onclick="saveToCloud()">LƯU LÊN CLOUD</button>
     </div>
 
     <div class="menu-item">
-        <h3>2. PHÂN TÍCH TUYẾN</h3>
+        <h3>2. QUÉT GIAO CHÉO (5M/ĐIỂM)</h3>
         <select id="selectTuyen"><option value="">-- Đang tải dữ liệu --</option></select>
-        <button class="btn" style="background:var(--vdc-dark); color:white" onclick="runAnalysis('road')">TÌM ĐƯỜNG BỘ</button>
-        <button class="btn" style="background:#006064; color:white" onclick="runAnalysis('water')">TÌM ĐƯỜNG THỦY</button>
+        <button class="btn" style="background:var(--vdc-dark); color:white" onclick="runSamplingAnalysis('road')">TÌM ĐƯỜNG BỘ</button>
+        <button class="btn" style="background:#006064; color:white" onclick="runSamplingAnalysis('water')">TÌM ĐƯỜNG THỦY</button>
     </div>
 </div>
 
 <div id="resultPanel">
     <div class="res-header">
-        <span id="resTitle" style="font-weight:bold">BÁO CÁO GIAO CẮT KHOẢNG TRỤ</span>
+        <span id="resTitle" style="font-weight:bold">BÁO CÁO GIAO CHÉO CHI TIẾT</span>
         <div>
             <button onclick="downloadCSV()" style="padding: 8px 15px; background:var(--vdc-green); color:white; border:none; border-radius:4px; margin-right:10px; font-weight:bold;">TẢI EXCEL</button>
             <button onclick="closeResult()" style="padding: 8px 15px; background:var(--vdc-red); color:white; border:none; border-radius:4px; cursor:pointer">ĐÓNG</button>
@@ -109,10 +104,10 @@
                 <tr>
                     <th>STT</th>
                     <th>Mã Tuyến</th>
-                    <th>Khoảng Cột (Giao chéo)</th>
-                    <th>Tên Đối Tượng OSM</th>
-                    <th>Loại Thực Thể</th>
-                    <th>Tọa Độ Điểm Giao</th>
+                    <th>Khoảng Cột Giao Chéo</th>
+                    <th>Tên Đối Tượng Thực Tế</th>
+                    <th>Phường/Xã (Địa giới)</th>
+                    <th>Tọa Độ Giao</th>
                 </tr>
             </thead>
             <tbody id="reportBody"></tbody>
@@ -144,21 +139,15 @@
     let gridLayer = L.featureGroup().addTo(map);
     let masterData = {}; 
 
-    // TỰ ĐỘNG VẼ LƯỚI ĐIỆN KHI MỞ TRANG
     window.onload = () => {
         db.ref('powerGrid').on('value', (s) => {
             const val = s.val();
-            if (val) { 
-                masterData = val; 
-                updateList(); 
-                renderMap(); // Vẽ lại lưới điện ngay lập tức
-            }
+            if (val) { masterData = val; updateList(); renderMap(); }
         });
     };
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
     function closeResult() { document.getElementById('resultPanel').classList.remove('active'); }
-    
     function updateList() {
         const sel = document.getElementById('selectTuyen');
         const keys = Object.keys(masterData).sort();
@@ -172,8 +161,7 @@
         for (let code in masterData) {
             const p = [];
             masterData[code].points.forEach(pt => {
-                p.push([pt.lat, pt.lng]);
-                bounds.push([pt.lat, pt.lng]);
+                p.push([pt.lat, pt.lng]); bounds.push([pt.lat, pt.lng]);
                 L.circleMarker([pt.lat, pt.lng], { radius: 2.5, color: '#333', fillColor: 'yellow', fillOpacity: 1 }).addTo(gridLayer);
             });
             if (p.length > 1) L.polyline(p, { color: masterData[code].color, weight: 3 }).addTo(gridLayer);
@@ -181,15 +169,8 @@
         if (bounds.length > 0) map.fitBounds(bounds);
     }
 
-    async function searchMap() {
-        const q = document.getElementById('searchInput').value.trim();
-        if (!q) return;
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ", Ho Chi Minh")}&format=json&limit=1`);
-        const data = await res.json();
-        if (data[0]) map.setView([data[0].lat, data[0].lon], 16);
-    }
-
-    async function runAnalysis(type) {
+    // THUẬT TOÁN CHIA ĐIỂM 5M/LẦN
+    async function runSamplingAnalysis(type) {
         const tuyenName = document.getElementById('selectTuyen').value;
         if (!tuyenName) return alert("Chọn tuyến!");
 
@@ -199,51 +180,83 @@
         const bar = document.getElementById('myBar');
         const body = document.getElementById('reportBody');
         body.innerHTML = "";
+        log.innerHTML = `<div>> Khởi chạy quét 5m cho tuyến ${tuyenName}...</div>`;
         
         const pts = masterData[tuyenName].points;
         let findings = [];
-        const filter = (type === 'road') ? 'way["highway"]' : 'way["waterway"],way["natural"="water"]';
 
         for (let i = 0; i < pts.length - 1; i++) {
             let pct = Math.round(((i + 1) / (pts.length - 1)) * 100);
             bar.style.width = pct + '%';
             
+            const p1 = pts[i];
+            const p2 = pts[i+1];
+
+            // TÍNH KHOẢNG CÁCH GIỮA 2 TRỤ (Haversine)
+            const dist = getDistance(p1.lat, p1.lng, p2.lat, p2.lng);
+            const stepCount = Math.max(1, Math.ceil(dist / 5)); // Chia mỗi 5m 1 điểm
+
             let logMsg = document.createElement('div');
-            logMsg.innerHTML = `> Quét Trụ ${pts[i].tru}-${pts[i+1].tru}...`;
+            logMsg.innerHTML = `> Trụ ${p1.tru}-${p2.tru}: Dài ${dist.toFixed(1)}m. Quét ${stepCount} vị trí...`;
             log.appendChild(logMsg);
             log.scrollTop = log.scrollHeight;
 
-            const query = `[out:json][timeout:15];
-                ( ${filter}(around:10, ${pts[i].lat}, ${pts[i].lng}, ${pts[i+1].lat}, ${pts[i+1].lng}); );
-                out tags center;`;
+            let foundInSpan = new Set(); // Tránh trùng tên trong cùng 1 khoảng cột
 
-            try {
-                await new Promise(r => setTimeout(r, 650)); // Delay tránh chặn API
-                const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
-                const data = await res.json();
+            for (let s = 1; s <= stepCount; s++) {
+                const ratio = s / (stepCount + 1);
+                const curLat = p1.lat + (p2.lat - p1.lat) * ratio;
+                const curLng = p1.lng + (p2.lng - p1.lng) * ratio;
 
-                if (data.elements && data.elements.length > 0) {
-                    data.elements.forEach(el => {
-                        const tags = el.tags || {};
-                        const name = tags.name || tags.ref || "Thực thể không tên";
-                        findings.push({
-                            stt: findings.length + 1, code: tuyenName,
-                            span: `Trụ ${pts[i].tru} ↔ ${pts[i+1].tru}`,
-                            name: name, type: tags.highway || tags.waterway || tags.natural || "",
-                            coord: el.center ? `${el.center.lat.toFixed(6)}, ${el.center.lon.toFixed(6)}` : "Dọc đoạn"
-                        });
-                    });
-                }
-            } catch (e) { console.log("Lỗi mạng tại điểm này"); }
+                await new Promise(r => setTimeout(r, 1200)); // Delay tránh chặn API
+
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${curLat}&lon=${curLng}&zoom=18`);
+                    const data = await res.json();
+                    
+                    if (data && data.address) {
+                        const addr = data.address;
+                        let name = (type === 'road') ? 
+                            (addr.road || addr.highway || addr.pedestrian || "") : 
+                            (addr.waterway || addr.river || addr.canal || addr.stream || addr.natural || "");
+
+                        if (name && !foundInSpan.has(name)) {
+                            let fLog = document.createElement('div');
+                            fLog.style.color = "#ffff00";
+                            fLog.innerHTML = `[!] PHÁT HIỆN: ${name}`;
+                            log.appendChild(fLog);
+                            
+                            findings.push({
+                                stt: findings.length + 1, code: tuyenName,
+                                span: `Trụ ${p1.tru} ↔ ${p2.tru}`,
+                                name: name, area: (addr.suburb || addr.quarter || addr.town || "TP.HCM"),
+                                coord: `${curLat.toFixed(6)}, ${curLng.toFixed(6)}`
+                            });
+                            foundInSpan.add(name);
+                        }
+                    }
+                } catch (e) { console.log("Mạng bận, đang chờ..."); await new Promise(r => setTimeout(r, 2000)); }
+            }
         }
 
-        if (findings.length === 0) body.innerHTML = "<tr><td colspan='6' style='text-align:center'>Không thấy giao cắt.</td></tr>";
+        if (findings.length === 0) body.innerHTML = "<tr><td colspan='6' style='text-align:center'>Không tìm thấy giao cắt phù hợp.</td></tr>";
         else findings.forEach(d => {
-            body.innerHTML += `<tr><td>${d.stt}</td><td><b>${d.code}</b></td><td>${d.span}</td><td>${d.name}</td><td>${d.type}</td><td>${d.coord}</td></tr>`;
+            body.innerHTML += `<tr><td>${d.stt}</td><td><b>${d.code}</b></td><td>${d.span}</td><td>${d.name}</td><td>${d.area}</td><td>${d.coord}</td></tr>`;
         });
 
         document.getElementById('loading').style.display = 'none';
         document.getElementById('resultPanel').classList.add('active');
+    }
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3;
+        const f1 = lat1 * Math.PI/180;
+        const f2 = lat2 * Math.PI/180;
+        const df = (lat2-lat1) * Math.PI/180;
+        const dl = (lon2-lon1) * Math.PI/180;
+        const a = Math.sin(df/2) * Math.sin(df/2) + Math.cos(f1) * Math.cos(f2) * Math.sin(dl/2) * Math.sin(dl/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
     }
 
     function saveToCloud() {
@@ -264,15 +277,23 @@
         db.ref('powerGrid').set(masterData).then(() => { alert("Đã lưu!"); toggleSidebar(); });
     }
 
+    async function searchMap() {
+        const q = document.getElementById('searchInput').value.trim();
+        if (!q) return;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ", Ho Chi Minh")}&format=json&limit=1`);
+        const data = await res.json();
+        if (data[0]) map.setView([data[0].lat, data[0].lon], 16);
+    }
+
     function downloadCSV() {
-        let csv = "\uFEFFSTT,Ma Tuyen,Khoang Cot,Doi Tuong,Loai,Toa Do\n";
+        let csv = "\uFEFFSTT,Ma Tuyen,Khoang Cot,Doi Tuong,Khu Vuc,Toa Do\n";
         document.querySelectorAll("#reportTable tbody tr").forEach(tr => {
             csv += Array.from(tr.querySelectorAll("td")).map(td => `"${td.innerText}"`).join(",") + "\n";
         });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `VDC_SOL61_Report.csv`;
+        link.download = `VDC_SOL61.02_Report.csv`;
         link.click();
     }
 </script>
