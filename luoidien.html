@@ -3,108 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VDC - Bản đồ Lưới điện & Giao thông</title>
+    <title>VDC - Công cụ Vẽ Lưới điện Giao chéo</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <style>
-        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-        #map { height: 100vh; width: 100%; }
-        .info-panel {
-            position: absolute; top: 10px; right: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 15px; border-radius: 8px;
-            z-index: 1000; box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            max-width: 250px;
-        }
-        h3 { margin: 0 0 10px 0; color: #d32f2f; font-size: 16px; }
-        .legend { font-size: 12px; line-height: 18px; }
-        .legend i { width: 18px; height: 18px; float: left; margin-right: 8px; opacity: 0.7; }
+        body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #sidebar { width: 350px; background: #f4f4f4; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 1001; display: flex; flex-direction: column; }
+        #map { flex-grow: 1; }
+        textarea { width: 100%; height: 300px; margin-top: 10px; font-family: monospace; font-size: 11px; border: 1px solid #ccc; padding: 5px; }
+        button { background: #d32f2f; color: white; border: none; padding: 12px; margin-top: 10px; cursor: pointer; font-weight: bold; border-radius: 4px; }
+        button:hover { background: #b71c1c; }
+        .instructions { font-size: 12px; color: #666; margin-bottom: 10px; }
+        h2 { font-size: 18px; margin: 0 0 10px 0; color: #333; }
     </style>
 </head>
 <body>
 
-<div class="info-panel">
-    <h3>HỆ THỐNG LƯỚI ĐIỆN VDC</h3>
-    <div class="legend">
-        <p>Giao diện hiển thị các tuyến dây chồng lên lớp đường bộ để kiểm tra giao chéo.</p>
-        <i style="background: blue; height: 3px; width: 20px; margin-top: 8px;"></i> Tuyến đường dây<br>
-        <i style="border: 2px solid red; border-radius: 50%; width: 10px; height: 10px;"></i> Vị trí trụ điện
-    </div>
+<div id="sidebar">
+    <h2>VDC Safety Map</h2>
+    <p class="instructions">Copy toàn bộ bảng tọa độ từ Excel và dán vào bên dưới:</p>
+    <textarea id="dataInput" placeholder="MA_TUYEN	TEN_TRU	LAT	LONG	LOAI_DIEM
+AKHTTN	1	10.745832	106.739254	TRU_DO..."></textarea>
+    <button onclick="processData()">VẼ LƯỚI ĐIỆN</button>
+    <div id="status" style="margin-top: 10px; font-size: 13px; color: green; font-weight: bold;"></div>
 </div>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-    // 1. Khởi tạo bản đồ
     const map = L.map('map').setView([10.75, 106.7], 13);
-
-    // 2. Thêm lớp nền đường bộ (OpenStreetMap)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: '&copy; OSM'
     }).addTo(map);
 
-    // 3. Dữ liệu thô từ danh sách của bạn (Demo một vài tuyến tiêu biểu)
-    const rawData = [
-        {tuyen: "AKHTTN", tru: "1", lat: 10.745832, lng: 106.739254},
-        {tuyen: "AKHTTN", tru: "1A", lat: 10.745856, lng: 106.73982},
-        {tuyen: "AKHTTN", tru: "2", lat: 10.746594, lng: 106.739297},
-        {tuyen: "AKHTTN", tru: "3", lat: 10.746838, lng: 106.738653},
-        {tuyen: "AKHTTN", tru: "4", lat: 10.747969, lng: 106.738601},
-        // Thêm dữ liệu ANACGO (Tuyến dài)
-        {tuyen: "ANACGO", tru: "1", lat: 10.582589, lng: 106.825072},
-        {tuyen: "ANACGO", tru: "2", lat: 10.582078, lng: 106.82431},
-        {tuyen: "ANACGO", tru: "3", lat: 10.58075, lng: 106.824142},
-        // Bạn có thể dán toàn bộ dữ liệu Excel/Text vào đây theo định dạng này
-    ];
+    let layers = [];
 
-    // 4. Hàm xử lý dữ liệu và vẽ bản đồ
-    function drawGrid(data) {
-        const groups = {};
-        const allPoints = [];
+    function processData() {
+        // Xóa các lớp cũ trên bản đồ
+        layers.forEach(layer => map.removeLayer(layer));
+        layers = [];
 
-        // Nhóm các trụ theo tuyến
-        data.forEach(item => {
-            if (!groups[item.tuyen]) groups[item.tuyen] = [];
-            groups[item.tuyen].push([item.lat, item.lng]);
-            
-            // Vẽ marker cho từng trụ
-            L.circleMarker([item.lat, item.lng], {
-                radius: 5,
-                fillColor: "#ff7800",
-                color: "#000",
-                weight: 1,
-                opacity: 1,
-                fillOpacity: 0.8
-            }).addTo(map)
-              .bindPopup(`<b>Tuyến:</b> ${item.tuyen}<br><b>Trụ:</b> ${item.tru}<br><b>Tọa độ:</b> ${item.lat}, ${item.lng}`);
-            
-            allPoints.push([item.lat, item.lng]);
-        });
+        const input = document.getElementById('dataInput').value.trim();
+        if (!input) return alert("Vui lòng dán dữ liệu!");
 
-        // Vẽ đường dây nối các trụ trong cùng tuyến
-        for (let tuyen in groups) {
-            L.polyline(groups[tuyen], {
-                color: 'blue',
-                weight: 3,
-                opacity: 0.6,
-                smoothFactor: 1
-            }).addTo(map);
+        const rows = input.split('\n');
+        const header = rows[0].split(/\t|,/); // Nhận diện tab hoặc phẩy
+        
+        // Tìm chỉ số các cột
+        const idxTuyen = header.findIndex(h => h.includes("MA_TUYEN"));
+        const idxTru = header.findIndex(h => h.includes("TEN_TRU"));
+        const idxLat = header.findIndex(h => h.includes("LAT"));
+        const idxLong = header.findIndex(h => h.includes("LONG"));
+
+        if (idxLat === -1 || idxLong === -1) {
+            return alert("Không tìm thấy cột LAT hoặc LONG!");
         }
 
-        // Tự động căn chỉnh bản đồ để thấy hết các điểm
-        if (allPoints.length > 0) {
-            map.fitBounds(allPoints);
+        const groups = {};
+        const bounds = [];
+
+        for (let i = 1; i < rows.length; i++) {
+            const cols = rows[i].split(/\t|,/);
+            if (cols.length < 2) continue;
+
+            const tuyen = cols[idxTuyen]?.trim() || "KHONG_TEN";
+            const tru = cols[idxTru]?.trim() || "N/A";
+            const lat = parseFloat(cols[idxLat]);
+            const lng = parseFloat(cols[idxLong]);
+
+            if (isNaN(lat) || isNaN(lng)) continue;
+
+            const pos = [lat, lng];
+            bounds.push(pos);
+
+            // Gom nhóm theo tuyến để nối dây
+            if (!groups[tuyen]) groups[tuyen] = [];
+            groups[tuyen].push(pos);
+
+            // Vẽ Marker cho trụ
+            const marker = L.circleMarker(pos, {
+                radius: 4, fillColor: "#ff3300", color: "#000", weight: 1, fillOpacity: 0.8
+            }).addTo(map).bindPopup(`<b>Tuyến:</b> ${tuyen}<br><b>Trụ:</b> ${tru}`);
+            layers.push(marker);
+        }
+
+        // Vẽ các tuyến dây (Polyline)
+        for (let tuyen in groups) {
+            const polyline = L.polyline(groups[tuyen], {
+                color: 'blue', weight: 3, opacity: 0.5
+            }).addTo(map);
+            layers.push(polyline);
+        }
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds);
+            document.getElementById('status').innerText = `Đã vẽ ${bounds.length} trụ điện!`;
         }
     }
-
-    // Chạy hàm vẽ
-    drawGrid(rawData);
-
-    // Lưu ý: Để hiển thị toàn bộ 500+ trụ, bạn nên dùng 
-    // một file JSON riêng hoặc nạp từ Google Sheets thông qua Apps Script của bạn.
 </script>
 
 </body>
