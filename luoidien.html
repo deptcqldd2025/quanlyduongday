@@ -3,22 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>VDC Power Map - SOL61.04 (Polygon Water)</title>
+    <title>VDC Power Map - SOL61.05 (Visual Scanner)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --vdc-red: #d32f2f; --vdc-dark: #263238; --vdc-green: #2e7d32; --vdc-blue: #1976d2; }
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; background: #f4f4f4; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
-        .version-tag { position: absolute; bottom: 10px; left: 10px; z-index: 1001; background: rgba(0,0,0,0.7); color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-
-        .search-box {
-            position: absolute; top: 15px; left: 70px; z-index: 1001;
-            display: flex; background: white; padding: 4px; border-radius: 25px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2); width: calc(100% - 90px); max-width: 400px;
-        }
-        #searchInput { flex-grow: 1; border: none; padding: 8px 15px; outline: none; font-size: 14px; border-radius: 20px; }
-        .search-btn { background: var(--vdc-blue); color: white; border: none; padding: 0 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .version-tag { position: absolute; bottom: 10px; left: 10px; z-index: 1001; background: rgba(0,0,0,0.8); color: #00ff41; padding: 5px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #00ff41; }
 
         #menuToggle {
             position: absolute; top: 15px; left: 15px; z-index: 1001; 
@@ -37,81 +29,65 @@
         #sidebar.active { left: 0; }
         .nav-title { color: var(--vdc-red); font-size: 18px; font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
         .menu-item { margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #ccc; }
-        select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 14px; margin-bottom: 5px; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 5px; text-transform: uppercase; }
+        select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 8px; text-transform: uppercase; }
 
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        .progress-box { width: 80%; max-width: 400px; background: #ddd; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 10px; }
-        #myBar { width: 0%; height: 100%; background: var(--vdc-red); transition: 0.3s; }
-        
-        #liveLog { 
-            width: 85%; max-width: 550px; height: 280px; background: #0b0b0b; color: #00ff41; 
-            font-family: 'Courier New', monospace; font-size: 11px; padding: 15px; 
-            border-radius: 8px; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            border: 1px solid #333;
+        /* Scanner HUD */
+        #scannerHUD {
+            position: fixed; bottom: 20px; right: 20px; width: 300px; 
+            background: rgba(0,0,0,0.85); color: #00ff41; font-family: 'Courier New', monospace;
+            padding: 15px; border-radius: 8px; z-index: 2000; display: none;
+            border: 1px solid #333; font-size: 11px;
         }
-
+        .hud-title { color: white; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 8px; font-weight: bold; }
+        
         #resultPanel { position: fixed; top: 100%; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; transition: 0.5s ease; display: flex; flex-direction: column; }
         #resultPanel.active { top: 0; }
         .res-header { padding: 15px 25px; background: var(--vdc-dark); color: white; display: flex; justify-content: space-between; align-items: center; }
         .table-wrap { flex-grow: 1; overflow: auto; padding: 10px; }
-        table { width: 100%; border-collapse: collapse; min-width: 850px; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
         table th { position: sticky; top: 0; background: #455a64; color: white; padding: 12px; border: 1px solid #ddd; }
         table td { padding: 10px; border: 1px solid #ddd; font-size: 13px; }
     </style>
 </head>
 <body>
 
-<div class="version-tag">SOL61.04 | POLYGON WATER SENSOR</div>
+<div class="version-tag">SOL61.05 | VISUAL RADAR SCANNER</div>
 
-<div id="loading" class="loading-overlay">
-    <div id="pLabel" style="font-weight: bold; color: var(--vdc-red); margin-bottom: 10px; font-size: 18px;">QUÉT VÙNG NƯỚC (5M/ĐIỂM)...</div>
-    <div class="progress-box"><div id="myBar"></div></div>
-    <div id="liveLog"><div>> Hệ thống VDC SOL61.04 khởi động...</div></div>
+<div id="scannerHUD">
+    <div class="hud-title">QUÉT THỰC ĐỊA VDC</div>
+    <div id="hudStatus">Đang khởi tạo...</div>
+    <div id="hudDetail" style="margin-top:5px; color:#aaa;"></div>
 </div>
 
 <button id="menuToggle" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
 
-<div class="search-box">
-    <input type="text" id="searchInput" placeholder="Tìm tên đường/sông (VD: Sông Sài Gòn)...">
-    <button class="search-btn" onclick="searchMap()">TÌM</button>
-</div>
-
 <div id="sidebar">
     <div onclick="toggleSidebar()" style="text-align:right; cursor:pointer; font-size:24px;">×</div>
-    <div class="nav-title">VDC Power SOL61.04</div>
+    <div class="nav-title">VDC Power SOL61.05</div>
     
     <div class="menu-item">
-        <h3>1. DỮ LIỆU</h3>
-        <textarea id="dataInput" placeholder="MA_TUYEN, LAT, LONG..."></textarea>
-        <button class="btn" style="background:var(--vdc-red); color:white" onclick="saveToCloud()">LƯU CLOUD</button>
-    </div>
-
-    <div class="menu-item">
-        <h3>2. PHÂN TÍCH GIAO CHÉO (5M)</h3>
-        <select id="selectTuyen"><option value="">-- Tải dữ liệu --</option></select>
-        <button class="btn" style="background:var(--vdc-dark); color:white" onclick="runSampling('road')">TÌM ĐƯỜNG BỘ</button>
-        <button class="btn" style="background:#006064; color:white" onclick="runSampling('water')">TÌM ĐƯỜNG THỦY</button>
+        <h3>PHÂN TÍCH GIAO CHÉO</h3>
+        <p style="font-size:11px; color:#666;">Hệ thống sẽ Zoom và Marker từng điểm 5m.</p>
+        <select id="selectTuyen"><option value="">-- Đang tải dữ liệu --</option></select>
+        <button class="btn" style="background:var(--vdc-dark); color:white" onclick="runVisualScan('road')">QUÉT ĐƯỜNG BỘ</button>
+        <button class="btn" style="background:#006064; color:white" onclick="runVisualScan('water')">QUÉT SÔNG NGÒI</button>
     </div>
 </div>
 
 <div id="resultPanel">
     <div class="res-header">
-        <span id="resTitle" style="font-weight:bold">BÁO CÁO GIAO CHÉO CHÍNH XÁC</span>
-        <div>
-            <button onclick="downloadCSV()" style="padding: 8px 15px; background:var(--vdc-green); color:white; border:none; border-radius:4px; margin-right:10px; font-weight:bold;">TẢI EXCEL</button>
-            <button onclick="closeResult()" style="padding: 8px 15px; background:var(--vdc-red); color:white; border:none; border-radius:4px; cursor:pointer">ĐÓNG</button>
-        </div>
+        <span id="resTitle" style="font-weight:bold">KẾT QUẢ GIÁM SÁT ẢO</span>
+        <button onclick="closeResult()" style="padding: 8px 15px; background:var(--vdc-red); color:white; border:none; border-radius:4px;">ĐÓNG</button>
     </div>
     <div class="table-wrap">
         <table id="reportTable">
             <thead>
                 <tr>
                     <th>STT</th>
-                    <th>Mã Tuyến</th>
-                    <th>Khoảng Cột (Giao chéo)</th>
-                    <th>Đối Tượng Thực Tế</th>
-                    <th>Khu Vực (Địa giới)</th>
+                    <th>Khoảng Cột</th>
+                    <th>Đối Tượng</th>
+                    <th>Khu Vực</th>
                     <th>Tọa Độ</th>
                 </tr>
             </thead>
@@ -132,16 +108,18 @@
       authDomain: "qldd-2025.firebaseapp.com",
       databaseURL: "https://qldd-2025-default-rtdb.firebaseio.com",
       projectId: "qldd-2025",
-      storageBucket: "qldd-2025.firebasestorage.app",
-      messagingSenderId: "84684010166",
-      appId: "1:84684010166:web:bd9c3b5ae4227ee2812c17"
+      databaseURL: "https://qldd-2025-default-rtdb.firebaseio.com",
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const map = L.map('map', { zoomControl: false }).setView([10.75, 106.7], 13);
+    
+    // Sử dụng bản đồ Hybrid để thấy cả tên đường và ảnh vệ tinh (tùy chọn)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    
     let gridLayer = L.featureGroup().addTo(map);
+    let scanMarker = null; // Marker quét tạm thời
     let masterData = {}; 
 
     window.onload = () => {
@@ -162,114 +140,103 @@
 
     function renderMap() {
         gridLayer.clearLayers();
-        const bounds = [];
         for (let code in masterData) {
-            const p = [];
-            masterData[code].points.forEach(pt => {
-                p.push([pt.lat, pt.lng]); bounds.push([pt.lat, pt.lng]);
-                L.circleMarker([pt.lat, pt.lng], { radius: 2.5, color: '#333', fillColor: 'yellow', fillOpacity: 1 }).addTo(gridLayer);
-            });
+            const p = masterData[code].points.map(pt => [pt.lat, pt.lng]);
             if (p.length > 1) L.polyline(p, { color: masterData[code].color, weight: 3 }).addTo(gridLayer);
+            masterData[code].points.forEach(pt => {
+                L.circleMarker([pt.lat, pt.lng], { radius: 2, color: '#333' }).addTo(gridLayer);
+            });
         }
-        if (bounds.length > 0) map.fitBounds(bounds);
     }
 
-    // --- LOGIC QUÉT VÙNG (POLYGON WATER) ---
-    async function runSampling(type) {
+    // --- CHẾ ĐỘ QUÉT THỊ GIÁC (VISUAL SCAN) ---
+    async function runVisualScan(type) {
         const tuyenName = document.getElementById('selectTuyen').value;
-        if (!tuyenName) return alert("Chọn tuyến dây!");
+        if (!tuyenName) return alert("Chọn tuyến!");
 
         toggleSidebar();
-        document.getElementById('loading').style.display = 'flex';
-        const log = document.getElementById('liveLog');
-        const bar = document.getElementById('myBar');
+        const hud = document.getElementById('scannerHUD');
+        const status = document.getElementById('hudStatus');
+        const detail = document.getElementById('hudDetail');
         const body = document.getElementById('reportBody');
-        body.innerHTML = "";
-        log.innerHTML = `<div>> Khởi chạy SENSOR SOL61.04 [${type.toUpperCase()}]...</div>`;
         
-        const pts = masterData[tuyenName].points;
+        hud.style.display = 'block';
+        body.innerHTML = "";
         let findings = [];
+        const pts = masterData[tuyenName].points;
 
         for (let i = 0; i < pts.length - 1; i++) {
-            let pct = Math.round(((i + 1) / (pts.length - 1)) * 100);
-            bar.style.width = pct + '%';
-            
             const p1 = pts[i];
             const p2 = pts[i+1];
             const dist = getDistance(p1.lat, p1.lng, p2.lat, p2.lng);
-            const stepCount = Math.max(1, Math.ceil(dist / 5)); 
+            const stepCount = Math.max(1, Math.ceil(dist / 5));
 
-            let spanLog = document.createElement('div');
-            spanLog.style.color = "#03a9f4";
-            spanLog.innerHTML = `> TRỤ ${p1.tru}-${p2.tru}: Quét ${stepCount} vị trí (5m/điểm)...`;
-            log.appendChild(spanLog);
-
-            let foundNamesInSpan = new Set();
-
+            status.innerHTML = `ĐANG QUÉT: Trụ ${p1.tru} ↔ ${p2.tru}`;
+            
             for (let s = 1; s <= stepCount; s++) {
                 const ratio = s / (stepCount + 1);
                 const curLat = p1.lat + (p2.lat - p1.lat) * ratio;
                 const curLng = p1.lng + (p2.lng - p1.lng) * ratio;
 
-                let dotMsg = document.createElement('div');
-                dotMsg.innerHTML = `&nbsp;&nbsp;[+] Đang quét tọa độ [${curLat.toFixed(5)}, ${curLng.toFixed(5)}]...`;
-                log.appendChild(dotMsg);
-                log.scrollTop = log.scrollHeight;
+                // 1. Zoom tới vị trí quét
+                map.flyTo([curLat, curLng], 18, { animate: true, duration: 0.5 });
 
-                await new Promise(r => setTimeout(r, 1250)); // Giữ Delay an toàn
+                // 2. Cắm Marker quét (màu đỏ rực)
+                if (scanMarker) map.removeLayer(scanMarker);
+                scanMarker = L.marker([curLat, curLng], {
+                    icon: L.divIcon({
+                        className: 'scan-icon',
+                        html: `<div style="width:12px; height:12px; background:red; border:2px solid white; border-radius:50%; box-shadow:0 0 10px red; animation: pulse 0.5s infinite;"></div>`
+                    })
+                }).addTo(map);
+
+                detail.innerHTML = `Vị trí: ${s}/${stepCount} (Cách trụ ${p1.tru}: ${s*5}m)`;
+
+                // 3. Chờ 1 chút để người dùng nhìn thấy và tránh bị block API
+                await new Promise(r => setTimeout(r, 1500)); 
 
                 try {
-                    // SỬ DỤNG OVERPASS ĐỂ HỎI VỀ VÙNG (AREA) TẠI TỌA ĐỘ
-                    // Điều này giúp bắt được Sông Sài Gòn kể cả khi không có tên đường
                     const filter = (type === 'road') ? '["highway"]' : '["natural"="water"],["waterway"]';
-                    const query = `[out:json];
-                        (
-                          nwr${filter}(around:10, ${curLat}, ${curLng});
-                        );
-                        out tags;`;
-
-                    const res = await fetch('https://overpass-api.de/api/interpreter', {
-                        method: 'POST',
-                        body: query
-                    });
+                    const query = `[out:json];nwr${filter}(around:12, ${curLat}, ${curLng});out tags;`;
+                    const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
                     const data = await res.json();
                     
-                    if (data && data.elements && data.elements.length > 0) {
-                        // Ưu tiên thực thể có tên
-                        const target = data.elements.find(el => el.tags.name) || data.elements[0];
-                        const tags = target.tags;
-                        let foundName = tags.name || tags.ref || (type === 'water' ? "Sông/Vùng nước lớn" : "Đường không tên");
-
-                        if (!foundNamesInSpan.has(foundName)) {
-                            let alertMsg = document.createElement('div');
-                            alertMsg.style.color = "#ffff00";
-                            alertMsg.style.fontWeight = "bold";
-                            alertMsg.innerHTML = `&nbsp;&nbsp;&nbsp;&nbsp;[!] XÁC NHẬN GIAO CẮT: ${foundName.toUpperCase()}`;
-                            log.appendChild(alertMsg);
-                            
-                            findings.push({
-                                stt: findings.length + 1, code: tuyenName,
-                                span: `Trụ ${p1.tru} ↔ ${p2.tru}`,
-                                name: foundName, area: "TP.HCM",
-                                coord: `${curLat.toFixed(6)}, ${curLng.toFixed(6)}`
-                            });
-                            foundNamesInSpan.add(foundName);
-                        }
+                    if (data && data.elements.length > 0) {
+                        const tags = data.elements[0].tags;
+                        const foundName = tags.name || (type === 'water' ? "Sông Sài Gòn/Vùng nước" : "Đường giao cắt");
+                        
+                        // Đổi màu Marker khi phát hiện
+                        scanMarker.getElement().firstChild.style.background = "#ffff00";
+                        scanMarker.getElement().firstChild.style.boxShadow = "0 0 15px #ffff00";
+                        
+                        findings.push({
+                            stt: findings.length + 1,
+                            span: `${p1.tru}-${p2.tru}`,
+                            name: foundName,
+                            area: "TP.HCM",
+                            coord: `${curLat.toFixed(6)}, ${curLng.toFixed(6)}`
+                        });
+                        
+                        status.innerHTML = `<span style="color:yellow">! PHÁT HIỆN: ${foundName}</span>`;
+                        await new Promise(r => setTimeout(r, 1000));
                     }
-                } catch (e) {
-                    console.log("Lỗi truy vấn điểm " + s);
-                }
+                } catch (e) { console.log("Skip point"); }
             }
         }
 
-        if (findings.length === 0) body.innerHTML = "<tr><td colspan='6' style='text-align:center'>Không phát hiện giao cắt thực tế.</td></tr>";
-        else findings.forEach(d => {
-            body.innerHTML += `<tr><td>${d.stt}</td><td><b>${d.code}</b></td><td>${d.span}</td><td>${d.name}</td><td>${d.area}</td><td>${d.coord}</td></tr>`;
-        });
-
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('resultPanel').classList.add('active');
-        document.getElementById('resTitle').innerText = `KẾT QUẢ SENSOR SOL61.04 - TUYẾN ${tuyenName}`;
+        // Dọn dẹp sau khi quét xong
+        if (scanMarker) map.removeLayer(scanMarker);
+        hud.style.display = 'none';
+        
+        // Hiển thị bảng kết quả
+        if (findings.length > 0) {
+            findings.forEach(d => {
+                body.innerHTML += `<tr><td>${d.stt}</td><td>${d.span}</td><td><b>${d.name}</b></td><td>${d.area}</td><td>${d.coord}</td></tr>`;
+            });
+            document.getElementById('resultPanel').classList.add('active');
+        } else {
+            alert("Quét hoàn tất. Không tìm thấy điểm giao cắt nào.");
+        }
     }
 
     function getDistance(lat1, lon1, lat2, lon2) {
@@ -279,44 +246,13 @@
         const a = Math.sin(df/2) * Math.sin(df/2) + Math.cos(f1) * Math.cos(f2) * Math.sin(dl/2) * Math.sin(dl/2);
         return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
     }
-
-    function saveToCloud() {
-        const pass = prompt("Mật khẩu:");
-        if (pass !== "0963292882@") return;
-        const input = document.getElementById('dataInput').value.trim();
-        if (!input) return;
-        const rows = input.split('\n');
-        const h = rows[0].split(/\t/);
-        const col = { t: h.findIndex(x => x.includes("MA_TUYEN")), la: h.findIndex(x => x.includes("LAT")), ln: h.findIndex(x => x.includes("LONG")), tr: h.findIndex(x => x.includes("TEN_TRU")) };
-        masterData = {};
-        for (let i = 1; i < rows.length; i++) {
-            const c = rows[i].split(/\t/); if (c.length < 3) continue;
-            const code = c[col.t]?.trim() || "CHUNG";
-            if (!masterData[code]) masterData[code] = { color: '#' + Math.floor(Math.random()*16777215).toString(16), points: [] };
-            masterData[code].points.push({ lat: parseFloat(c[col.la].replace(',','.')), lng: parseFloat(c[col.ln].replace(',','.')), tru: c[col.tr]?.trim() || "" });
-        }
-        db.ref('powerGrid').set(masterData).then(() => { alert("Đã lưu!"); toggleSidebar(); });
-    }
-
-    async function searchMap() {
-        const q = document.getElementById('searchInput').value.trim();
-        if (!q) return;
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ", Ho Chi Minh")}&format=json&limit=1`);
-        const data = await res.json();
-        if (data[0]) map.setView([data[0].lat, data[0].lon], 16);
-    }
-
-    function downloadCSV() {
-        let csv = "\uFEFFSTT,Ma Tuyen,Khoang Cot,Doi Tuong,Khu Vuc,Toa Do\n";
-        document.querySelectorAll("#reportTable tbody tr").forEach(tr => {
-            csv += Array.from(tr.querySelectorAll("td")).map(td => `"${td.innerText}"`).join(",") + "\n";
-        });
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `VDC_Crossing_SOL61.04.csv`;
-        link.click();
-    }
 </script>
+
+<style>
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+</style>
 </body>
 </html>
